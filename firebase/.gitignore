@@ -1,0 +1,8 @@
+# Firebase cache
+.firebase/
+
+# Firebase config
+
+ with environment-specific configs
+.runtimeconfig.json
+

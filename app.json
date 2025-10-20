@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "MessageAI",
+    "slug": "messageai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.messageai.app"
+    },
+    "android": {
+      "package": "com.messageai.app",
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "plugins": []
+  }
+}
+

@@ -1,0 +1,192 @@
+import { getFirestore } from 'firebase-admin/firestore';
+import OpenAI from 'openai';
+import * as admin from 'firebase-admin';
+
+// Initialize Firebase Admin if not already done
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+const db = getFirestore();
+
+// Lazy initialize OpenAI
+function getOpenAI() {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+}
+
+/**
+ * Generate embedding for a message
+ * This can be called manually or triggered automatically
+ */
+export const generateEmbedding = async (messageId: string, threadId: string, text: string) => {
+  const openai = getOpenAI();
+  try {
+    if (!text || text.trim().length === 0) {
+      return null;
+    }
+
+    // Generate embedding using OpenAI
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: text.slice(0, 8000), // Limit input length
+    });
+
+    const vector = response.data[0].embedding;
+
+    // Store in Firestore
+    const embeddingDoc = {
+      messageId,
+      threadId,
+      vector,
+      text: text.slice(0, 500), // Store snippet for reference
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection('embeddings').doc(messageId).set(embeddingDoc);
+
+    return vector;
+  } catch (error) {
+    console.error('Error generating embedding:', error);
+    throw error;
+  }
+};
+
+/**
+ * Semantic search using embeddings
+ * Callable function from client
+ */
+export const semanticSearch = async (data: any, context: any) => {
+  const openai = getOpenAI();
+  const { query, threadId, limit = 10 } = data || {};
+
+  if (!query) {
+    throw new Error('query is required');
+  }
+
+  try {
+    // Generate embedding for the search query
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: query,
+    });
+
+    const queryVector = response.data[0].embedding;
+
+    // Fetch embeddings for the thread (or all if no threadId)
+    let embeddingsQuery = db.collection('embeddings');
+    
+    if (threadId) {
+      embeddingsQuery = embeddingsQuery.where('threadId', '==', threadId) as any;
+    }
+
+    const embeddingsSnap = await embeddingsQuery.limit(1000).get();
+
+    // Calculate cosine similarity for each embedding
+    const results = embeddingsSnap.docs.map(doc => {
+      const data = doc.data();
+      const similarity = cosineSimilarity(queryVector, data.vector);
+      
+      return {
+        messageId: data.messageId,
+        threadId: data.threadId,
+        text: data.text,
+        similarity,
+      };
+    });
+
+    // Sort by similarity and return top results
+    results.sort((a, b) => b.similarity - a.similarity);
+    
+    return {
+      results: results.slice(0, limit),
+    };
+  } catch (error) {
+    console.error('Error in semantic search:', error);
+    throw new Error('Failed to perform semantic search');
+  }
+};
+
+/**
+ * Calculate cosine similarity between two vectors
+ */
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (vecA.length !== vecB.length) {
+    throw new Error('Vectors must have the same length');
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+
+  normA = Math.sqrt(normA);
+  normB = Math.sqrt(normB);
+
+  if (normA === 0 || normB === 0) {
+    return 0;
+  }
+
+  return dotProduct / (normA * normB);
+}
+
+/**
+ * Batch generate embeddings for existing messages
+ * Can be called manually to backfill
+ */
+export const batchGenerateEmbeddings = async (data: any, context: any) => {
+  const { threadId, limit = 100 } = data || {};
+
+  if (!threadId) {
+    throw new Error('threadId is required');
+  }
+
+  try {
+    // Fetch messages that don't have embeddings yet
+    const messagesSnap = await db
+      .collection(`threads/${threadId}/messages`)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+
+    let count = 0;
+
+    for (const messageDoc of messagesSnap.docs) {
+      const messageData = messageDoc.data();
+      
+      if (!messageData.text || messageData.text.trim().length === 0) {
+        continue;
+      }
+
+      // Check if embedding already exists
+      const existingEmbedding = await db.collection('embeddings').doc(messageDoc.id).get();
+      
+      if (existingEmbedding.exists) {
+        continue;
+      }
+
+      // Generate embedding
+      try {
+        await generateEmbedding(messageDoc.id, threadId, messageData.text);
+        count++;
+      } catch (error) {
+        console.error(`Error generating embedding for message ${messageDoc.id}:`, error);
+      }
+    }
+
+    return {
+      generated: count,
+      total: messagesSnap.docs.length,
+    };
+  } catch (error) {
+    console.error('Error in batch generation:', error);
+    throw new Error('Failed to generate embeddings');
+  }
+};
+

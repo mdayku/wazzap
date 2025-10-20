@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Message images - authenticated users can upload to their own folder
+    match /messages/{userId}/{fileName} {
+      // Anyone authenticated can read (thread members will see in their chats)
+      allow read: if request.auth != null;
+      
+      // Only the uploader can write/delete their own files
+      allow write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Profile photos - users can manage their own profile pictures
+    match /profiles/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Block everything else - security default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
