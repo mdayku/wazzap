@@ -76,8 +76,8 @@ export function useInAppNotifications(userId: string | null) {
                   : 'Someone';
 
 
-                // Play notification sound
-                playNotificationSound();
+                // Play notification sound (disabled for now)
+                // playNotificationSound();
 
                 // Show toast notification
                 Toast.show({

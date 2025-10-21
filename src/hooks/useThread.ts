@@ -101,6 +101,7 @@ export function useThreads(uid: string | null) {
           
           const unsubMessages = onSnapshot(messagesQuery, (messagesSnap) => {
             threadUnreadCounts.set(threadId, messagesSnap.size);
+            console.log(`🔵 [UNREAD_DEBUG] Thread ${threadId}: ${messagesSnap.size} unread, lastRead: ${currentLastRead?.toMillis()}`);
             
             // Re-render threads with updated counts
             setThreads((prevThreads) =>
@@ -113,7 +114,7 @@ export function useThreads(uid: string | null) {
             if (error.code === 'permission-denied') {
               console.log('⚠️ [UNREAD] Permission denied (auth transition) - setting count to 0');
             } else {
-              console.error('Error counting unread for thread:', threadId, error);
+              console.error('❌ [UNREAD_ERROR] Thread:', threadId, 'Error:', error.message || error);
             }
             threadUnreadCounts.set(threadId, 0);
           });
