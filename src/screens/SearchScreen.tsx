@@ -10,6 +10,7 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { httpsCallable } from 'firebase/functions';
 import { functions, db } from '../services/firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
@@ -72,9 +73,18 @@ export default function SearchScreen({ route, navigation }: any) {
         
         setResults(searchResults);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error searching:', error);
       setResults([]);
+      
+      const errorMessage = error?.message || 'Search failed';
+      Toast.show({
+        type: 'error',
+        text1: semanticSearchEnabled ? 'AI Search Failed' : 'Search Failed',
+        text2: errorMessage.length > 50 ? 'Please try again' : errorMessage,
+        position: 'bottom',
+        visibilityTime: 3000,
+      });
     } finally {
       setLoading(false);
     }

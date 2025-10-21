@@ -12,9 +12,11 @@ import {
   Platform,
   Image,
   Share,
+  Alert,
 } from 'react-native';
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { db } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
@@ -305,7 +307,7 @@ export default function ChatScreen({ route, navigation }: any) {
     await generateSummary();
   };
 
-  const generateSummary = async () => {
+  const generateSummary = async (retryCount = 0) => {
     setShowSummary(true);
     setLoadingSummary(true);
     
@@ -327,10 +329,38 @@ export default function ChatScreen({ route, navigation }: any) {
       
       // Generate AI title for the summary
       generateSummaryTitle(summaryText);
-    } catch (error) {
+      
+      // Show success toast
+      Toast.show({
+        type: 'success',
+        text1: 'Summary Generated',
+        text2: 'Thread has been summarized successfully',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+    } catch (error: any) {
       console.error('Error summarizing:', error);
-      setSummary('Failed to generate summary. Please try again.');
+      
+      // Retry logic (max 2 retries)
+      if (retryCount < 2) {
+        console.log(`Retrying summarization (attempt ${retryCount + 1}/2)...`);
+        setTimeout(() => generateSummary(retryCount + 1), 1000);
+        return;
+      }
+      
+      // After retries failed, show error to user
+      setSummary('');
       setSummaryTitle('Thread Summary');
+      setShowSummary(false);
+      
+      const errorMessage = error?.message || 'Failed to generate summary';
+      Toast.show({
+        type: 'error',
+        text1: 'Summarization Failed',
+        text2: errorMessage.length > 50 ? 'Please try again later' : errorMessage,
+        position: 'bottom',
+        visibilityTime: 4000,
+      });
     } finally {
       setLoadingSummary(false);
     }
@@ -383,7 +413,7 @@ export default function ChatScreen({ route, navigation }: any) {
     await generateActions();
   };
 
-  const generateActions = async () => {
+  const generateActions = async (retryCount = 0) => {
     setShowActions(true);
     setLoadingActions(true);
     
@@ -400,10 +430,41 @@ export default function ChatScreen({ route, navigation }: any) {
       ));
       setActionItems(result.actionItems || []);
       setDecisions(result.decisions || []);
-    } catch (error) {
+      
+      // Show success toast
+      const totalItems = (result.actionItems?.length || 0) + (result.decisions?.length || 0);
+      if (totalItems > 0) {
+        Toast.show({
+          type: 'success',
+          text1: 'Actions Extracted',
+          text2: `Found ${totalItems} item${totalItems !== 1 ? 's' : ''}`,
+          position: 'bottom',
+          visibilityTime: 2000,
+        });
+      }
+    } catch (error: any) {
       console.error('Error extracting actions:', error);
+      
+      // Retry logic (max 2 retries)
+      if (retryCount < 2) {
+        console.log(`Retrying action extraction (attempt ${retryCount + 1}/2)...`);
+        setTimeout(() => generateActions(retryCount + 1), 1000);
+        return;
+      }
+      
+      // After retries failed, show error to user
       setActionItems([]);
       setDecisions([]);
+      setShowActions(false);
+      
+      const errorMessage = error?.message || 'Failed to extract actions';
+      Toast.show({
+        type: 'error',
+        text1: 'Extraction Failed',
+        text2: errorMessage.length > 50 ? 'Please try again later' : errorMessage,
+        position: 'bottom',
+        visibilityTime: 4000,
+      });
     } finally {
       setLoadingActions(false);
     }
