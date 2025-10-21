@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';

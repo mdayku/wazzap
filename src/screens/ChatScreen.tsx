@@ -52,14 +52,16 @@ export default function ChatScreen({ route, navigation }: any) {
   const [messageLimit, setMessageLimit] = useState(50);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const markedAsReadRef = useRef<Set<string>>(new Set()); // Track messages we've already marked
+  const markedAsReadRef = useRef<Set<string>>(new Set());
+  const isInitialLoadRef = useRef(true); // Track messages we've already marked
 
   // Fetch messages
   useEffect(() => {
     if (!threadId || !user) return;
 
-    // Reset marked messages when thread changes
+    // Reset state when thread changes
     markedAsReadRef.current.clear();
+    isInitialLoadRef.current = true;
 
     const q = query(
       collection(db, `threads/${threadId}/messages`),
@@ -76,10 +78,14 @@ export default function ChatScreen({ route, navigation }: any) {
       // Check if there are more messages
       setHasMoreMessages(snap.docs.length === messageLimit);
       
-      // Scroll to bottom
-      setTimeout(() => {
-        listRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      // Scroll to bottom only on initial load
+      if (isInitialLoadRef.current) {
+        isInitialLoadRef.current = false;
+        // Use longer timeout and no animation for reliable initial scroll
+        setTimeout(() => {
+          listRef.current?.scrollToEnd({ animated: false });
+        }, 300);
+      }
       
       // Mark messages from others as delivered (if they're not already read)
       const messagesToDeliver = snap.docs.filter(doc => {
