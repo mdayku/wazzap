@@ -47,13 +47,19 @@ export function useThreads(uid: string | null) {
         const threadId = doc.id;
         const currentLastRead = threadData.lastRead?.[uid];
         
+        console.log('🔍 [UNREAD] Thread:', threadId, 'currentLastRead:', currentLastRead?.toMillis?.(), 'exists:', !!currentLastRead);
+        
         // Check if lastRead timestamp has changed (e.g., user opened the chat)
         const cachedLastRead = lastReadCache.get(threadId);
+        console.log('🔍 [UNREAD] cachedLastRead:', cachedLastRead?.toMillis?.(), 'exists:', !!cachedLastRead);
+        
         const lastReadChanged = 
           (cachedLastRead === undefined && currentLastRead !== undefined) ||
           (cachedLastRead !== undefined && currentLastRead === undefined) ||
           (cachedLastRead && currentLastRead && 
            cachedLastRead.toMillis() !== currentLastRead.toMillis());
+        
+        console.log('🔍 [UNREAD] lastReadChanged:', lastReadChanged);
         
         // Set up or refresh unread count listener if needed
         if (!unsubscribers.has(threadId) || lastReadChanged) {
