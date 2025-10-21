@@ -10,7 +10,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useThreads } from '../hooks/useThread';
 import { useAuth } from '../hooks/useAuth';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -39,43 +39,46 @@ export default function ThreadsScreen() {
   }, [user]);
 
   useEffect(() => {
-    // Fetch user data and presence for thread members
-    const fetchUsers = async () => {
-      const uids = new Set<string>();
-      threads.forEach(thread => {
-        thread.members.forEach(uid => {
-          if (uid !== user?.uid && !userCache[uid]) {
-            uids.add(uid);
-          }
-        });
+    if (!user || threads.length === 0) return;
+
+    // Collect all unique member UIDs
+    const uids = new Set<string>();
+    threads.forEach(thread => {
+      thread.members.forEach(uid => {
+        if (uid !== user.uid) {
+          uids.add(uid);
+        }
       });
+    });
 
-      const newUsers: UserCache = { ...userCache };
-      await Promise.all(
-        Array.from(uids).map(async (uid) => {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', uid));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              newUsers[uid] = {
-                displayName: userData.displayName || 'User',
-                photoURL: userData.photoURL,
-                presence: userData.presence,
-              };
+    if (uids.size === 0) return;
+
+    // Set up real-time listeners for each user's presence
+    const unsubscribers: (() => void)[] = [];
+
+    Array.from(uids).forEach((uid) => {
+      const userRef = doc(db, 'users', uid);
+      const unsubscribe = onSnapshot(userRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const userData = snapshot.data();
+          setUserCache(prev => ({
+            ...prev,
+            [uid]: {
+              displayName: userData.displayName || 'User',
+              photoURL: userData.photoURL,
+              presence: userData.lastSeen, // Use lastSeen for presence
             }
-          } catch (error) {
-            console.error('Error fetching user:', error);
-          }
-        })
-      );
+          }));
+        }
+      });
+      unsubscribers.push(unsubscribe);
+    });
 
-      setUserCache(newUsers);
+    // Cleanup all listeners on unmount
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
     };
-
-    if (threads.length > 0) {
-      fetchUsers();
-    }
-  }, [threads]);
+  }, [threads, user]);
 
   const getThreadName = (thread: any): string => {
     if (thread?.name && typeof thread.name === 'string') return thread.name;
