@@ -185,6 +185,12 @@ export default function NewChatScreen() {
 
   const createNewThread = async (memberIds: string[], groupName?: string, type: 'direct' | 'group' = 'direct') => {
     try {
+      // Initialize lastRead for all members to current time (so they don't see old messages as unread)
+      const lastRead: { [key: string]: any } = {};
+      memberIds.forEach(memberId => {
+        lastRead[memberId] = serverTimestamp();
+      });
+
       const threadData: any = {
         type,
         members: memberIds,
@@ -192,6 +198,7 @@ export default function NewChatScreen() {
         updatedAt: serverTimestamp(),
         lastMessage: null,
         typing: {},
+        lastRead, // Initialize lastRead for all members
       };
 
       if (groupName) {

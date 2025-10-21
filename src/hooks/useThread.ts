@@ -47,6 +47,11 @@ export function useThreads(uid: string | null) {
         const threadId = doc.id;
         const currentLastRead = threadData.lastRead?.[uid];
         
+        // Debug: Check if lastRead exists for this user
+        if (!currentLastRead) {
+          console.log(`⚠️ [LASTREAD_MISSING] Thread ${threadId}, User ${uid}, lastRead:`, threadData.lastRead);
+        }
+        
         // Check if lastRead timestamp has changed (e.g., user opened the chat)
         const cachedLastRead = lastReadCache.get(threadId);
         
