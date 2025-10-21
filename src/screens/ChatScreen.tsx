@@ -14,7 +14,7 @@ import {
   Share,
   Alert,
 } from 'react-native';
-import { collection, onSnapshot, orderBy, query, doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, doc, updateDoc, setDoc, getDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { db } from '../services/firebase';
@@ -49,6 +49,9 @@ export default function ChatScreen({ route, navigation }: any) {
   const [threadMembers, setThreadMembers] = useState<string[]>([]);
   const [isGroupChat, setIsGroupChat] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const [messageLimit, setMessageLimit] = useState(50);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Fetch messages
   useEffect(() => {
@@ -56,13 +59,18 @@ export default function ChatScreen({ route, navigation }: any) {
 
     const q = query(
       collection(db, `threads/${threadId}/messages`),
-      orderBy('createdAt', 'asc')
+      orderBy('createdAt', 'desc'),
+      limit(messageLimit)
     );
 
     const unsubscribe = onSnapshot(q, async (snap) => {
-      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse(); // Reverse to show oldest first
       setMessages(rows);
       setLoading(false);
+      setLoadingMore(false);
+      
+      // Check if there are more messages
+      setHasMoreMessages(snap.docs.length === messageLimit);
       
       // Scroll to bottom
       setTimeout(() => {
@@ -294,6 +302,13 @@ export default function ChatScreen({ route, navigation }: any) {
     } catch (error) {
       console.error('Error updating typing:', error);
     }
+  };
+
+  const handleLoadMore = () => {
+    if (loadingMore || !hasMoreMessages) return;
+    setLoadingMore(true);
+    setMessageLimit(prev => prev + 50);
+    console.log('📄 [PAGINATION] Loading 50 more messages...');
   };
 
   const handleSummarize = async () => {
@@ -592,6 +607,22 @@ export default function ChatScreen({ route, navigation }: any) {
             />
           );
         }}
+        ListHeaderComponent={hasMoreMessages ? (
+          <TouchableOpacity 
+            style={[styles.loadMoreButton, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            onPress={handleLoadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="arrow-up-circle-outline" size={20} color={colors.primary} />
+                <Text style={[styles.loadMoreText, { color: colors.primary }]}>Load Earlier Messages</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
         contentContainerStyle={styles.messagesList}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         style={styles.chatContent}
@@ -1100,6 +1131,22 @@ const styles = StyleSheet.create({
   decisionMeta: {
     fontSize: 14,
     color: '#666666',
+  },
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  loadMoreText: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 
