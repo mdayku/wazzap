@@ -1,18 +1,31 @@
 # 🧪 Testing Guide - MessageAI
 
-## Overview
-
-This project uses **Jest** and **React Native Testing Library** for unit and integration testing.
+**Last Updated:** October 21, 2025  
+**Test Status:** 30/53 tests passing (57%) | 6/10 suites passing (60%)
 
 ---
 
-## 📦 Test Dependencies
+## 📊 Current Test Status
 
-Already configured in `package.json`:
-- `jest` - Testing framework
-- `jest-expo` - Expo-specific Jest preset
-- `@testing-library/react-native` - React Native testing utilities
-- `@testing-library/jest-native` - Custom matchers
+| Suite | Tests | Passing | Failing | Status |
+|-------|-------|---------|---------|--------|
+| `time.test.ts` | 4 | 4 | 0 | ✅ PASS |
+| `offlineQueue.test.ts` | 3 | 3 | 0 | ✅ PASS |
+| `store.test.ts` | 5 | 5 | 0 | ✅ PASS |
+| `useThread.test.ts` | 6 | 6 | 0 | ✅ PASS |
+| `TypingDots.test.tsx` | 2 | 2 | 0 | ✅ PASS |
+| `NewChatScreen.test.tsx` | 10 | 10 | 0 | ✅ PASS |
+| `MessageBubble.test.tsx` | 8 | 0 | 8 | ❌ FAIL |
+| `Composer.test.tsx` | 9 | 0 | 9 | ❌ FAIL |
+| `LoginScreen.test.tsx` | 1 | 0 | 1 | ❌ FAIL |
+| `useAuth.test.ts` | 5 | 0 | 5 | ❌ FAIL |
+| **TOTAL** | **53** | **30** | **23** | **57%** |
+
+### Failing Tests - Root Causes
+1. **MessageBubble (8 failures)** - Need ThemeProvider wrapper ✅ Fixed, ready for re-test
+2. **Composer (9 failures)** - UI changed to icon buttons, tests need testID props
+3. **LoginScreen (1 failure)** - Text expectations updated ✅ Fixed, ready for re-test  
+4. **useAuth (5 failures)** - Firebase Auth mocks need refinement
 
 ---
 
@@ -33,6 +46,16 @@ npm run test:watch
 npm run test:coverage
 ```
 
+### Run Single Test File
+```bash
+npm test -- MessageBubble.test
+```
+
+### Run Tests Matching Pattern
+```bash
+npm test -- --testNamePattern="should render"
+```
+
 ---
 
 ## 📂 Test Structure
@@ -51,6 +74,10 @@ src/
 │   ├── store.ts
 │   └── __tests__/
 │       └── store.test.ts
+├── hooks/
+│   ├── useAuth.ts
+│   └── __tests__/
+│       └── useAuth.test.ts
 ├── utils/
 │   ├── time.ts
 │   └── __tests__/
@@ -62,51 +89,90 @@ src/
 
 ---
 
-## ✅ Test Coverage
+## ✅ Passing Tests (30/53)
 
-### Current Test Suites:
+### Utils (4/4) ✅
+- Time formatting utilities
+- Relative time display
+- Presence status checks
+- Date manipulation
 
-1. **Utils Tests** (`src/utils/__tests__/time.test.ts`)
-   - ✅ `formatTimestamp()` - Various date formats
-   - ✅ `formatLastSeen()` - Online/offline status
+### Services (3/3) ✅
+- Offline queue initialization
+- Message queueing
+- Queue retry logic
 
-2. **State Tests** (`src/state/__tests__/store.test.ts`)
-   - ✅ Zustand store initialization
-   - ✅ User state management
-   - ✅ Loading state management
+### State Management (5/5) ✅
+- Initial state
+- Loading state management
+- User state updates
+- Thread state updates
+- Message state updates
 
-3. **Component Tests**
-   - ✅ `MessageBubble` - Rendering, status indicators, priority badges
-   - ✅ `TypingDots` - Animation rendering
+### Hooks (6/6) ✅
+- useThread initialization
+- Thread message fetching
+- Real-time updates
+- Typing indicators
+- Message sending
+- Cleanup on unmount
 
-4. **Screen Tests**
-   - ✅ `LoginScreen` - Form rendering, mode switching, validation
+### Components (2/2) ✅
+- TypingDots animation
+- TypingDots rendering
 
-5. **Service Tests**
-   - ✅ `offlineQueue` - Message sending, media handling
+### Screens (10/10) ✅
+- NewChatScreen user list
+- User selection & search
+- Chat creation logic
+- Group chat creation
+- Duplicate detection
+- Loading & error states
+
+---
+
+## ⚠️ Missing Test Coverage
+
+### Components WITHOUT Tests
+- ❌ `ChatScreen.tsx` - **CRITICAL** (main chat interface)
+- ❌ `ThreadsScreen.tsx` - **CRITICAL** (thread list)
+- ❌ `ProfileScreen.tsx` - (user profile)
+- ❌ `SearchScreen.tsx` - (AI semantic search)
+- ❌ `DecisionsScreen.tsx` - (AI decisions)
+- ❌ `ThemeContext.tsx` - (dark mode)
+
+### Hooks WITHOUT Tests
+- ❌ `usePresence.ts` - (online/offline)
+- ❌ `useInAppNotifications.ts` - (toasts)
+- ❌ `useMessages.ts` - (message management)
+- ❌ `useTypingIndicator.ts` - (typing status)
+
+### Services WITHOUT Tests
+- ❌ `firebase.ts` - (Firebase init)
+- ❌ `ai.ts` - **CRITICAL** (AI Cloud Functions)
+- ❌ `messaging.ts` - **CRITICAL** (messaging)
+- ❌ `notifications.ts` - (push notifications)
 
 ---
 
 ## 🎯 Test Examples
 
-### Testing a Component
+### Testing a Component with ThemeProvider
 
 ```typescript
-import { render, fireEvent } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
+import { ThemeProvider } from '../../contexts/ThemeContext';
 import MyComponent from '../MyComponent';
+
+// Helper to render with ThemeProvider
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('MyComponent', () => {
   it('should render correctly', () => {
-    const { getByText } = render(<MyComponent />);
+    const { getByText } = renderWithTheme(<MyComponent />);
     expect(getByText('Hello')).toBeTruthy();
-  });
-
-  it('should handle button press', () => {
-    const onPress = jest.fn();
-    const { getByText } = render(<MyComponent onPress={onPress} />);
-    
-    fireEvent.press(getByText('Click Me'));
-    expect(onPress).toHaveBeenCalled();
   });
 });
 ```
@@ -140,39 +206,87 @@ it('should update value', () => {
 });
 ```
 
+### Testing with testID
+
+```typescript
+// Component
+<TouchableOpacity testID="send-button" onPress={handleSend}>
+  <Ionicons name="send" />
+</TouchableOpacity>
+
+// Test
+const { getByTestId } = render(<Composer {...props} />);
+fireEvent.press(getByTestId('send-button'));
+```
+
 ---
 
-## 🔧 Mocking
+## 🔧 Mock Setup
 
-### Mocking Firebase
+All mocks are configured in `jest.setup.js`.
 
-Firebase is mocked globally in `jest.setup.js`:
-
+### AsyncStorage Mock
 ```javascript
-jest.mock('./src/services/firebase', () => ({
-  auth: {},
-  db: {},
-  storage: {},
-  functions: {},
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(() => Promise.resolve(null)),
+    setItem: jest.fn(() => Promise.resolve()),
+    removeItem: jest.fn(() => Promise.resolve()),
+    // ... more methods
+  },
 }));
 ```
 
-### Mocking Firestore Functions
+### Firebase Auth Mock
+```javascript
+jest.mock('firebase/auth', () => ({
+  getAuth: jest.fn(() => ({})),
+  signInWithEmailAndPassword: jest.fn((auth, email, password) => {
+    if (email === 'error@test.com') {
+      return Promise.reject(new Error('Invalid credentials'));
+    }
+    return Promise.resolve({ user: { uid: 'test-uid', email } });
+  }),
+  createUserWithEmailAndPassword: jest.fn(),
+  signOut: jest.fn(() => Promise.resolve()),
+  onAuthStateChanged: jest.fn(),
+}));
+```
 
-```typescript
+### Firebase Firestore Mock
+```javascript
 jest.mock('firebase/firestore', () => ({
-  addDoc: jest.fn(() => Promise.resolve({ id: 'mock-id' })),
-  collection: jest.fn(),
-  serverTimestamp: jest.fn(() => ({ _seconds: Date.now() / 1000 })),
+  getFirestore: jest.fn(() => ({})),
+  collection: jest.fn(() => ({})),
+  doc: jest.fn(() => ({})),
+  getDoc: jest.fn(() => Promise.resolve({ exists: () => false })),
+  setDoc: jest.fn(() => Promise.resolve()),
+  updateDoc: jest.fn(() => Promise.resolve()),
+  query: jest.fn(() => ({})),
+  where: jest.fn(() => ({})),
+  orderBy: jest.fn(() => ({})),
+  onSnapshot: jest.fn(() => jest.fn()),
+  serverTimestamp: jest.fn(() => ({ seconds: Date.now() / 1000 })),
 }));
 ```
 
-### Mocking Navigation
+### Expo Modules Mock
+```javascript
+jest.mock('expo-notifications', () => ({
+  getExpoPushTokenAsync: jest.fn(() => Promise.resolve({ data: 'test-token' })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  // ... more methods
+}));
 
-```typescript
-const mockNavigate = jest.fn();
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  MediaTypeOptions: { Images: 'Images' },
+}));
+
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn(() => Promise.resolve({ uri: 'manipulated-uri' })),
+  SaveFormat: { JPEG: 'jpeg', PNG: 'png' },
 }));
 ```
 
@@ -180,36 +294,81 @@ jest.mock('@react-navigation/native', () => ({
 
 ## 📊 Coverage Goals
 
-Target coverage thresholds:
-- **Statements:** > 80%
-- **Branches:** > 75%
-- **Functions:** > 80%
-- **Lines:** > 80%
+| Category | Current | Target | Status |
+|----------|---------|--------|--------|
+| Statements | ~45% | 80% | 🟡 |
+| Branches | ~40% | 75% | 🟡 |
+| Functions | ~50% | 80% | 🟡 |
+| Lines | ~45% | 80% | 🟡 |
 
-Current coverage by area:
-- ✅ Utils: ~90%
-- ✅ State: ~85%
-- ✅ Components: ~70%
-- ⚠️ Screens: ~60% (needs more tests)
-- ⚠️ Services: ~50% (Firebase integration hard to test)
+---
+
+## ✨ Best Practices
+
+### ✅ DO:
+- Test user-facing behavior, not implementation details
+- Use meaningful test descriptions (what it does, not how)
+- Test edge cases and error states
+- Mock external dependencies (Firebase, APIs)
+- Keep tests isolated and independent
+- Use `testID` for complex selectors
+- Wrap components using Context in appropriate providers
+- Test accessibility features
+
+### ❌ DON'T:
+- Test third-party libraries (Firebase, React Navigation)
+- Test styling details excessively
+- Create tests that depend on other tests
+- Mock everything (test real logic when possible)
+- Write tests just for coverage numbers
+- Test implementation details that users don't see
+- Use brittle selectors (prefer testID or accessibility labels)
+
+---
+
+## 🔍 What to Test
+
+### High Priority ✅
+- Business logic (message sending, user auth, AI features)
+- User interactions (button clicks, form submission, navigation)
+- State management (Zustand store, Context)
+- Utilities and helpers (time formatting, validation)
+- Component rendering with different props
+- Error handling and edge cases
+- Async operations (API calls, database queries)
+
+### Lower Priority ⚠️
+- Styling and layout (covered by snapshot tests)
+- Third-party integrations (covered by integration/E2E tests)
+- Simple pass-through components
+- Static content rendering
 
 ---
 
 ## 🐛 Debugging Tests
 
-### Run Single Test File
-```bash
-npm test -- LoginScreen.test
+### Common Issues
+
+**Issue:** `useTheme must be used within a ThemeProvider`  
+**Fix:** Wrap component in `ThemeProvider`:
+```typescript
+const renderWithTheme = (component) => (
+  render(<ThemeProvider>{component}</ThemeProvider>)
+);
 ```
 
-### Run Tests Matching Pattern
-```bash
-npm test -- --testNamePattern="should render"
-```
+**Issue:** `AsyncStorage is null`  
+**Fix:** Already mocked in `jest.setup.js`, ensure it's imported
 
-### Verbose Output
-```bash
-npm test -- --verbose
+**Issue:** Firebase functions not mocked  
+**Fix:** Check `jest.setup.js` for comprehensive Firebase mocks
+
+**Issue:** Test timeout  
+**Fix:** Use `waitFor` for async operations:
+```typescript
+await waitFor(() => {
+  expect(mockFunction).toHaveBeenCalled();
+});
 ```
 
 ### Debug in VS Code
@@ -221,71 +380,10 @@ Add to `.vscode/launch.json`:
   "request": "launch",
   "name": "Jest Debug",
   "program": "${workspaceFolder}/node_modules/.bin/jest",
-  "args": ["--runInBand"],
+  "args": ["--runInBand", "--no-cache"],
   "console": "integratedTerminal",
   "internalConsoleOptions": "neverOpen"
 }
-```
-
----
-
-## ✨ Best Practices
-
-### ✅ DO:
-- Test user-facing behavior, not implementation details
-- Use meaningful test descriptions
-- Test edge cases and error states
-- Mock external dependencies (Firebase, APIs)
-- Keep tests isolated and independent
-- Use `data-testid` for complex selectors
-
-### ❌ DON'T:
-- Test third-party libraries (Firebase, React Navigation)
-- Test styling details excessively
-- Create tests that depend on other tests
-- Mock everything (test real logic when possible)
-- Write tests just for coverage numbers
-
----
-
-## 🔍 What to Test
-
-### High Priority:
-✅ Business logic (message sending, user auth)  
-✅ User interactions (button clicks, form submission)  
-✅ State management (Zustand store)  
-✅ Utilities and helpers  
-✅ Component rendering with different props  
-
-### Lower Priority:
-⚠️ Styling and layout  
-⚠️ Third-party integrations (covered by integration tests)  
-⚠️ Simple pass-through components  
-
----
-
-## 🚦 CI/CD Integration
-
-### Running Tests in CI
-
-Add to your CI workflow:
-
-```yaml
-# .github/workflows/test.yml
-name: Tests
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '18'
-      - run: npm install
-      - run: npm test -- --coverage
-      - uses: codecov/codecov-action@v2
 ```
 
 ---
@@ -303,13 +401,30 @@ src/components/__tests__/NewComponent.test.tsx
 ### 2. Write Tests
 
 ```typescript
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
+import { ThemeProvider } from '../../contexts/ThemeContext';
 import NewComponent from '../NewComponent';
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('NewComponent', () => {
   it('should render correctly', () => {
-    const { getByText } = render(<NewComponent />);
-    expect(getByText('Expected Text')).toBeTruthy();
+    const { getByText } = renderWithTheme(
+      <NewComponent title="Test" />
+    );
+    expect(getByText('Test')).toBeTruthy();
+  });
+
+  it('should handle user interaction', () => {
+    const onPress = jest.fn();
+    const { getByTestId } = renderWithTheme(
+      <NewComponent onPress={onPress} />
+    );
+    
+    fireEvent.press(getByTestId('action-button'));
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 });
 ```
@@ -322,11 +437,62 @@ npm test -- NewComponent
 
 ---
 
+## 🎯 Test Quality Metrics
+
+- **Test Isolation:** ✅ Good (no interdependencies)
+- **Test Speed:** ✅ Excellent (4.5s for 53 tests)
+- **Mock Quality:** ✅ Good (comprehensive Firebase mocks)
+- **Assertion Quality:** ✅ Good (specific, meaningful assertions)
+- **Test Maintainability:** 🟡 Needs improvement (some brittle to UI changes)
+
+---
+
+## 💡 Recommendations
+
+1. **Add testID props** to all interactive elements (buttons, inputs)
+2. **Create test utilities** - Shared helpers for common patterns
+3. **Add visual regression tests** - Catch UI changes automatically
+4. **Implement snapshot tests** - Document expected component output
+5. **Add accessibility tests** - Ensure components are accessible
+6. **Set up CI/CD** - Run tests automatically on every commit
+7. **Add pre-commit hooks** - Run tests before allowing commits
+8. **Create test data factories** - Generate realistic test data easily
+
+---
+
+## 🚦 CI/CD Integration
+
+### GitHub Actions Workflow
+
+```yaml
+# .github/workflows/test.yml
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm install
+      - run: npm test -- --coverage
+      - uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+```
+
+---
+
 ## 🎓 Resources
 
-- [Jest Docs](https://jestjs.io/docs/getting-started)
+- [Jest Documentation](https://jestjs.io/docs/getting-started)
 - [React Native Testing Library](https://callstack.github.io/react-native-testing-library/)
 - [Testing Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
+- [Expo Testing Guide](https://docs.expo.dev/guides/testing-with-jest/)
+- [Firebase Testing](https://firebase.google.com/docs/rules/unit-tests)
 
 ---
 
@@ -336,7 +502,7 @@ npm test -- NewComponent
 # Install dependencies (if not already done)
 npm install
 
-# Run tests
+# Run all tests
 npm test
 
 # Watch mode for development
@@ -344,9 +510,13 @@ npm run test:watch
 
 # Check coverage
 npm run test:coverage
+
+# Run specific test file
+npm test -- MessageBubble.test
 ```
 
 ---
 
 **Happy Testing!** 🎉
 
+*For detailed test configuration, see `jest.setup.js` and `package.json`*
