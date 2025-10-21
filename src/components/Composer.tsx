@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { sendMessageOptimistic } from '../state/offlineQueue';
 import { uploadImage } from '../services/storage';
 
@@ -103,6 +104,9 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const handleSend = async () => {
     if (!text.trim() && !uploading) return;
     
+    // Haptic feedback on send
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     const messageText = text.trim();
     setText('');
     onTyping?.(false);
@@ -174,6 +178,9 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       const path = `messages/${uid}/${timestamp}.jpg`;
       
       const url = await uploadImage(compressed.uri, path);
+      
+      // Haptic feedback on send
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       const tempId = `${Date.now()}_${Math.random()}`;
       await sendMessageOptimistic(
@@ -254,6 +261,8 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       console.log('🎤 [AUDIO] Recording saved to:', uri);
 
       if (uri && recordingDuration >= 1) {
+        // Haptic feedback on send
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         // Send the audio message
         await sendAudioMessage(uri, recordingDuration);
       } else {

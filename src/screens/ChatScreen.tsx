@@ -17,6 +17,7 @@ import {
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, setDoc, getDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import * as Haptics from 'expo-haptics';
 import { db } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
@@ -54,6 +55,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const [loadingMore, setLoadingMore] = useState(false);
   const markedAsReadRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true); // Track messages we've already marked
+  const previousMessageIdsRef = useRef<Set<string>>(new Set()); // Track message IDs for haptic feedback
 
   // Fetch messages
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function ChatScreen({ route, navigation }: any) {
     // Reset state when thread changes
     markedAsReadRef.current.clear();
     isInitialLoadRef.current = true;
+    previousMessageIdsRef.current.clear();
 
     const q = query(
       collection(db, `threads/${threadId}/messages`),
@@ -81,9 +84,28 @@ export default function ChatScreen({ route, navigation }: any) {
       // Check if there are more messages
       setHasMoreMessages(snap.docs.length === messageLimit);
       
+      // Haptic feedback for new messages from others (not on initial load)
+      if (!isInitialLoadRef.current) {
+        const currentMessageIds = new Set(rows.map((m: any) => m.id));
+        const newMessages = rows.filter(
+          (msg: any) => 
+            !previousMessageIdsRef.current.has(msg.id) && 
+            msg.senderId !== user.uid
+        );
+        
+        if (newMessages.length > 0) {
+          console.log('📳 [HAPTIC] New message(s) received, triggering haptic feedback');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        
+        previousMessageIdsRef.current = currentMessageIds;
+      }
+      
       // Scroll to bottom only on initial load
       if (isInitialLoadRef.current) {
         isInitialLoadRef.current = false;
+        // Initialize previousMessageIds on first load
+        previousMessageIdsRef.current = new Set(rows.map((m: any) => m.id));
         // Use longer timeout and no animation for reliable initial scroll
         setTimeout(() => {
           listRef.current?.scrollToEnd({ animated: false });
