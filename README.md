@@ -38,13 +38,13 @@ All 11 MVP requirements tested and working!
 - ✅ **Multi-user login** - Save and select from multiple accounts
 - ✅ **Duplicate chat prevention** - Smart chat detection
 
-**AI-Powered Intelligence (Deployed, Ready to Test):**
-- 🤖 Thread summarization (catch up quickly)
-- 📋 Action item extraction (never miss tasks)
-- ⚡ Priority message detection (urgent messages highlighted)
-- 📊 Decision tracking (searchable decision log)
-- 🔍 Semantic search (find by meaning, not keywords)
-- 📅 Proactive meeting scheduler (suggests times)
+**AI-Powered Intelligence (Working & Tested):**
+- ✅ **Thread summarization** - Smart AI-generated titles, share via email/messages, cached for instant re-access
+- 🟡 Action item extraction (deployed, needs UI)
+- ✅ Priority message detection - Red badges on urgent messages
+- 🟡 Decision tracking (deployed, needs testing)
+- 🟡 Semantic search (deployed, needs toggle UI)
+- 🟡 Proactive meeting scheduler (deployed, needs testing)
 
 **Advanced AI Features (Scoped for Final Submission):**
 - 🔄 **n8n Workflow Automation** - Slack integration, email digests, calendar events
@@ -178,21 +178,27 @@ See [docs/README.md](docs/README.md) for production deployment guide.
 
 ## AI Features Deep Dive
 
-### 1. Thread Summarization
-Generates concise summaries of conversations with key points, decisions, and action items.
+### 1. Thread Summarization ✅
+Generates concise summaries of conversations with AI-powered titles, sharing, and caching.
+
+**Features:**
+- Smart AI-generated titles (extracts key topics from summary)
+- Native share functionality (email, messages, files)
+- Cached summaries for instant re-access
+- Re-summarize button to refresh with latest messages
 
 **How it works:**
 - Fetches last 50 messages from thread
 - Sends to GPT-4o-mini with summarization prompt
-- Caches result in Firestore for instant re-access
+- Extracts contextual title from summary content
+- Caches result in component state
+- Shares via native iOS/Android share sheet
 
 **Usage:**
-```typescript
-// In ChatScreen
-<TouchableOpacity onPress={handleSummarize}>
-  <Text>Summarize</Text>
-</TouchableOpacity>
-```
+1. Tap ✨ sparkles icon in chat header
+2. View summary with smart title
+3. Tap 🔄 to regenerate with latest messages
+4. Tap 📤 to share via email, messages, etc.
 
 ### 2. Action Item Extraction
 Automatically identifies tasks, assignees, and due dates from conversations.
@@ -367,13 +373,13 @@ npm start
 - [x] Profile photo upload
 - [x] Keyboard handling (Android/iOS)
 
-**🟡 AI Features (Deployed, Ready to Test):**
-- [x] AI summarization (deployed)
-- [x] Action item extraction (deployed)
-- [x] Priority detection (deployed)
-- [x] Decision tracking (deployed)
-- [x] Semantic search (deployed)
-- [x] Proactive assistant (deployed)
+**🟡 AI Features (Partially Complete):**
+- [x] AI summarization (✅ working with share, caching, smart titles)
+- [ ] Action item extraction (deployed, needs UI integration)
+- [x] Priority detection (✅ working with red badges)
+- [ ] Decision tracking (deployed, needs testing)
+- [ ] Semantic search (deployed, needs toggle UI)
+- [ ] Proactive assistant (deployed, needs testing)
 
 **🔮 Future Enhancements:**
 - [ ] Background push notifications (requires dev build)
@@ -406,7 +412,7 @@ MIT License - see LICENSE file for details
 
 **Built for remote teams, by remote developers** 🚀
 
-[Documentation](docs/) · [Setup Guide](SETUP.md) · [Architecture](docs/mermaid.md)
+[Documentation](docs/) · [Project Status (PRD)](PRD.md) · [Setup Guide](SETUP.md) · [Architecture](ARCHITECTURE.md)
 
 </div>
 

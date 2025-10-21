@@ -84,19 +84,27 @@ sequenceDiagram
     A-->>U: Navigate to ThreadsScreen
 ```
 
-## AI Summarization with Caching
+## AI Summarization with Caching, Sharing & Smart Titles
+
+**Latest Features (October 2025):**
+- ✅ AI-generated contextual titles (extracts key topics from summary)
+- ✅ Native share functionality (email, messages, files)
+- ✅ Client-side caching (instant re-access without API calls)
+- ✅ Re-summarize button to refresh with latest messages
 
 ```mermaid
 sequenceDiagram
     participant C as ChatScreen
+    participant S as Component State
     participant F as Firestore
     participant CF as Cloud Function
     participant AI as OpenAI GPT-4
     
-    C->>F: Check for cached summary
+    C->>S: Check for cached summary
     
-    alt Cache Hit
-        F-->>C: Return cached summary
+    alt Cache Hit (Component State)
+        S-->>C: Return cached summary instantly
+        C->>C: Display with smart title
     else Cache Miss
         C->>CF: summarizeThread(threadId)
         CF->>F: Fetch last 50 messages
