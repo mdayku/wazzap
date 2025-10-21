@@ -3,10 +3,32 @@ import { collection, query, where, onSnapshot, doc, getDoc, Timestamp } from 'fi
 import { db } from '../services/firebase';
 import Toast from 'react-native-toast-message';
 import { AppState, AppStateStatus } from 'react-native';
+import { Audio } from 'expo-av';
 
 export function useInAppNotifications(userId: string | null) {
   const lastMessageTimeRef = useRef<number>(Date.now());
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  // Function to play notification sound
+  const playNotificationSound = async () => {
+    try {
+      // Use a simple notification sound (you can replace this with a custom sound file)
+      // For now, using a system sound URL
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: 'https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3' },
+        { shouldPlay: true, volume: 0.3 }
+      );
+      // Unload sound after playing
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      // Silently fail if sound can't play (e.g., no internet for remote sound)
+      console.error('Error playing notification sound:', error);
+    }
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -53,6 +75,9 @@ export function useInAppNotifications(userId: string | null) {
                   ? senderDoc.data().displayName || 'Someone'
                   : 'Someone';
 
+
+                // Play notification sound
+                playNotificationSound();
 
                 // Show toast notification
                 Toast.show({
