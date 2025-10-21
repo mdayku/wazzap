@@ -52,10 +52,14 @@ export default function ChatScreen({ route, navigation }: any) {
   const [messageLimit, setMessageLimit] = useState(50);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const markedAsReadRef = useRef<Set<string>>(new Set()); // Track messages we've already marked
 
   // Fetch messages
   useEffect(() => {
     if (!threadId || !user) return;
+
+    // Reset marked messages when thread changes
+    markedAsReadRef.current.clear();
 
     const q = query(
       collection(db, `threads/${threadId}/messages`),
@@ -80,18 +84,22 @@ export default function ChatScreen({ route, navigation }: any) {
       // Mark messages from others as delivered (if they're not already read)
       const messagesToDeliver = snap.docs.filter(doc => {
         const data = doc.data();
-        return data.senderId !== user.uid && data.status === 'sent';
+        return data.senderId !== user.uid && 
+               data.status === 'sent' &&
+               !markedAsReadRef.current.has(doc.id); // Don't re-mark
       });
       
       if (messagesToDeliver.length > 0) {
         console.log(`📬 [STATUS] Marking ${messagesToDeliver.length} messages as delivered`);
         messagesToDeliver.forEach(async (msgDoc) => {
           try {
+            markedAsReadRef.current.add(msgDoc.id); // Track it
             await updateDoc(doc(db, `threads/${threadId}/messages`, msgDoc.id), {
               status: 'delivered'
             });
           } catch (error) {
             console.error('Error updating message to delivered:', error);
+            markedAsReadRef.current.delete(msgDoc.id); // Remove on error
           }
         });
       }
@@ -100,18 +108,25 @@ export default function ChatScreen({ route, navigation }: any) {
       const messagesToMarkRead = snap.docs.filter(doc => {
         const data = doc.data();
         return data.senderId !== user.uid && 
-               (data.status === 'delivered' || data.status === 'sent');
+               (data.status === 'delivered' || data.status === 'sent') &&
+               !markedAsReadRef.current.has(doc.id); // Don't re-mark
       });
       
       if (messagesToMarkRead.length > 0) {
         console.log(`👁️ [STATUS] Marking ${messagesToMarkRead.length} messages as read`);
+        
+        // Track them first
+        messagesToMarkRead.forEach(msgDoc => markedAsReadRef.current.add(msgDoc.id));
         
         // Update all in parallel
         await Promise.all(
           messagesToMarkRead.map(msgDoc =>
             updateDoc(doc(db, `threads/${threadId}/messages`, msgDoc.id), {
               status: 'read'
-            }).catch(err => console.error('Error marking message as read:', err))
+            }).catch(err => {
+              console.error('Error marking message as read:', err);
+              markedAsReadRef.current.delete(msgDoc.id); // Remove on error
+            })
           )
         );
       }
