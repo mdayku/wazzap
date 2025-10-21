@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, LogBox } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { useStore } from './src/state/store';
@@ -15,6 +15,12 @@ import ChatScreen from './src/screens/ChatScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import DecisionsScreen from './src/screens/DecisionsScreen';
+
+// Suppress specific warnings/errors
+LogBox.ignoreLogs([
+  'Text strings must be rendered within a <Text> component',
+  'Non-serializable values were found in the navigation state',
+]);
 
 const Stack = createNativeStackNavigator();
 

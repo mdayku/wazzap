@@ -11,7 +11,6 @@ export function useInAppNotifications(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
 
-    console.log('🔔 [TOAST] Setting up in-app notifications for user:', userId);
 
     // Track app state to avoid showing notifications on app launch
     const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
@@ -25,27 +24,15 @@ export function useInAppNotifications(userId: string | null) {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const now = Date.now();
       
-      console.log('🔔 [TOAST] Snapshot received, changes:', snapshot.docChanges().length);
-      console.log('🔔 [TOAST] Time since init:', now - lastMessageTimeRef.current);
-      
       // Skip initial load
       if (now - lastMessageTimeRef.current < 2000) {
-        console.log('🔔 [TOAST] ⏭️ Skipping (initial load)');
         return;
       }
 
       for (const change of snapshot.docChanges()) {
-        console.log('🔔 [TOAST] Change type:', change.type);
-        
         if (change.type === 'modified') {
           const threadData = change.doc.data();
           const lastMessage = threadData.lastMessage;
-
-          console.log('🔔 [TOAST] Last message:', {
-            senderId: lastMessage?.senderId,
-            currentUserId: userId,
-            hasTimestamp: !!lastMessage?.timestamp,
-          });
 
           // Check if there's a new message from someone else
           if (
@@ -57,8 +44,6 @@ export function useInAppNotifications(userId: string | null) {
               ? lastMessage.timestamp.toMillis()
               : Date.now();
 
-            console.log('🔔 [TOAST] Message time:', messageTime, 'Last check:', lastMessageTimeRef.current);
-
             // Only show toast for messages newer than our last check
             if (messageTime > lastMessageTimeRef.current) {
               // Fetch sender's display name
@@ -68,7 +53,6 @@ export function useInAppNotifications(userId: string | null) {
                   ? senderDoc.data().displayName || 'Someone'
                   : 'Someone';
 
-                console.log('🔔 [TOAST] ✅ Showing notification from:', senderName);
 
                 // Show toast notification
                 Toast.show({
@@ -84,11 +68,7 @@ export function useInAppNotifications(userId: string | null) {
               }
 
               lastMessageTimeRef.current = messageTime;
-            } else {
-              console.log('🔔 [TOAST] ⏭️ Skipping (old message)');
             }
-          } else {
-            console.log('🔔 [TOAST] ⏭️ Skipping (own message or no timestamp)');
           }
         }
       }

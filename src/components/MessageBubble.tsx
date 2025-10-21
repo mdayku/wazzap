@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
 import { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -48,19 +49,6 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMessageOptions, setShowMessageOptions] = useState(false);
   
-  // Debug: Log what's being rendered (safely stringify everything)
-  try {
-    console.log(`🔸 [BUBBLE] Rendering ${String(item.id)}:`, JSON.stringify({
-      text: item.text ? String(item.text).substring(0, 20) : 'null',
-      mediaType: item.media?.type || 'none',
-      hasReactions: !!item.reactions,
-      reactionCount: item.reactions ? Object.keys(item.reactions).length : 0,
-      senderName: String(senderName || 'unknown'),
-      showSender: !!showSender,
-    }));
-  } catch (e) {
-    console.log('🔸 [BUBBLE] Failed to log:', String(item.id));
-  }
 
   // Cleanup sound on unmount
   useEffect(() => {
@@ -71,12 +59,6 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     };
   }, [sound]);
 
-  // Debug logging for status (wrapped in useEffect to avoid render-time side effects)
-  useEffect(() => {
-    if (isMe && item.status === 'read' && item.id) {
-      console.log('✅ [RECEIPT] Message marked as read:', String(item.id), String(item.status));
-    }
-  }, [isMe, item.status, item.id]);
 
   const handleLongPress = () => {
     if (!threadId) return;
@@ -92,7 +74,6 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
       await updateDoc(messageRef, {
         priority: isHighPriority ? 'normal' : 'high',
       });
-      console.log(`✅ Message ${isHighPriority ? 'unmarked' : 'marked'} as urgent:`, item.id);
     } catch (error) {
       console.error('Error updating message priority:', error);
       Alert.alert('Error', 'Failed to update message priority');
@@ -142,7 +123,6 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           }
         });
 
-        console.log('🔊 [AUDIO] Playing audio message');
       }
     } catch (error) {
       console.error('Error playing audio:', error);
@@ -158,6 +138,17 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleCopyMessage = async () => {
+    setShowMessageOptions(false);
+    try {
+      await Clipboard.setStringAsync(item.text || '');
+      Alert.alert('Copied', 'Message copied to clipboard');
+    } catch (error) {
+      console.error('Error copying message:', error);
+      Alert.alert('Error', 'Failed to copy message');
+    }
+  };
+
   const handleDeleteMessage = async (deleteForEveryone: boolean = false) => {
     if (!threadId) return;
 
@@ -167,13 +158,11 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
       if (deleteForEveryone) {
         // Delete the message document entirely
         await import('firebase/firestore').then(({ deleteDoc }) => deleteDoc(messageRef));
-        console.log('🗑️ [DELETE] Message deleted for everyone:', item.id);
       } else {
         // Mark as deleted for this user only
         await updateDoc(messageRef, {
           [`deletedFor.${me}`]: true,
         });
-        console.log('🗑️ [DELETE] Message deleted for me:', item.id);
       }
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -183,8 +172,6 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
 
   const handleShareAudio = async (url: string) => {
     try {
-      console.log('📤 [SHARE] Starting share:', url);
-      
       // Check if sharing is available
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
@@ -200,15 +187,11 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
       const downloadResult = await FileSystem.downloadAsync(url, fileUri);
       
       if (downloadResult.status === 200) {
-        console.log('📤 [SHARE] File downloaded to:', downloadResult.uri);
-        
         // Share the file (opens native share sheet)
         await Sharing.shareAsync(downloadResult.uri, {
           mimeType: 'audio/m4a',
           dialogTitle: 'Share Voice Message',
         });
-        
-        console.log('📤 [SHARE] File shared successfully');
       } else {
         throw new Error('Download failed');
       }
@@ -220,8 +203,6 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
 
   const handleShareImage = async (url: string) => {
     try {
-      console.log('📤 [SHARE] Starting image share:', url);
-      
       // Check if sharing is available
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
@@ -237,16 +218,12 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
       const downloadResult = await FileSystem.downloadAsync(url, fileUri);
       
       if (downloadResult.status === 200) {
-        console.log('📤 [SHARE] Image downloaded to:', downloadResult.uri);
-        
         // Share the file (opens native share sheet)
         await Sharing.shareAsync(downloadResult.uri, {
           mimeType: 'image/jpeg',
           dialogTitle: 'Share Image',
         });
-        
-        console.log('📤 [SHARE] Image shared successfully');
-      } else {
+      } else{
         throw new Error('Download failed');
       }
     } catch (error) {
@@ -280,7 +257,6 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
         });
       }
       
-      console.log(`👍 [REACTION] ${me} ${newReactions.includes(me) ? 'added' : 'removed'} ${emoji} to message ${item.id}`);
       setShowEmojiPicker(false);
     } catch (error) {
       console.error('Error adding reaction:', error);
@@ -471,6 +447,16 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                 <Ionicons name="happy-outline" size={24} color={colors.text} />
                 <Text style={[styles.optionText, { color: colors.text }]}>React</Text>
               </TouchableOpacity>
+
+              {item.text && (
+                <TouchableOpacity 
+                  style={styles.optionButton}
+                  onPress={handleCopyMessage}
+                >
+                  <Ionicons name="copy-outline" size={24} color={colors.text} />
+                  <Text style={[styles.optionText, { color: colors.text }]}>Copy</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity 
                 style={styles.optionButton}

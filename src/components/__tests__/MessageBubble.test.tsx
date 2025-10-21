@@ -3,6 +3,32 @@ import { render } from '@testing-library/react-native';
 import MessageBubble from '../MessageBubble';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 
+// Mock expo-av
+jest.mock('expo-av', () => ({
+  Audio: {
+    Sound: {
+      createAsync: jest.fn(),
+    },
+    setAudioModeAsync: jest.fn(),
+  },
+}));
+
+// Mock expo-file-system
+jest.mock('expo-file-system/legacy', () => ({
+  downloadAsync: jest.fn(),
+}));
+
+// Mock expo-sharing
+jest.mock('expo-sharing', () => ({
+  shareAsync: jest.fn(),
+}));
+
+// Mock expo-clipboard
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(),
+  getStringAsync: jest.fn(),
+}));
+
 // Mock Timestamp class
 const Timestamp = {
   fromDate: (date: Date) => ({
@@ -113,8 +139,8 @@ describe('MessageBubble Component', () => {
       <MessageBubble item={messageWithImage} me="user2" />
     );
     
-    // Check if Image component is rendered
-    const images = UNSAFE_getByType(require('react-native').Image);
+    // Check if expo-image Image component is rendered
+    const images = UNSAFE_getByType(require('expo-image').Image);
     expect(images).toBeTruthy();
   });
 });

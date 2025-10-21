@@ -147,16 +147,6 @@ export default function ThreadsScreen() {
     const hasUnread = unreadCount > 0;
     const isGroupChat = item.type === 'group' || (item.members && Array.isArray(item.members) && item.members.length > 2);
     
-    console.log('🔵 [BADGE] Thread:', getThreadName(item), 'unreadCount:', unreadCount);
-    console.log('🔹 [RENDER_THREAD] About to render thread item', {
-      threadId: item.id,
-      threadName: getThreadName(item),
-      unreadCount: unreadCount,
-      hasUnread: hasUnread,
-      lastMessageText: item.lastMessage?.text,
-      lastMessageMediaType: item.lastMessage?.media?.type,
-      timestamp: item.lastMessage?.timestamp ? 'exists' : 'missing'
-    });
     
     return (
       <TouchableOpacity

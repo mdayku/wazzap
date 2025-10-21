@@ -47,11 +47,8 @@ export function useThreads(uid: string | null) {
         const threadId = doc.id;
         const currentLastRead = threadData.lastRead?.[uid];
         
-        console.log('🔍 [UNREAD] Thread:', threadId, 'currentLastRead:', currentLastRead?.toMillis?.(), 'exists:', !!currentLastRead);
-        
         // Check if lastRead timestamp has changed (e.g., user opened the chat)
         const cachedLastRead = lastReadCache.get(threadId);
-        console.log('🔍 [UNREAD] cachedLastRead:', cachedLastRead?.toMillis?.(), 'exists:', !!cachedLastRead);
         
         const lastReadChanged = 
           (cachedLastRead === undefined && currentLastRead !== undefined) ||
@@ -59,13 +56,10 @@ export function useThreads(uid: string | null) {
           (cachedLastRead && currentLastRead && 
            cachedLastRead.toMillis() !== currentLastRead.toMillis());
         
-        console.log('🔍 [UNREAD] lastReadChanged:', lastReadChanged);
-        
         // Set up or refresh unread count listener if needed
         if (!unsubscribers.has(threadId) || lastReadChanged) {
           // Clean up old listener if it exists
           if (unsubscribers.has(threadId)) {
-            console.log('🔄 [UNREAD] Refreshing listener for thread:', threadId);
             unsubscribers.get(threadId)?.();
             unsubscribers.delete(threadId);
           }
@@ -75,7 +69,6 @@ export function useThreads(uid: string | null) {
           
           // Optimistically reset count when lastRead changes (will be updated by listener)
           if (lastReadChanged) {
-            console.log('🔄 [UNREAD] LastRead changed, resetting count optimistically');
             threadUnreadCounts.set(threadId, 0);
             
             // Force immediate UI update
@@ -108,7 +101,6 @@ export function useThreads(uid: string | null) {
           
           const unsubMessages = onSnapshot(messagesQuery, (messagesSnap) => {
             threadUnreadCounts.set(threadId, messagesSnap.size);
-            console.log('📊 [UNREAD] Thread:', threadId, 'Count:', messagesSnap.size);
             
             // Re-render threads with updated counts
             setThreads((prevThreads) =>

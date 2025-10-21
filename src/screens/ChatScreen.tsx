@@ -100,7 +100,6 @@ export default function ChatScreen({ route, navigation }: any) {
         );
         
         if (newMessages.length > 0) {
-          console.log('📳 [HAPTIC] New message(s) received, triggering haptic feedback');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
         
@@ -127,7 +126,6 @@ export default function ChatScreen({ route, navigation }: any) {
       });
       
       if (messagesToDeliver.length > 0) {
-        console.log(`📬 [STATUS] Marking ${messagesToDeliver.length} messages as delivered`);
         messagesToDeliver.forEach(async (msgDoc) => {
           try {
             markedAsReadRef.current.add(msgDoc.id); // Track it
@@ -150,10 +148,11 @@ export default function ChatScreen({ route, navigation }: any) {
       });
       
       if (messagesToMarkRead.length > 0) {
-        console.log(`👁️ [STATUS] Marking ${messagesToMarkRead.length} messages as read`);
         
         // Track them first
-        messagesToMarkRead.forEach(msgDoc => markedAsReadRef.current.add(msgDoc.id));
+        messagesToMarkRead.forEach(msgDoc => {
+          markedAsReadRef.current.add(msgDoc.id);
+        });
         
         // Update all in parallel
         await Promise.all(
@@ -230,7 +229,6 @@ export default function ChatScreen({ route, navigation }: any) {
         if (threadDoc.exists()) {
           const threadData = threadDoc.data();
           const members = threadData.members || [];
-          console.log('👥 [USER_CACHE] Thread members:', members);
           setThreadMembers(members);
           
           // Check if it's a group chat (more than 2 members or has a group name)
@@ -238,44 +236,28 @@ export default function ChatScreen({ route, navigation }: any) {
           setIsGroupChat(isGroup);
           
           // FIRST: Fetch all members' data (for both 1:1 and group chats)
-          // This ensures userCache is populated for action items extraction
-          console.log('👥 [USER_CACHE] Starting to fetch', members.length, 'members...');
+          // Fetch user data for all thread members
           const memberPromises = members.map(async (memberId: string) => {
-            console.log('👥 [USER_CACHE] Fetching user:', memberId);
             try {
               const memberDoc = await getDoc(doc(db, 'users', memberId));
-              console.log('👥 [USER_CACHE] Doc exists for', memberId, ':', memberDoc.exists());
               if (memberDoc.exists()) {
                 const userData = memberDoc.data();
-                console.log('👥 [USER_CACHE] User data for', memberId, ':', userData?.displayName);
                 return { [memberId]: userData };
               }
             } catch (error) {
-              console.error('👥 [USER_CACHE] Error fetching member', memberId, ':', error);
+              console.error('Error fetching member data:', error);
             }
             return null;
           });
           
           const memberResults = await Promise.all(memberPromises);
-          console.log('👥 [USER_CACHE] Promise.all completed, results:', memberResults.length);
           const newCache: any = {};
-          memberResults.forEach((result, index) => {
-            console.log('👥 [USER_CACHE] Processing result', index, ':', result ? Object.keys(result)[0] : 'null');
+          memberResults.forEach((result) => {
             if (result) {
               Object.assign(newCache, result);
             }
           });
-          console.log('👥 [USER_CACHE] About to set cache with keys:', Object.keys(newCache));
-          setUserCache((prev: any) => {
-            const updated = { ...prev, ...newCache };
-            console.log('👥 [USER_CACHE] Cache after update - keys:', Object.keys(updated));
-            console.log('👥 [USER_CACHE] Cache after update - data:', 
-              Object.entries(updated).map(([id, data]: [string, any]) => 
-                ({ id, displayName: data?.displayName })
-              )
-            );
-            return updated;
-          });
+          setUserCache((prev: any) => ({ ...prev, ...newCache }));
           
           // SECOND: Set up presence tracking for 1:1 chats
           const otherMember = members.find((m: string) => m !== user.uid);
@@ -321,7 +303,6 @@ export default function ChatScreen({ route, navigation }: any) {
         
         const threadData = threadDoc.data();
         const threadMembers = threadData.members || [];
-        console.log(`⌨️ [TYPING] Initializing member docs for ${threadMembers.length} participants`);
         
         // Create member doc for each participant
         await Promise.all(threadMembers.map(async (memberId) => {
@@ -331,7 +312,6 @@ export default function ChatScreen({ route, navigation }: any) {
             typing: false,
             lastSeen: new Date()
           }, { merge: true });
-          console.log(`⌨️ [TYPING] Initialized member doc for ${memberId}`);
         }));
       } catch (error) {
         console.error('Error initializing member docs:', error);
@@ -340,20 +320,12 @@ export default function ChatScreen({ route, navigation }: any) {
 
     initializeMembers();
 
-    console.log(`⌨️ [TYPING] Setting up listener for thread ${threadId}, current user: ${user.uid}`);
     const q = query(collection(db, `threads/${threadId}/members`));
     const unsubscribe = onSnapshot(q, (snap) => {
-      console.log(`⌨️ [TYPING] Snapshot received, ${snap.docs.length} member docs`);
-      snap.docs.forEach(d => {
-        const data = d.data();
-        console.log(`⌨️ [TYPING] Member ${d.id}: typing=${data.typing}, isCurrentUser=${d.id === user.uid}`);
-      });
-      
       // Check if ANY other user is typing
       const someoneTyping = snap.docs.some(d => 
         d.id !== user.uid && d.data().typing === true
       );
-      console.log(`⌨️ [TYPING] Someone typing: ${someoneTyping}`);
       setTyping(someoneTyping);
     });
 
@@ -378,7 +350,6 @@ export default function ChatScreen({ route, navigation }: any) {
         [`lastRead.${user.uid}`]: serverTimestamp()
       });
       
-      console.log('✅ [READ] Marked thread as read for user:', user.uid);
     } catch (error) {
       console.error('Error updating read receipt:', error);
     }
@@ -395,7 +366,6 @@ export default function ChatScreen({ route, navigation }: any) {
         uid: user.uid,
         updatedAt: new Date()
       }, { merge: true });
-      console.log(`⌨️ [TYPING] Set typing=${isTyping} for user ${user.uid} in thread ${threadId}`);
     } catch (error) {
       console.error('Error updating typing:', error);
     }
@@ -405,7 +375,6 @@ export default function ChatScreen({ route, navigation }: any) {
     if (loadingMore || !hasMoreMessages) return;
     setLoadingMore(true);
     setMessageLimit(prev => prev + 50);
-    console.log('📄 [PAGINATION] Loading 50 more messages...');
   };
 
   const handleSummarize = async () => {
@@ -455,7 +424,6 @@ export default function ChatScreen({ route, navigation }: any) {
       
       // Retry logic (max 2 retries)
       if (retryCount < 2) {
-        console.log(`Retrying summarization (attempt ${retryCount + 1}/2)...`);
         setTimeout(() => generateSummary(retryCount + 1), 1000);
         return;
       }
@@ -546,7 +514,6 @@ export default function ChatScreen({ route, navigation }: any) {
         position: 'top',
       });
       
-      console.log('✅ [FORWARD] Message forwarded to thread:', targetThreadId);
     } catch (error) {
       console.error('❌ [FORWARD] Error forwarding message:', error);
       Toast.show({
@@ -575,15 +542,6 @@ export default function ChatScreen({ route, navigation }: any) {
     
     try {
       const result = await extractAI(threadId, 50);
-      console.log('🤖 [ACTIONS] Extracted:', JSON.stringify(result, null, 2));
-      console.log('🤖 [ACTIONS] UserCache keys:', Object.keys(userCache));
-      console.log('🤖 [ACTIONS] UserCache full:', JSON.stringify(
-        Object.fromEntries(
-          Object.entries(userCache).map(([id, data]: [string, any]) => [id, { displayName: data?.displayName, email: data?.email }])
-        ), 
-        null, 
-        2
-      ));
       setActionItems(result.actionItems || []);
       setDecisions(result.decisions || []);
       
@@ -603,7 +561,6 @@ export default function ChatScreen({ route, navigation }: any) {
       
       // Retry logic (max 2 retries)
       if (retryCount < 2) {
-        console.log(`Retrying action extraction (attempt ${retryCount + 1}/2)...`);
         setTimeout(() => generateActions(retryCount + 1), 1000);
         return;
       }
@@ -741,7 +698,6 @@ export default function ChatScreen({ route, navigation }: any) {
             ? userCache[item.senderId].displayName 
             : 'User';
           
-          console.log(`🔹 [RENDER] Rendering message ${item.id}, sender: ${item.senderId}, name: ${senderName}`);
           
           return (
             <ErrorBoundary name={`MessageBubble-${item.id}`} fallback={<View style={{ height: 50 }} />}>

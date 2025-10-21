@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Alert, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { sendMessageOptimistic } from '../state/offlineQueue';
 import { uploadImage } from '../services/storage';
 
@@ -49,7 +50,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       const draft = await AsyncStorage.getItem(getDraftKey());
       if (draft) {
         setText(draft);
-        console.log('📝 [DRAFT] Loaded draft:', draft.substring(0, 50));
       }
     } catch (error) {
       console.error('Error loading draft:', error);
@@ -72,9 +72,23 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const clearDraft = async () => {
     try {
       await AsyncStorage.removeItem(getDraftKey());
-      console.log('📝 [DRAFT] Cleared draft');
     } catch (error) {
       console.error('Error clearing draft:', error);
+    }
+  };
+
+  const handlePaste = async () => {
+    try {
+      const clipboardText = await Clipboard.getStringAsync();
+      if (clipboardText) {
+        setText(prev => prev + clipboardText);
+        Alert.alert('Pasted', 'Text pasted from clipboard');
+      } else {
+        Alert.alert('Clipboard Empty', 'No text found in clipboard');
+      }
+    } catch (error) {
+      console.error('Error pasting from clipboard:', error);
+      Alert.alert('Error', 'Failed to paste from clipboard');
     }
   };
 
@@ -82,20 +96,15 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     setText(newText);
     
     const isTyping = newText.length > 0;
-    console.log(`⌨️ [COMPOSER] Text changed, isTyping=${isTyping}, text length=${newText.length}`);
     
     // Notify typing
     if (onTyping) {
-      console.log(`⌨️ [COMPOSER] Calling onTyping(${isTyping})`);
       onTyping(isTyping);
-    } else {
-      console.log(`⌨️ [COMPOSER] ⚠️ onTyping callback is undefined!`);
     }
     
     // Clear typing after 3 seconds of inactivity
     if (typingTimeout) clearTimeout(typingTimeout);
     const timeout = setTimeout(() => {
-      console.log(`⌨️ [COMPOSER] Timeout fired, calling onTyping(false)`);
       onTyping?.(false);
     }, 3000);
     setTypingTimeout(timeout);
@@ -383,17 +392,19 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
         </View>
       ) : (
         <>
-          <TextInput
-            testID="message-input"
-            style={styles.input}
-            value={text}
-            onChangeText={handleTextChange}
-            placeholder="Message"
-            placeholderTextColor="#999"
-            multiline
-            maxLength={1000}
-            editable={!uploading}
-          />
+          <Pressable onLongPress={handlePaste} style={{ flex: 1 }}>
+            <TextInput
+              testID="message-input"
+              style={styles.input}
+              value={text}
+              onChangeText={handleTextChange}
+              placeholder="Message"
+              placeholderTextColor="#999"
+              multiline
+              maxLength={1000}
+              editable={!uploading}
+            />
+          </Pressable>
           
           {text.trim() ? (
             <TouchableOpacity 
