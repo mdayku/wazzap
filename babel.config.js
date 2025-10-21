@@ -3,10 +3,11 @@ module.exports = function(api) {
   
   const plugins = [];
   
-  // Remove console.log statements in production
-  if (process.env.NODE_ENV === 'production') {
-    plugins.push(['transform-remove-console', { exclude: ['error', 'warn'] }]);
-  }
+  // TODO: Enable console.log removal in production AFTER all features are stable
+  // Currently disabled for debugging read receipts and other critical flows
+  // if (process.env.NODE_ENV === 'production') {
+  //   plugins.push(['transform-remove-console', { exclude: ['error', 'warn'] }]);
+  // }
   
   return {
     presets: ['babel-preset-expo'],
