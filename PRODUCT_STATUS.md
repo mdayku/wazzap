@@ -30,6 +30,42 @@
 
 ---
 
+## 👥 TARGET PERSONA & USE CASES
+
+### Primary Persona: Remote Team Professional
+
+**Who They Are:**  
+Software engineers, product managers, and designers working in distributed teams across different time zones.
+
+**Core Pain Points:**
+1. **Drowning in threads** - Too many conversations to keep up with
+2. **Missing important messages** - Critical information gets buried
+3. **Context switching** - Jumping between tools breaks focus
+4. **Time zone coordination** - Scheduling meetings across continents is painful
+
+**How MessageAI Solves This:**
+
+| Pain Point | AI Feature | How It Helps |
+|------------|-----------|--------------|
+| Thread overload | Thread Summarization | Catch up in seconds instead of scrolling for minutes |
+| Missing important info | Priority Detection | Urgent messages highlighted automatically |
+| Lost action items | Action Item Extraction | Never miss a task or assignment |
+| Hard to find decisions | Decision Tracking | Searchable decision log with context |
+| Poor search | Semantic Search | Find by meaning ("API discussion") not just keywords |
+| Meeting coordination | Proactive Scheduler | Auto-suggests meeting times based on conversation |
+
+**Success Criteria:**
+- ✅ Users can catch up on a 100-message thread in under 30 seconds
+- ✅ No urgent message goes unnoticed
+- ✅ Action items are extracted with >80% accuracy
+- ✅ Decisions are logged automatically with full context
+- ✅ Search finds relevant messages even without exact keywords
+
+**Why This Persona:**
+Remote work is the future. Teams need tools that reduce cognitive load and help them stay coordinated without constant interruptions. MessageAI combines the reliability of WhatsApp with the intelligence of modern AI to solve real problems for distributed teams.
+
+---
+
 ## 🚀 MVP ACTION PLAN
 
 ### ✅ ALL MVP REQUIREMENTS COMPLETE!
@@ -869,6 +905,123 @@ messages/{userId}/
 | **Stickers** | ✅ Yes | ✅ Yes | ❌ No | ❌ No | 🟡 Planned |
 | **Reactions** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No | 🟡 Planned |
 | **AI Features** | ❌ No | ❌ Limited | ❌ No | ✅ Yes | ✅ Advanced |
+
+---
+
+## 🤖 Advanced AI Features: n8n & RAG Integration
+
+### What's This?
+Based on this week's curriculum (n8n + RAG), these features will demonstrate mastery of workflow automation and Retrieval-Augmented Generation for the **final submission**.
+
+### 🔄 n8n Workflow Automation (High Priority - 15h)
+
+**Goal:** Demonstrate workflow automation and integration capabilities.
+
+| Feature | Description | Priority | Effort | Status |
+|---------|-------------|----------|--------|--------|
+| **Slack Integration** | Auto-forward high-priority messages to Slack | High | 3h | 📋 Scoped |
+| **Email Notifications** | Send email summaries of missed messages | High | 2h | 📋 Scoped |
+| **Webhook Triggers** | Trigger workflows on specific message events | High | 3h | 📋 Scoped |
+| **Calendar Integration** | Create calendar events from meeting mentions | High | 4h | 📋 Scoped |
+| **Task Management** | Auto-create tasks in Trello/Asana from action items | Medium | 3h | 📋 Scoped |
+
+**Implementation Approach:**
+- Self-hosted n8n instance (Docker)
+- Firebase Cloud Function webhooks
+- Event-driven architecture
+- Production workflows with error handling
+
+**Deliverables:**
+- 3+ working n8n workflows
+- Webhook endpoints in Firebase Functions
+- Documentation with screenshots
+- 2-3 minute demo video
+
+---
+
+### 🧠 RAG (Retrieval-Augmented Generation) (High Priority - 20h)
+
+**Goal:** Build context-aware AI assistant that references conversation history.
+
+| Feature | Description | Priority | Effort | Status |
+|---------|-------------|----------|--------|--------|
+| **Conversational Memory** | AI remembers past conversations in context | High | 5h | 📋 Scoped |
+| **Team Knowledge Base** | Query past decisions/discussions via AI | High | 6h | 📋 Scoped |
+| **Smart Search Enhancement** | Enhanced semantic search with RAG | High | 4h | 📋 Scoped |
+| **Context-Aware Summaries** | Summaries that reference related threads | High | 5h | 📋 Scoped |
+
+**RAG Architecture:**
+```
+User Query
+    ↓
+Vector Search (Existing Embeddings)
+    ↓
+Retrieve Top-K Relevant Messages
+    ↓
+Combine with Current Context
+    ↓
+GPT-4 Generation
+    ↓
+Context-Aware Response
+```
+
+**Example Use Cases:**
+- "What did we decide about the API design last week?"
+- "Summarize all mentions of Project X"
+- "What are the open action items for Alice?"
+
+**Implementation Approach:**
+- Leverage existing semantic search infrastructure
+- Add retrieval + augmentation layer
+- New RAG assistant UI component
+- Performance optimization (<2s response time)
+
+**Deliverables:**
+- RAG pipeline code (retrieval + generation)
+- Architecture diagram (Mermaid)
+- 10+ example queries & responses
+- Performance metrics documentation
+- 3-4 minute demo video
+
+---
+
+### 🎯 Final Submission Roadmap
+
+**Week Breakdown:**
+
+**Days 1-2: n8n Integration (15h)**
+- [ ] Set up n8n instance (Docker/cloud)
+- [ ] Implement Firebase webhook endpoints
+- [ ] Create 3 production workflows
+- [ ] Document and test integrations
+- [ ] Record demo video
+
+**Days 3-4: RAG Implementation (20h)**
+- [ ] Design RAG architecture
+- [ ] Build retrieval + augmentation layer
+- [ ] Create RAG assistant UI
+- [ ] Test with real conversation history
+- [ ] Optimize performance
+- [ ] Document pipeline
+- [ ] Record demo video
+
+**Day 5: Polish & Documentation**
+- [ ] Update all documentation
+- [ ] Create persona brainlift document
+- [ ] Compile final demo video (5-7 min)
+- [ ] Test deployment
+- [ ] Prepare social media post
+
+**📊 Expected Grade Impact:**
+- n8n workflows: 30% of advanced features
+- RAG implementation: 40% of advanced features
+- **Combined: 70% of final grade differentiation**
+
+**💰 Additional Cost:**
+- n8n: $0 (self-hosted Docker)
+- RAG: ~$5-10 (incremental OpenAI API usage)
+
+**📄 Full Spec:** See `N8N_RAG_FEATURES.md` for detailed implementation guide.
 
 ---
 

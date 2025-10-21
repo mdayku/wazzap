@@ -43,6 +43,10 @@ All 11 MVP requirements tested and working!
 - 🔍 Semantic search (find by meaning, not keywords)
 - 📅 Proactive meeting scheduler (suggests times)
 
+**Advanced AI Features (Scoped for Final Submission):**
+- 🔄 **n8n Workflow Automation** - Slack integration, email digests, calendar events
+- 🧠 **RAG Pipeline** - Context-aware AI assistant with conversation memory
+
 ## Architecture
 
 ```
