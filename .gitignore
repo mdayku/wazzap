@@ -19,4 +19,5 @@ web-build/
 firebase/functions/node_modules/
 firebase/functions/lib/
 .firebase/
+serviceAccountKey.json
 
