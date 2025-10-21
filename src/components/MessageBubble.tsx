@@ -35,9 +35,10 @@ interface MessageBubbleProps {
   showSender?: boolean;
   senderName?: string;
   threadId?: string;
+  onForward?: (message: Message) => void;
 }
 
-export default function MessageBubble({ item, me, showSender, senderName, threadId }: MessageBubbleProps) {
+export default function MessageBubble({ item, me, showSender, senderName, threadId, onForward }: MessageBubbleProps) {
   const { colors } = useTheme();
   const isMe = item.senderId === me;
   const isHighPriority = item.priority === 'high';
@@ -45,6 +46,21 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMessageOptions, setShowMessageOptions] = useState(false);
+  
+  // Debug: Log what's being rendered (safely stringify everything)
+  try {
+    console.log(`🔸 [BUBBLE] Rendering ${String(item.id)}:`, JSON.stringify({
+      text: item.text ? String(item.text).substring(0, 20) : 'null',
+      mediaType: item.media?.type || 'none',
+      hasReactions: !!item.reactions,
+      reactionCount: item.reactions ? Object.keys(item.reactions).length : 0,
+      senderName: String(senderName || 'unknown'),
+      showSender: !!showSender,
+    }));
+  } catch (e) {
+    console.log('🔸 [BUBBLE] Failed to log:', String(item.id));
+  }
 
   // Cleanup sound on unmount
   useEffect(() => {
@@ -55,65 +71,47 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     };
   }, [sound]);
 
-  // Debug logging for status
-  if (isMe && item.status === 'read') {
-    console.log('✅ [RECEIPT] Message marked as read:', item.id, item.status);
-  }
+  // Debug logging for status (wrapped in useEffect to avoid render-time side effects)
+  useEffect(() => {
+    if (isMe && item.status === 'read' && item.id) {
+      console.log('✅ [RECEIPT] Message marked as read:', String(item.id), String(item.status));
+    }
+  }, [isMe, item.status, item.id]);
 
   const handleLongPress = () => {
     if (!threadId) return;
-    
-    const messageAge = Date.now() - (item.createdAt?.toMillis?.() || 0);
-    const canDeleteForEveryone = messageAge < 10 * 60 * 1000; // 10 minutes
-    
-    const options: any[] = [
-      {
-        text: 'Add Reaction',
-        onPress: () => setShowEmojiPicker(true),
-      },
-      {
-        text: isHighPriority ? 'Remove Urgent Flag' : 'Mark as Urgent',
-        onPress: async () => {
-          try {
-            const messageRef = doc(db, `threads/${threadId}/messages`, item.id);
-            await updateDoc(messageRef, {
-              priority: isHighPriority ? 'normal' : 'high',
-            });
-            console.log(`✅ Message ${isHighPriority ? 'unmarked' : 'marked'} as urgent:`, item.id);
-          } catch (error) {
-            console.error('Error updating message priority:', error);
-            Alert.alert('Error', 'Failed to update message priority');
-          }
-        },
-      },
-    ];
+    setShowMessageOptions(true);
+  };
 
-    if (isMe) {
-      if (canDeleteForEveryone) {
-        options.push({
-          text: 'Delete for Everyone',
-          style: 'destructive',
-          onPress: () => handleDeleteMessage(true),
-        });
-      }
-      options.push({
-        text: 'Delete for Me',
-        style: 'destructive',
-        onPress: () => handleDeleteMessage(false),
+  const handleMarkUrgent = async () => {
+    if (!threadId) return;
+    setShowMessageOptions(false);
+    
+    try {
+      const messageRef = doc(db, `threads/${threadId}/messages`, item.id);
+      await updateDoc(messageRef, {
+        priority: isHighPriority ? 'normal' : 'high',
       });
+      console.log(`✅ Message ${isHighPriority ? 'unmarked' : 'marked'} as urgent:`, item.id);
+    } catch (error) {
+      console.error('Error updating message priority:', error);
+      Alert.alert('Error', 'Failed to update message priority');
     }
+  };
 
-    options.push({
-      text: 'Cancel',
-      style: 'cancel',
-    });
-    
-    Alert.alert(
-      'Message Options',
-      canDeleteForEveryone && isMe ? 'Message can be deleted for everyone (sent within 10 minutes)' : '',
-      options,
-      { cancelable: true }
-    );
+  const handleForwardPress = () => {
+    setShowMessageOptions(false);
+    onForward?.(item);
+  };
+
+  const handleAddReactionPress = () => {
+    setShowMessageOptions(false);
+    setShowEmojiPicker(true);
+  };
+
+  const handleDeletePress = (deleteForEveryone: boolean = false) => {
+    setShowMessageOptions(false);
+    handleDeleteMessage(deleteForEveryone);
   };
 
   const handlePlayAudio = async () => {
@@ -293,7 +291,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   return (
     <View style={[styles.container, isMe ? styles.myMessage : styles.theirMessage]}>
       {showSender && !isMe && (
-        <Text style={styles.senderName}>{senderName || item.senderId}</Text>
+        <Text style={styles.senderName}>{senderName || 'User'}</Text>
       )}
       
       <TouchableOpacity
@@ -406,9 +404,11 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
         ) : null}
         
         <View style={styles.footer}>
-          <Text style={[styles.timestamp, isMe ? styles.myTimestamp : styles.theirTimestamp]}>
-            {formatTimestamp(item.createdAt)}
-          </Text>
+          {formatTimestamp(item.createdAt) && (
+            <Text style={[styles.timestamp, isMe ? styles.myTimestamp : styles.theirTimestamp]}>
+              {formatTimestamp(item.createdAt)}
+            </Text>
+          )}
           
           {isMe && (
             <Text style={[
@@ -441,12 +441,82 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
               onPress={() => handleAddReaction(emoji)}
             >
               <Text style={styles.reactionEmoji}>{emoji}</Text>
-              <Text style={styles.reactionCount}>{userIds.length}</Text>
+              <Text style={styles.reactionCount}>{String(userIds.length)}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
       
+      {/* Message Options Modal */}
+      <Modal
+        visible={showMessageOptions}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMessageOptions(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMessageOptions(false)}
+        >
+          <View style={[styles.messageOptionsContainer, { backgroundColor: colors.messageBubbleReceived }]}>
+            <Text style={[styles.messageOptionsTitle, { color: colors.text }]}>Message Options</Text>
+            
+            <View style={styles.optionsGrid}>
+              {/* Row 1 */}
+              <TouchableOpacity 
+                style={styles.optionButton}
+                onPress={handleAddReactionPress}
+              >
+                <Ionicons name="happy-outline" size={24} color={colors.text} />
+                <Text style={[styles.optionText, { color: colors.text }]}>React</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.optionButton}
+                onPress={handleForwardPress}
+              >
+                <Ionicons name="arrow-redo-outline" size={24} color={colors.text} />
+                <Text style={[styles.optionText, { color: colors.text }]}>Forward</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.optionButton}
+                onPress={handleMarkUrgent}
+              >
+                <Ionicons 
+                  name={isHighPriority ? "alert-circle" : "alert-circle-outline"} 
+                  size={24} 
+                  color={isHighPriority ? "#FF3B30" : colors.text} 
+                />
+                <Text style={[styles.optionText, { color: colors.text }]}>
+                  {isHighPriority ? `Remove${'\n'}Urgent` : `Mark${'\n'}Urgent`}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Row 2 - Delete options */}
+              {isMe && Date.now() - (item.createdAt?.toMillis?.() || 0) < 10 * 60 * 1000 && (
+                <TouchableOpacity 
+                  style={styles.optionButton}
+                  onPress={() => handleDeletePress(true)}
+                >
+                  <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+                  <Text style={[styles.optionText, { color: "#FF3B30" }]}>Delete for{'\n'}Everyone</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity 
+                style={styles.optionButton}
+                onPress={() => handleDeletePress(false)}
+              >
+                <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+                <Text style={[styles.optionText, { color: "#FF3B30" }]}>Delete for{'\n'}Me</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Emoji Picker Modal */}
       <Modal
         visible={showEmojiPicker}
@@ -683,6 +753,45 @@ const styles = StyleSheet.create({
   },
   emojiText: {
     fontSize: 32,
+  },
+  messageOptionsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  messageOptionsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#000000',
+  },
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    gap: 12,
+  },
+  optionButton: {
+    width: 90,
+    height: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    padding: 8,
+  },
+  optionText: {
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+    color: '#000000',
   },
 });
 

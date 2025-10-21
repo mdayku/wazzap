@@ -21,16 +21,20 @@ import * as Haptics from 'expo-haptics';
 import { db } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
+import { useThreads } from '../hooks/useThread';
 import Composer from '../components/Composer';
 import MessageBubble from '../components/MessageBubble';
 import TypingDots from '../components/TypingDots';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { formatLastSeen, isUserOnline } from '../utils/time';
 import { summarizeThread, extractAI } from '../services/ai';
+import { sendMessageOptimistic } from '../state/offlineQueue';
 
 export default function ChatScreen({ route, navigation }: any) {
   const { threadId, threadName } = route.params;
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { threads } = useThreads(user?.uid || '');
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [typing, setTyping] = useState(false);
@@ -53,6 +57,8 @@ export default function ChatScreen({ route, navigation }: any) {
   const [messageLimit, setMessageLimit] = useState(50);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [messageToForward, setMessageToForward] = useState<any>(null);
   const markedAsReadRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true); // Track messages we've already marked
   const previousMessageIdsRef = useRef<Set<string>>(new Set()); // Track message IDs for haptic feedback
@@ -168,6 +174,51 @@ export default function ChatScreen({ route, navigation }: any) {
 
     return () => unsubscribe();
   }, [threadId, user, messageLimit]);
+
+  // Fetch user data for all threads (for forward modal)
+  useEffect(() => {
+    if (!threads || !Array.isArray(threads) || threads.length === 0 || !user) return;
+
+    const fetchAllThreadMembers = async () => {
+      const uids = new Set<string>();
+      
+      for (const thread of threads) {
+        if (!thread || !thread.members || !Array.isArray(thread.members)) continue;
+        
+        for (const uid of thread.members) {
+          if (uid && typeof uid === 'string' && uid !== user.uid && !userCache[uid]) {
+            uids.add(uid);
+          }
+        }
+      }
+
+      if (uids.size === 0) return;
+
+      const newUsers: any = {};
+      await Promise.all(
+        Array.from(uids).map(async (uid) => {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              newUsers[uid] = {
+                displayName: userData.displayName || 'User',
+                photoURL: userData.photoURL,
+              };
+            }
+          } catch (error) {
+            console.error('Error fetching user for forward modal:', error);
+          }
+        })
+      );
+
+      if (Object.keys(newUsers).length > 0) {
+        setUserCache((prev: any) => ({ ...prev, ...newUsers }));
+      }
+    };
+
+    fetchAllThreadMembers();
+  }, [threads?.length, user?.uid]);
 
   // Fetch thread members for presence
   useEffect(() => {
@@ -463,6 +514,50 @@ export default function ChatScreen({ route, navigation }: any) {
     }
   };
 
+  const handleForwardMessage = (message: any) => {
+    setMessageToForward(message);
+    setShowForwardModal(true);
+  };
+
+  const handleForwardToThread = async (targetThreadId: string) => {
+    if (!messageToForward || !user) return;
+    
+    try {
+      const tempId = `${Date.now()}_${Math.random()}`;
+      
+      // Forward the message to the target thread
+      await sendMessageOptimistic(
+        {
+          threadId: targetThreadId,
+          text: messageToForward.text || '',
+          media: messageToForward.media,
+          tempId,
+        },
+        user.uid
+      );
+      
+      setShowForwardModal(false);
+      setMessageToForward(null);
+      
+      Toast.show({
+        type: 'success',
+        text1: 'Message Forwarded',
+        text2: 'Message sent successfully',
+        position: 'top',
+      });
+      
+      console.log('✅ [FORWARD] Message forwarded to thread:', targetThreadId);
+    } catch (error) {
+      console.error('❌ [FORWARD] Error forwarding message:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Forward Failed',
+        text2: 'Could not forward message',
+        position: 'top',
+      });
+    }
+  };
+
   const handleExtractActions = async () => {
     // If we already have cached data, just show it
     if (actionItems.length > 0 || decisions.length > 0) {
@@ -639,18 +734,26 @@ export default function ChatScreen({ route, navigation }: any) {
       <FlatList
         ref={listRef}
         data={messages}
-        keyExtractor={(i) => i.id}
+        keyExtractor={(i) => String(i.id)}
         renderItem={({ item, index }) => {
           const showSender = index === 0 || messages[index - 1].senderId !== item.senderId;
-          const senderName = userCache[item.senderId]?.displayName;
+          const senderName = (userCache[item.senderId]?.displayName && typeof userCache[item.senderId].displayName === 'string') 
+            ? userCache[item.senderId].displayName 
+            : 'User';
+          
+          console.log(`🔹 [RENDER] Rendering message ${item.id}, sender: ${item.senderId}, name: ${senderName}`);
+          
           return (
-            <MessageBubble
-              item={item}
-              me={user?.uid || ''}
-              showSender={showSender}
-              senderName={senderName}
-              threadId={threadId}
-            />
+            <ErrorBoundary name={`MessageBubble-${item.id}`} fallback={<View style={{ height: 50 }} />}>
+              <MessageBubble
+                item={item}
+                me={user?.uid || ''}
+                showSender={showSender}
+                senderName={senderName}
+                threadId={threadId}
+                onForward={handleForwardMessage}
+              />
+            </ErrorBoundary>
           );
         }}
         ListHeaderComponent={hasMoreMessages ? (
@@ -889,6 +992,65 @@ export default function ChatScreen({ route, navigation }: any) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Forward Modal */}
+      <Modal
+        visible={showForwardModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowForwardModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.membersModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowForwardModal(false)}
+        >
+          <View style={styles.membersModalContent}>
+            <View style={styles.membersModalHeader}>
+              <Text style={styles.membersModalTitle}>Forward Message To</Text>
+              <TouchableOpacity onPress={() => setShowForwardModal(false)}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.membersList}>
+              {threads.filter(t => t.id !== threadId).map((thread) => {
+                // Get thread display name - either group name or other user's display name
+                let threadDisplayName: string = 'Chat';
+                if (thread?.name && typeof thread.name === 'string') {
+                  threadDisplayName = thread.name;
+                } else if (thread?.members && Array.isArray(thread.members)) {
+                  const otherMember = thread.members.find((m: string) => m !== user?.uid);
+                  if (otherMember && userCache[otherMember] && typeof userCache[otherMember].displayName === 'string') {
+                    threadDisplayName = userCache[otherMember].displayName;
+                  }
+                }
+                
+                return (
+                  <TouchableOpacity 
+                    key={thread.id} 
+                    style={styles.forwardThreadItem}
+                    onPress={() => handleForwardToThread(thread.id)}
+                  >
+                    <View style={styles.forwardThreadInfo}>
+                      <Text style={styles.forwardThreadName}>{threadDisplayName}</Text>
+                      {thread.unreadCount > 0 && (
+                        <View style={styles.forwardThreadBadge}>
+                          <Text style={styles.forwardThreadBadgeText}>{thread.unreadCount}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Ionicons name="arrow-forward" size={20} color="#007AFF" />
+                  </TouchableOpacity>
+                );
+              })}
+              {threads.filter(t => t.id !== threadId).length === 0 && (
+                <Text style={styles.noThreadsText}>No other chats available</Text>
+              )}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -910,7 +1072,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 60,
+    paddingTop: 12,
     paddingBottom: 12,
     paddingHorizontal: 16,
     backgroundColor: '#F9F9F9',
@@ -1193,6 +1355,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  forwardThreadItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  forwardThreadInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  forwardThreadName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
+    flex: 1,
+  },
+  forwardThreadBadge: {
+    backgroundColor: '#007AFF',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  forwardThreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  noThreadsText: {
+    textAlign: 'center',
+    color: '#8E8E93',
+    fontSize: 15,
+    marginTop: 20,
   },
 });
 

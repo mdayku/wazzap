@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { doc, getDoc } from 'firebase/firestore';
 import { useThreads } from '../hooks/useThread';
 import { useAuth } from '../hooks/useAuth';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { useTheme } from '../contexts/ThemeContext';
 import { db } from '../services/firebase';
 import { formatTimestamp, isUserOnline } from '../utils/time';
@@ -76,12 +77,14 @@ export default function ThreadsScreen() {
     }
   }, [threads]);
 
-  const getThreadName = (thread: any) => {
-    if (thread.name) return thread.name;
+  const getThreadName = (thread: any): string => {
+    if (thread?.name && typeof thread.name === 'string') return thread.name;
     
-    const otherMember = thread.members.find((m: string) => m !== user?.uid);
-    if (otherMember && userCache[otherMember]) {
-      return userCache[otherMember].displayName;
+    if (thread?.members && Array.isArray(thread.members)) {
+      const otherMember = thread.members.find((m: string) => m !== user?.uid);
+      if (otherMember && userCache[otherMember] && typeof userCache[otherMember].displayName === 'string') {
+        return userCache[otherMember].displayName;
+      }
     }
     
     return 'Chat';
@@ -91,7 +94,7 @@ export default function ThreadsScreen() {
   const renderAvatar = (uid: string, size: number = 50, showPresence: boolean = true) => {
     const userData = userCache[uid];
     const isOnline = userData?.presence ? isUserOnline(userData.presence) : false;
-    const displayName = userData?.displayName || 'User';
+    const displayName = (userData?.displayName && typeof userData.displayName === 'string') ? userData.displayName : 'User';
     const photoURL = userData?.photoURL;
 
     return (
@@ -114,7 +117,15 @@ export default function ThreadsScreen() {
 
   // Render avatars for group chats (show up to 2 members)
   const renderGroupAvatars = (thread: any) => {
+    if (!thread.members || !Array.isArray(thread.members)) {
+      return null;
+    }
+    
     const otherMembers = thread.members.filter((m: string) => m !== user?.uid).slice(0, 2);
+    
+    if (otherMembers.length === 0) {
+      return null;
+    }
     
     if (otherMembers.length === 1) {
       return renderAvatar(otherMembers[0], 50, true);
@@ -134,9 +145,18 @@ export default function ThreadsScreen() {
   const renderThread = ({ item }: any) => {
     const unreadCount = item.unreadCount || 0;
     const hasUnread = unreadCount > 0;
-    const isGroupChat = item.type === 'group' || item.members.length > 2;
+    const isGroupChat = item.type === 'group' || (item.members && Array.isArray(item.members) && item.members.length > 2);
     
     console.log('🔵 [BADGE] Thread:', getThreadName(item), 'unreadCount:', unreadCount);
+    console.log('🔹 [RENDER_THREAD] About to render thread item', {
+      threadId: item.id,
+      threadName: getThreadName(item),
+      unreadCount: unreadCount,
+      hasUnread: hasUnread,
+      lastMessageText: item.lastMessage?.text,
+      lastMessageMediaType: item.lastMessage?.media?.type,
+      timestamp: item.lastMessage?.timestamp ? 'exists' : 'missing'
+    });
     
     return (
       <TouchableOpacity
@@ -145,7 +165,7 @@ export default function ThreadsScreen() {
       >
         {isGroupChat ? renderGroupAvatars(item) : (
           <>
-            {item.members.filter((m: string) => m !== user?.uid).map((uid: string) => (
+            {item.members && Array.isArray(item.members) && item.members.filter((m: string) => m !== user?.uid).map((uid: string) => (
               <View key={uid}>
                 {renderAvatar(uid, 50, true)}
               </View>
@@ -157,20 +177,20 @@ export default function ThreadsScreen() {
           <View style={styles.threadHeader}>
             <Text style={[styles.threadName, { color: colors.text }]}>{getThreadName(item)}</Text>
             <View style={styles.headerRight}>
-              {item.lastMessage?.timestamp && (
+              {item.lastMessage?.timestamp && formatTimestamp(item.lastMessage.timestamp) && (
                 <Text style={styles.timestamp}>
                   {formatTimestamp(item.lastMessage.timestamp)}
                 </Text>
               )}
               {hasUnread && (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                  <Text style={styles.badgeText}>{String(unreadCount)}</Text>
                 </View>
               )}
             </View>
           </View>
           
-          {item.lastMessage?.text ? (
+          {item.lastMessage?.text && typeof item.lastMessage.text === 'string' ? (
             <Text style={[styles.lastMessage, { color: colors.textSecondary }, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
               {item.lastMessage.text}
             </Text>
@@ -220,8 +240,12 @@ export default function ThreadsScreen() {
       ) : (
         <FlatList
           data={threads}
-          renderItem={renderThread}
-          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <ErrorBoundary name={`Thread-${item.id}`} fallback={<View style={{ height: 80 }} />}>
+              {renderThread({ item, index })}
+            </ErrorBoundary>
+          )}
+          keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
         />
       )}
