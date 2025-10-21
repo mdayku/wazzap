@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Text } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Text, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { Audio } from 'expo-av';
 import { sendMessageOptimistic } from '../state/offlineQueue';
 import { uploadImage } from '../services/storage';
 
@@ -19,6 +20,10 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const [uploading, setUploading] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [previewImage, setPreviewImage] = useState<{ uri: string; width: number; height: number } | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const recordingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load draft message when component mounts
   useEffect(() => {
@@ -202,6 +207,144 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     setPreviewImage(null);
   };
 
+  const startRecording = async () => {
+    try {
+      console.log('🎤 [AUDIO] Requesting permissions...');
+      const { granted } = await Audio.requestPermissionsAsync();
+      
+      if (!granted) {
+        Alert.alert('Permission Required', 'Please grant microphone permission to record voice messages.');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      console.log('🎤 [AUDIO] Starting recording...');
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setRecording(recording);
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      // Start duration counter
+      recordingInterval.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+      console.log('🎤 [AUDIO] Recording started');
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recording) return;
+
+    try {
+      console.log('🎤 [AUDIO] Stopping recording...');
+      setIsRecording(false);
+      
+      if (recordingInterval.current) {
+        clearInterval(recordingInterval.current);
+        recordingInterval.current = null;
+      }
+
+      await recording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+
+      const uri = recording.getURI();
+      console.log('🎤 [AUDIO] Recording saved to:', uri);
+
+      if (uri && recordingDuration >= 1) {
+        // Send the audio message
+        await sendAudioMessage(uri, recordingDuration);
+      } else {
+        Alert.alert('Too Short', 'Voice message must be at least 1 second long.');
+      }
+
+      setRecording(null);
+      setRecordingDuration(0);
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      Alert.alert('Error', 'Failed to save recording. Please try again.');
+    }
+  };
+
+  const cancelRecording = async () => {
+    if (!recording) return;
+
+    try {
+      console.log('🎤 [AUDIO] Canceling recording...');
+      setIsRecording(false);
+      
+      if (recordingInterval.current) {
+        clearInterval(recordingInterval.current);
+        recordingInterval.current = null;
+      }
+
+      await recording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+
+      setRecording(null);
+      setRecordingDuration(0);
+      console.log('🎤 [AUDIO] Recording canceled');
+    } catch (error) {
+      console.error('Error canceling recording:', error);
+    }
+  };
+
+  const sendAudioMessage = async (audioUri: string, duration: number) => {
+    try {
+      setUploading(true);
+      console.log('🎤 [AUDIO] Uploading audio file...');
+
+      // Upload to Firebase Storage with correct path format
+      const timestamp = Date.now();
+      const audioUrl = await uploadImage(audioUri, `messages/${uid}/audio_${timestamp}.m4a`);
+      
+      console.log('🎤 [AUDIO] Audio uploaded:', audioUrl);
+
+      // Send message with audio metadata
+      const tempId = `${Date.now()}_${Math.random()}`;
+      await sendMessageOptimistic(
+        {
+          threadId,
+          text: '',
+          media: {
+            type: 'audio',
+            url: audioUrl,
+            duration: duration,
+          },
+          tempId,
+        },
+        uid
+      );
+
+      console.log('🎤 [AUDIO] Audio message sent!');
+    } catch (error) {
+      console.error('Error sending audio message:', error);
+      Alert.alert('Error', 'Failed to send voice message. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <View style={styles.container}>
       <TouchableOpacity 
@@ -216,28 +359,70 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
         )}
       </TouchableOpacity>
       
-      <TextInput
-        style={styles.input}
-        value={text}
-        onChangeText={handleTextChange}
-        placeholder="Message"
-        placeholderTextColor="#999"
-        multiline
-        maxLength={1000}
-      />
-      
-      <TouchableOpacity 
-        style={[styles.sendButton, (!text.trim() && !uploading) && styles.sendButtonDisabled]} 
-        onPress={handleSend}
-        disabled={!text.trim() && !uploading}
-        testID="send-button"
-      >
-        <Ionicons 
-          name="send" 
-          size={20} 
-          color={text.trim() ? '#FFFFFF' : '#999'} 
-        />
-      </TouchableOpacity>
+      {isRecording ? (
+        <View style={styles.recordingContainer}>
+          <TouchableOpacity 
+            style={styles.cancelButton} 
+            onPress={cancelRecording}
+          >
+            <Ionicons name="close-circle" size={28} color="#FF3B30" />
+          </TouchableOpacity>
+          
+          <View style={styles.recordingIndicator}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>
+              Recording... {formatDuration(recordingDuration)}
+            </Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.stopButton} 
+            onPress={stopRecording}
+          >
+            <Ionicons name="checkmark-circle" size={28} color="#34C759" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <TextInput
+            style={styles.input}
+            value={text}
+            onChangeText={handleTextChange}
+            placeholder="Message"
+            placeholderTextColor="#999"
+            multiline
+            maxLength={1000}
+            editable={!uploading}
+          />
+          
+          {text.trim() ? (
+            <TouchableOpacity 
+              style={[styles.sendButton, !text.trim() && styles.sendButtonDisabled]} 
+              onPress={handleSend}
+              disabled={!text.trim()}
+              testID="send-button"
+            >
+              <Ionicons 
+                name="send" 
+                size={20} 
+                color="#FFFFFF" 
+              />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.micButton} 
+              onPress={startRecording}
+              disabled={uploading}
+            >
+              <Ionicons 
+                name="mic" 
+                size={24} 
+                color={uploading ? '#999' : '#007AFF'} 
+              />
+            </TouchableOpacity>
+          )}
+        </>
+      )}
 
       {/* Image Preview Modal */}
       <Modal
@@ -322,6 +507,45 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#E5E5EA',
+  },
+  micButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recordingContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  cancelButton: {
+    padding: 4,
+  },
+  stopButton: {
+    padding: 4,
+  },
+  recordingIndicator: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 12,
+  },
+  recordingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF3B30',
+    marginRight: 8,
+  },
+  recordingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF3B30',
   },
   modalOverlay: {
     flex: 1,

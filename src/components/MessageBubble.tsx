@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { Timestamp } from 'firebase/firestore';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -12,14 +16,16 @@ interface Message {
   senderId: string;
   text: string;
   media?: {
-    type: 'image' | null;
+    type: 'image' | 'audio' | null;
     url: string | null;
     width?: number;
     height?: number;
+    duration?: number;
   } | null;
   status: 'sending' | 'sent' | 'delivered' | 'read';
   priority?: 'high' | 'normal';
   createdAt: Timestamp;
+  deletedFor?: { [userId: string]: boolean };
 }
 
 interface MessageBubbleProps {
@@ -34,6 +40,18 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const { colors } = useTheme();
   const isMe = item.senderId === me;
   const isHighPriority = item.priority === 'high';
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Cleanup sound on unmount
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [sound]);
 
   // Debug logging for status
   if (isMe && item.status === 'read') {
@@ -43,31 +61,156 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const handleLongPress = () => {
     if (!threadId) return;
     
+    const messageAge = Date.now() - (item.createdAt?.toMillis?.() || 0);
+    const canDeleteForEveryone = messageAge < 10 * 60 * 1000; // 10 minutes
+    
+    const options: any[] = [
+      {
+        text: isHighPriority ? 'Remove Urgent Flag' : 'Mark as Urgent',
+        onPress: async () => {
+          try {
+            const messageRef = doc(db, `threads/${threadId}/messages`, item.id);
+            await updateDoc(messageRef, {
+              priority: isHighPriority ? 'normal' : 'high',
+            });
+            console.log(`✅ Message ${isHighPriority ? 'unmarked' : 'marked'} as urgent:`, item.id);
+          } catch (error) {
+            console.error('Error updating message priority:', error);
+            Alert.alert('Error', 'Failed to update message priority');
+          }
+        },
+      },
+    ];
+
+    if (isMe) {
+      if (canDeleteForEveryone) {
+        options.push({
+          text: 'Delete for Everyone',
+          style: 'destructive',
+          onPress: () => handleDeleteMessage(true),
+        });
+      }
+      options.push({
+        text: 'Delete for Me',
+        style: 'destructive',
+        onPress: () => handleDeleteMessage(false),
+      });
+    }
+
+    options.push({
+      text: 'Cancel',
+      style: 'cancel',
+    });
+    
     Alert.alert(
       'Message Options',
-      'What would you like to do?',
-      [
-        {
-          text: isHighPriority ? 'Remove Urgent Flag' : 'Mark as Urgent',
-          onPress: async () => {
-            try {
-              const messageRef = doc(db, `threads/${threadId}/messages`, item.id);
-              await updateDoc(messageRef, {
-                priority: isHighPriority ? 'normal' : 'high',
-              });
-              console.log(`✅ Message ${isHighPriority ? 'unmarked' : 'marked'} as urgent:`, item.id);
-            } catch (error) {
-              console.error('Error updating message priority:', error);
-              Alert.alert('Error', 'Failed to update message priority');
-            }
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
+      canDeleteForEveryone && isMe ? 'Message can be deleted for everyone (sent within 10 minutes)' : '',
+      options
     );
+  };
+
+  const handlePlayAudio = async () => {
+    if (!item.media?.url) return;
+
+    try {
+      if (isPlaying && sound) {
+        // Stop playing
+        await sound.stopAsync();
+        setIsPlaying(false);
+      } else {
+        setIsLoading(true);
+        
+        // Load and play audio
+        const { sound: audioSound } = await Audio.Sound.createAsync(
+          { uri: item.media.url },
+          { shouldPlay: true }
+        );
+        
+        setSound(audioSound);
+        setIsPlaying(true);
+        setIsLoading(false);
+
+        // Set up playback status update
+        audioSound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setIsPlaying(false);
+          }
+        });
+
+        console.log('🔊 [AUDIO] Playing audio message');
+      }
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      Alert.alert('Error', 'Failed to play audio message');
+      setIsLoading(false);
+      setIsPlaying(false);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleDeleteMessage = async (deleteForEveryone: boolean = false) => {
+    if (!threadId) return;
+
+    try {
+      const messageRef = doc(db, `threads/${threadId}/messages`, item.id);
+      
+      if (deleteForEveryone) {
+        // Delete the message document entirely
+        await import('firebase/firestore').then(({ deleteDoc }) => deleteDoc(messageRef));
+        console.log('🗑️ [DELETE] Message deleted for everyone:', item.id);
+      } else {
+        // Mark as deleted for this user only
+        await updateDoc(messageRef, {
+          [`deletedFor.${me}`]: true,
+        });
+        console.log('🗑️ [DELETE] Message deleted for me:', item.id);
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      Alert.alert('Error', 'Failed to delete message');
+    }
+  };
+
+  const handleShareAudio = async (url: string) => {
+    try {
+      console.log('📤 [SHARE] Starting share:', url);
+      
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Not Supported', 'Sharing is not available on this device');
+        return;
+      }
+
+      // Create a unique filename
+      const filename = `voice_message_${Date.now()}.m4a`;
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
+
+      // Download the file first
+      const downloadResult = await FileSystem.downloadAsync(url, fileUri);
+      
+      if (downloadResult.status === 200) {
+        console.log('📤 [SHARE] File downloaded to:', downloadResult.uri);
+        
+        // Share the file (opens native share sheet)
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType: 'audio/m4a',
+          dialogTitle: 'Share Voice Message',
+        });
+        
+        console.log('📤 [SHARE] File shared successfully');
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (error) {
+      console.error('Error sharing audio:', error);
+      Alert.alert('Share Failed', 'Could not share the audio file. Please try again.');
+    }
   };
 
   return (
@@ -86,12 +229,73 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           isMe ? { backgroundColor: colors.messageBubbleSent } : { backgroundColor: colors.messageBubbleReceived },
           isHighPriority && styles.highPriority
         ]}>
-        {item.media?.url && (
+        {item.media?.type === 'image' && item.media?.url && (
           <Image
             source={{ uri: item.media.url }}
             style={styles.image}
             resizeMode="cover"
           />
+        )}
+
+        {item.media?.type === 'audio' && item.media?.url && (
+          <View style={styles.audioWrapper}>
+            <TouchableOpacity
+              style={styles.audioContainer}
+              onPress={handlePlayAudio}
+              disabled={isLoading}
+            >
+            {isLoading ? (
+              <ActivityIndicator 
+                size="small" 
+                color={isMe ? colors.messageBubbleSentText : '#007AFF'} 
+              />
+            ) : (
+              <Ionicons
+                name={isPlaying ? 'pause-circle' : 'play-circle'}
+                size={36}
+                color={isMe ? colors.messageBubbleSentText : '#007AFF'}
+              />
+            )}
+              <View style={styles.audioInfo}>
+                <Text style={[
+                  styles.audioText,
+                  isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
+                ]}>
+                  Voice Message
+                </Text>
+                {item.media.duration && (
+                  <Text style={[
+                    styles.audioDuration,
+                    isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
+                  ]}>
+                    {formatDuration(item.media.duration)}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+            <View style={styles.audioActions}>
+              <TouchableOpacity
+                style={styles.audioActionButton}
+                onPress={() => handleShareAudio(item.media?.url || '')}
+              >
+                <Ionicons 
+                  name="share-outline" 
+                  size={20} 
+                  color={isMe ? colors.messageBubbleSentText : colors.messageBubbleReceivedText} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.audioActionButton}
+                onPress={() => handleDeleteMessage()}
+              >
+                <Ionicons 
+                  name="trash-outline" 
+                  size={20} 
+                  color={isMe ? colors.messageBubbleSentText : colors.messageBubbleReceivedText} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
         
         {item.text ? (
@@ -174,6 +378,41 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
     marginBottom: 8,
+  },
+  audioWrapper: {
+    flexDirection: 'column',
+    minWidth: 180,
+    maxWidth: 250,
+  },
+  audioContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  audioInfo: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  audioText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  audioDuration: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  audioActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    gap: 8,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  audioActionButton: {
+    padding: 2,
   },
   footer: {
     flexDirection: 'row',

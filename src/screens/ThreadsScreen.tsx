@@ -174,9 +174,13 @@ export default function ThreadsScreen() {
             <Text style={[styles.lastMessage, { color: colors.textSecondary }, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
               {item.lastMessage.text}
             </Text>
-          ) : item.lastMessage?.media ? (
+          ) : item.lastMessage?.media?.type === 'image' ? (
             <Text style={[styles.lastMessage, { color: colors.textSecondary }, hasUnread && styles.lastMessageUnread]}>
               📷 Image
+            </Text>
+          ) : item.lastMessage?.media?.type === 'audio' ? (
+            <Text style={[styles.lastMessage, { color: colors.textSecondary }, hasUnread && styles.lastMessageUnread]}>
+              🎤 Audio
             </Text>
           ) : null}
         </View>

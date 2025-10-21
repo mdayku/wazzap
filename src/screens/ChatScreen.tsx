@@ -70,7 +70,10 @@ export default function ChatScreen({ route, navigation }: any) {
     );
 
     const unsubscribe = onSnapshot(q, async (snap) => {
-      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse(); // Reverse to show oldest first
+      const rows = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((msg: any) => !msg.deletedFor?.[user.uid]) // Filter out messages deleted by this user
+        .reverse(); // Reverse to show oldest first
       setMessages(rows);
       setLoading(false);
       setLoadingMore(false);
