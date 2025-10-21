@@ -3,9 +3,13 @@ import { useAuth } from '../useAuth';
 
 // Mock Firebase
 const mockOnAuthStateChanged = jest.fn();
-const mockSignInWithEmailAndPassword = jest.fn();
-const mockCreateUserWithEmailAndPassword = jest.fn();
-const mockSignOut = jest.fn();
+const mockSignInWithEmailAndPassword = jest.fn(() => 
+  Promise.resolve({ user: { uid: 'test-uid', email: 'test@example.com' } })
+);
+const mockCreateUserWithEmailAndPassword = jest.fn(() => 
+  Promise.resolve({ user: { uid: 'new-uid', email: 'newuser@example.com' } })
+);
+const mockSignOut = jest.fn(() => Promise.resolve());
 
 jest.mock('../../services/firebase', () => ({
   auth: {},
@@ -17,9 +21,9 @@ jest.mock('firebase/auth', () => ({
     mockOnAuthStateChanged(callback);
     return jest.fn(); // unsubscribe function
   },
-  signInWithEmailAndPassword: mockSignInWithEmailAndPassword,
-  createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
-  signOut: mockSignOut,
+  signInWithEmailAndPassword: (...args: any[]) => mockSignInWithEmailAndPassword(...args),
+  createUserWithEmailAndPassword: (...args: any[]) => mockCreateUserWithEmailAndPassword(...args),
+  signOut: (...args: any[]) => mockSignOut(...args),
 }));
 
 jest.mock('firebase/firestore', () => ({
