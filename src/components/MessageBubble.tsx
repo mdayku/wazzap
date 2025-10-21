@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking, Modal, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -26,6 +26,7 @@ interface Message {
   priority?: 'high' | 'normal';
   createdAt: Timestamp;
   deletedFor?: { [userId: string]: boolean };
+  reactions?: { [emoji: string]: string[] }; // emoji -> array of user IDs
 }
 
 interface MessageBubbleProps {
@@ -43,6 +44,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Cleanup sound on unmount
   useEffect(() => {
@@ -65,6 +67,10 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     const canDeleteForEveryone = messageAge < 10 * 60 * 1000; // 10 minutes
     
     const options: any[] = [
+      {
+        text: 'Add Reaction',
+        onPress: () => setShowEmojiPicker(true),
+      },
       {
         text: isHighPriority ? 'Remove Urgent Flag' : 'Mark as Urgent',
         onPress: async () => {
@@ -105,7 +111,8 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     Alert.alert(
       'Message Options',
       canDeleteForEveryone && isMe ? 'Message can be deleted for everyone (sent within 10 minutes)' : '',
-      options
+      options,
+      { cancelable: true }
     );
   };
 
@@ -250,6 +257,39 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     }
   };
 
+  const handleAddReaction = async (emoji: string) => {
+    if (!threadId) return;
+    
+    try {
+      const messageRef = doc(db, `threads/${threadId}/messages`, item.id);
+      const currentReactions = item.reactions || {};
+      const emojiReactions = currentReactions[emoji] || [];
+      
+      // Toggle reaction - add if not present, remove if present
+      const newReactions = emojiReactions.includes(me)
+        ? emojiReactions.filter(uid => uid !== me)
+        : [...emojiReactions, me];
+      
+      // Update or remove the emoji key
+      if (newReactions.length === 0) {
+        // Remove the emoji key entirely if no one reacted
+        const updatedReactions = { ...currentReactions };
+        delete updatedReactions[emoji];
+        await updateDoc(messageRef, { reactions: updatedReactions });
+      } else {
+        await updateDoc(messageRef, {
+          [`reactions.${emoji}`]: newReactions,
+        });
+      }
+      
+      console.log(`👍 [REACTION] ${me} ${newReactions.includes(me) ? 'added' : 'removed'} ${emoji} to message ${item.id}`);
+      setShowEmojiPicker(false);
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      Alert.alert('Error', 'Failed to add reaction');
+    }
+  };
+
   return (
     <View style={[styles.container, isMe ? styles.myMessage : styles.theirMessage]}>
       {showSender && !isMe && (
@@ -387,6 +427,63 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           <Text style={styles.priorityText}>!</Text>
         </View>
       )}
+      
+      {/* Reactions Display */}
+      {item.reactions && Object.keys(item.reactions).length > 0 && (
+        <View style={styles.reactionsContainer}>
+          {Object.entries(item.reactions).map(([emoji, userIds]) => (
+            <TouchableOpacity
+              key={emoji}
+              style={[
+                styles.reactionBubble,
+                userIds.includes(me) && styles.reactionBubbleActive
+              ]}
+              onPress={() => handleAddReaction(emoji)}
+            >
+              <Text style={styles.reactionEmoji}>{emoji}</Text>
+              <Text style={styles.reactionCount}>{userIds.length}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      
+      {/* Emoji Picker Modal */}
+      <Modal
+        visible={showEmojiPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowEmojiPicker(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowEmojiPicker(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.emojiPickerContainer}>
+              <Text style={styles.emojiPickerTitle}>Add Reaction</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.emojiScroll}
+              >
+                {['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '🎉', '👏', '💯'].map((emoji) => (
+                  <TouchableOpacity
+                    key={emoji}
+                    style={styles.emojiButton}
+                    onPress={() => handleAddReaction(emoji)}
+                  >
+                    <Text style={styles.emojiText}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -527,6 +624,65 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 4,
+  },
+  reactionBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  reactionBubbleActive: {
+    backgroundColor: '#E3F2FD',
+    borderColor: '#007AFF',
+  },
+  reactionEmoji: {
+    fontSize: 16,
+  },
+  reactionCount: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emojiPickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    minWidth: 300,
+    maxWidth: '90%',
+  },
+  emojiPickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+    color: '#000000',
+  },
+  emojiScroll: {
+    flexDirection: 'row',
+  },
+  emojiButton: {
+    padding: 8,
+    marginHorizontal: 4,
+  },
+  emojiText: {
+    fontSize: 32,
   },
 });
 
