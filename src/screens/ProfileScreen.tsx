@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Switch,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -16,10 +17,12 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { uploadImage } from '../services/storage';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../contexts/ThemeContext';
 import { testLocalNotification } from '../services/notifications';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme, colors } = useTheme();
   const [displayName, setDisplayName] = useState('');
   const [photoURL, setPhotoURL] = useState('');
   const [loading, setLoading] = useState(false);
@@ -135,9 +138,9 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBackground, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
       </View>
 
       <View style={styles.content}>
@@ -161,18 +164,34 @@ export default function ProfileScreen() {
           <Text style={styles.changePhotoText}>Change Photo</Text>
         </TouchableOpacity>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Display Name</Text>
+          <View style={styles.form}>
+          <Text style={[styles.label, { color: colors.text }]}>Display Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
             value={displayName}
             onChangeText={setDisplayName}
             placeholder="Enter your name"
+            placeholderTextColor={colors.textSecondary}
             autoCapitalize="words"
           />
 
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.emailText}>{user?.email}</Text>
+          <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+          <Text style={[styles.emailText, { color: colors.textSecondary }]}>{user?.email}</Text>
+
+          <View style={styles.settingRow}>
+            <View>
+              <Text style={[styles.label, { color: colors.text }]}>Dark Mode</Text>
+              <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
+                {theme === 'dark' ? 'Dark theme enabled' : 'Light theme enabled'}
+              </Text>
+            </View>
+            <Switch
+              value={theme === 'dark'}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#E5E5EA', true: colors.primary }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -340,6 +359,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginBottom: 32,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 32,
+    paddingVertical: 8,
+  },
+  settingDescription: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginTop: 4,
   },
   button: {
     height: 50,

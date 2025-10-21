@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Timestamp } from 'firebase/firestore';
+import { useTheme } from '../contexts/ThemeContext';
 import { formatTimestamp } from '../utils/time';
 
 interface Message {
@@ -26,6 +27,7 @@ interface MessageBubbleProps {
 }
 
 export default function MessageBubble({ item, me, showSender, senderName }: MessageBubbleProps) {
+  const { colors } = useTheme();
   const isMe = item.senderId === me;
   const isHighPriority = item.priority === 'high';
 
@@ -42,7 +44,7 @@ export default function MessageBubble({ item, me, showSender, senderName }: Mess
       
       <View style={[
         styles.bubble,
-        isMe ? styles.myBubble : styles.theirBubble,
+        isMe ? { backgroundColor: colors.messageBubbleSent } : { backgroundColor: colors.messageBubbleReceived },
         isHighPriority && styles.highPriority
       ]}>
         {item.media?.url && (
@@ -54,7 +56,7 @@ export default function MessageBubble({ item, me, showSender, senderName }: Mess
         )}
         
         {item.text ? (
-          <Text style={[styles.text, isMe ? styles.myText : styles.theirText]}>
+          <Text style={[styles.text, isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }]}>
             {item.text}
           </Text>
         ) : null}

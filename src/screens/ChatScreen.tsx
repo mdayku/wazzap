@@ -16,6 +16,7 @@ import { collection, onSnapshot, orderBy, query, doc, updateDoc, setDoc, getDoc,
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../services/firebase';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../contexts/ThemeContext';
 import Composer from '../components/Composer';
 import MessageBubble from '../components/MessageBubble';
 import TypingDots from '../components/TypingDots';
@@ -25,6 +26,7 @@ import { summarizeThread } from '../services/ai';
 export default function ChatScreen({ route, navigation }: any) {
   const { threadId, threadName } = route.params;
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [typing, setTyping] = useState(false);
@@ -292,12 +294,12 @@ export default function ChatScreen({ route, navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBackground, borderBottomColor: colors.border }]}>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{threadName}</Text>
-          <Text style={styles.presence}>{presenceInfo}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{threadName}</Text>
+          <Text style={[styles.presence, { color: colors.textSecondary }]}>{presenceInfo}</Text>
         </View>
         {/* Profile Photo or Members Button */}
         {isGroupChat ? (

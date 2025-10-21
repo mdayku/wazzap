@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import { useStore } from './src/state/store';
 import { useAuth } from './src/hooks/useAuth';
 import { usePresence } from './src/hooks/usePresence';
@@ -17,7 +18,7 @@ import DecisionsScreen from './src/screens/DecisionsScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function AppContent() {
   const { user } = useAuth();
   const { isLoading } = useStore();
   
@@ -83,6 +84,14 @@ export default function App() {
       </NavigationContainer>
       <Toast />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 

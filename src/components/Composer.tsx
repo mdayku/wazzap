@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Image, Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -18,12 +19,58 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [previewImage, setPreviewImage] = useState<{ uri: string; width: number; height: number } | null>(null);
 
+  // Load draft message when component mounts
+  useEffect(() => {
+    loadDraft();
+  }, [threadId]);
+
+  // Save draft whenever text changes
+  useEffect(() => {
+    saveDraft(text);
+  }, [text, threadId]);
+
   useEffect(() => {
     // Cleanup timeout on unmount
     return () => {
       if (typingTimeout) clearTimeout(typingTimeout);
     };
   }, [typingTimeout]);
+
+  const getDraftKey = () => `draft_${threadId}_${uid}`;
+
+  const loadDraft = async () => {
+    try {
+      const draft = await AsyncStorage.getItem(getDraftKey());
+      if (draft) {
+        setText(draft);
+        console.log('📝 [DRAFT] Loaded draft:', draft.substring(0, 50));
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+    }
+  };
+
+  const saveDraft = async (draftText: string) => {
+    try {
+      if (draftText.trim()) {
+        await AsyncStorage.setItem(getDraftKey(), draftText);
+      } else {
+        // Clear draft if text is empty
+        await AsyncStorage.removeItem(getDraftKey());
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    }
+  };
+
+  const clearDraft = async () => {
+    try {
+      await AsyncStorage.removeItem(getDraftKey());
+      console.log('📝 [DRAFT] Cleared draft');
+    } catch (error) {
+      console.error('Error clearing draft:', error);
+    }
+  };
 
   const handleTextChange = (newText: string) => {
     setText(newText);
@@ -58,6 +105,8 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     try {
       const tempId = `${Date.now()}_${Math.random()}`;
       await sendMessageOptimistic({ threadId, text: messageText, tempId }, uid);
+      // Clear draft after successful send
+      await clearDraft();
     } catch (error) {
       console.error('Error sending message:', error);
       // Could show error toast here
@@ -139,6 +188,8 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       
       setText('');
       setPreviewImage(null);
+      // Clear draft after successful send
+      await clearDraft();
     } catch (error) {
       console.error('Error uploading image:', error);
     } finally {

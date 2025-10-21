@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { doc, getDoc } from 'firebase/firestore';
 import { useThreads } from '../hooks/useThread';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../contexts/ThemeContext';
 import { db } from '../services/firebase';
 import { formatTimestamp, isUserOnline } from '../utils/time';
 import { registerForPush } from '../services/notifications';
@@ -25,6 +26,7 @@ interface UserCache {
 export default function ThreadsScreen() {
   const navigation = useNavigation();
   const { user, logout } = useAuth();
+  const { colors } = useTheme();
   const { threads, loading } = useThreads(user?.uid || null);
   const [userCache, setUserCache] = useState<UserCache>({});
 
@@ -138,7 +140,7 @@ export default function ThreadsScreen() {
     
     return (
       <TouchableOpacity
-        style={styles.threadItem}
+        style={[styles.threadItem, { borderBottomColor: colors.border }]}
         onPress={() => navigation.navigate('Chat' as never, { threadId: item.id, threadName: getThreadName(item) } as never)}
       >
         {isGroupChat ? renderGroupAvatars(item) : (
@@ -153,7 +155,7 @@ export default function ThreadsScreen() {
         
         <View style={styles.threadContent}>
           <View style={styles.threadHeader}>
-            <Text style={styles.threadName}>{getThreadName(item)}</Text>
+            <Text style={[styles.threadName, { color: colors.text }]}>{getThreadName(item)}</Text>
             <View style={styles.headerRight}>
               {item.lastMessage?.timestamp && (
                 <Text style={styles.timestamp}>
@@ -169,11 +171,11 @@ export default function ThreadsScreen() {
           </View>
           
           {item.lastMessage?.text ? (
-            <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
+            <Text style={[styles.lastMessage, { color: colors.textSecondary }, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
               {item.lastMessage.text}
             </Text>
           ) : item.lastMessage?.media ? (
-            <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]}>
+            <Text style={[styles.lastMessage, { color: colors.textSecondary }, hasUnread && styles.lastMessageUnread]}>
               📷 Image
             </Text>
           ) : null}
@@ -191,9 +193,9 @@ export default function ThreadsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBackground, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Messages</Text>
         <TouchableOpacity 
           onPress={() => navigation.navigate('Profile' as never)} 
           style={styles.profileButton}
