@@ -38,13 +38,13 @@ All 11 MVP requirements tested and working!
 - ✅ **Multi-user login** - Save and select from multiple accounts
 - ✅ **Duplicate chat prevention** - Smart chat detection
 
-**AI-Powered Intelligence (Working & Tested):**
+**AI-Powered Intelligence (4/6 Features Working):**
 - ✅ **Thread summarization** - Smart AI-generated titles, share via email/messages, cached for instant re-access
-- 🟡 Action item extraction (deployed, needs UI)
-- ✅ Priority message detection - Red badges on urgent messages
-- 🟡 Decision tracking (deployed, needs testing)
-- 🟡 Semantic search (deployed, needs toggle UI)
-- 🟡 Proactive meeting scheduler (deployed, needs testing)
+- ✅ **Action item extraction** - Full UI with refresh, share, display names, caching
+- ✅ **Priority message detection** - Red badges on urgent messages, auto-detection
+- ✅ **Semantic search** - Toggle between AI and simple search, automatic embeddings
+- 🟡 Decision tracking (deployed, screen exists, needs end-to-end testing)
+- 🔴 Proactive meeting scheduler (deployed, needs UI implementation)
 
 **Advanced AI Features (Scoped for Final Submission):**
 - 🔄 **n8n Workflow Automation** - Slack integration, email digests, calendar events
