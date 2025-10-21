@@ -30,6 +30,11 @@ All 11 MVP requirements tested and working!
 - ✅ Console.log removal in production builds (performance optimized)
 - ✅ Manual "Mark as Urgent" via long-press on any message
 
+**Performance Optimizations:**
+- ✅ Message pagination - Load 50 messages at a time, scroll to load more
+- ✅ Image compression - 85% JPEG quality, max 1024x1024 resolution
+- ✅ Fixed infinite loop in read receipt marking for long threads
+
 ### ✅ Working Features
 
 **Core Messaging:**
@@ -37,7 +42,8 @@ All 11 MVP requirements tested and working!
 - ✅ **Optimistic UI** - Messages appear instantly
 - ✅ **Read receipts** - Gray → Green double checkmarks
 - ✅ **Typing indicators** - See when others are typing
-- ✅ **Image sharing** - Photo upload with preview modal
+- ✅ **Message pagination** - Load 50 messages at a time for performance
+- ✅ **Image sharing** - Photo upload with preview modal + compression (85% JPEG)
 - ✅ **Profile photos** - Avatar upload with preview + display in chats
 - ✅ **Presence indicators** - Green/gray dots showing online status (last 10 mins)
 - ✅ **Group members dropdown** - View all participants with photos
