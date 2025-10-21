@@ -35,6 +35,12 @@ All 11 MVP requirements tested and working!
 - ✅ Image compression - 85% JPEG quality, max 1024x1024 resolution
 - ✅ Fixed infinite loop in read receipt marking for long threads
 
+**New Features (October 21, 2025 - Late Night):**
+- ✅ Voice messaging - Record with mic button, play/pause, share audio files
+- ✅ Message deletion - Delete for everyone (within 10 mins) or delete for yourself
+- ✅ Audio previews - Show "🎤 Audio" in chat list for voice messages
+- ✅ Compact audio bubbles - Tight design with share and delete buttons
+
 ### ✅ Working Features
 
 **Core Messaging:**
@@ -44,10 +50,12 @@ All 11 MVP requirements tested and working!
 - ✅ **Typing indicators** - See when others are typing
 - ✅ **Message pagination** - Load 50 messages at a time for performance
 - ✅ **Image sharing** - Photo upload with preview modal + compression (85% JPEG)
+- ✅ **Voice messages** - Record, play, share audio messages with duration display
+- ✅ **Message deletion** - Delete for everyone (10-min window) or delete for me
 - ✅ **Profile photos** - Avatar upload with preview + display in chats
 - ✅ **Presence indicators** - Green/gray dots showing online status (last 10 mins)
 - ✅ **Group members dropdown** - View all participants with photos
-- ✅ **Media previews** - "📷 Image" shown in chat list for media messages
+- ✅ **Media previews** - "📷 Image" and "🎤 Audio" shown in chat list
 - ✅ **Push notifications** - Foreground toast notifications + test button
 - ✅ **Presence tracking** - Online/offline status with last seen
 - ✅ **Unread badges** - Accurate counts with auto-clear
