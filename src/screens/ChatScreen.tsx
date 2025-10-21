@@ -136,7 +136,7 @@ export default function ChatScreen({ route, navigation }: any) {
     });
 
     return () => unsubscribe();
-  }, [threadId, user]);
+  }, [threadId, user, messageLimit]);
 
   // Fetch thread members for presence
   useEffect(() => {
