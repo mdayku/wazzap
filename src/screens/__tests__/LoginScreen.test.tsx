@@ -16,8 +16,8 @@ describe('LoginScreen', () => {
   it('should render login form', () => {
     const { getByText, getByPlaceholderText } = render(<LoginScreen />);
     
-    expect(getByText('MessageAI')).toBeTruthy();
-    expect(getByText('Remote Team Communication')).toBeTruthy();
+    expect(getByText('Welcome Back')).toBeTruthy();
+    expect(getByText('Sign in to continue')).toBeTruthy();
     expect(getByPlaceholderText('Email')).toBeTruthy();
     expect(getByPlaceholderText('Password')).toBeTruthy();
     expect(getByText('Log In')).toBeTruthy();

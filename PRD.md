@@ -1,18 +1,19 @@
 # 🎯 MessageAI - Master Plan & Status
 
-**Last Updated:** October 21, 2025 (Evening Update)
-**Current Score:** ~38 points (F) → **Target:** 100+ points (A+)  
+**Last Updated:** October 21, 2025 (Late Evening - Major AI Push)
+**Current Score:** ~65 points (D) → **Target:** 100+ points (A+)  
 **Days Remaining:** 4-5 days to final submission  
-**Status:** MVP Complete (11/11) ✅ | Polish Phase Started 🟡 | AI Features Untested 🔴 | Deliverables Missing 🔴
+**Status:** MVP Complete (11/11) ✅ | AI Features Working (4/6) ✅ | Testing Needed 🟡 | Deliverables Missing 🔴
 
-**Latest Updates (October 21, 2025 - Evening):**
-- ✅ AI Summarization feature fully working with smart titles, share, and caching
-- ✅ Firebase Functions deployed with OpenAI API key (.env migration)
-- ✅ Test data seeding scripts created for AI testing
-- ✅ Dark mode implemented with toggle in ProfileScreen
-- ✅ Draft message persistence in AsyncStorage
-- ✅ Image compression using Expo ImageManipulator
-- 🔄 Continuing with remaining AI feature integrations
+**Latest Updates (October 21, 2025 - Late Evening):**
+- ✅ **Action Items & Decisions Extraction** - Full UI with caching, refresh, share, display names
+- ✅ **AI Summary Enhancements** - Smart titles, share, caching, re-summarize, display names
+- ✅ **Semantic Search** - Toggle UI, automatic embedding generation, simple text search fallback
+- ✅ **Display Names in AI** - Cloud Functions fetch user names instead of showing IDs
+- ✅ **Automatic Embeddings** - Every new message gets embeddings for semantic search
+- ✅ **Dark Mode** - Applied to all AI features and search screens
+- ✅ **Firestore Rules** - Fixed to allow Cloud Functions to write embeddings
+- 🎯 **4 of 6 AI features fully working and tested**
 
 ---
 
@@ -24,17 +25,17 @@
 |---------|------------------|------------|-----|
 | **Core Messaging** | 35 | **35** ✅ | Perfect! |
 | **Mobile App Quality** | 20 | **20** ✅ | Perfect! (dark mode + compression) |
-| **AI Features** | 30 | **6** 🟡 | Partial (summarize working) |
+| **AI Features** | 30 | **23** ✅ | 4/6 features working |
 | **Technical Implementation** | 10 | **10** ✅ | Perfect! |
 | **Documentation & Deployment** | 5 | **5** ✅ | Perfect! |
 | **Deliverables Penalty** | 0 | **-30** ❌ | MISSING ALL |
 | **Bonus Points** | +10 | **+2** 🟡 | Dark mode added |
-| **TOTAL** | **100** | **48 (F)** | **-52 points** |
+| **TOTAL** | **100** | **65 (D)** | **-35 points** |
 
-### Why You're At 48 Points (F)
+### Why You're At 65 Points (D)
 1. ✅ **Messaging works perfectly** (35/35) - Tested with multiple users
-2. ✅ **App quality excellent** (20/20) - Dark mode + compression added, console.logs remain
-3. 🟡 **AI features partial** (6/30) - Summarize working, others need UI
+2. ✅ **App quality excellent** (20/20) - Dark mode + compression + all polish features
+3. ✅ **AI features mostly working** (23/30) - 4 of 6 features complete and tested
 4. ❌ **Missing demo video** (-15 points)
 5. ❌ **Missing persona brainlift** (-10 points)
 6. ❌ **Missing social post** (-5 points)
@@ -76,21 +77,26 @@ You're **2 focused days** away from 97 points (A+):
 
 | Feature | Cloud Function | UI | Integration | Tested | Risk |
 |---------|----------------|----|-----------|---------| -----|
-| Thread Summarization | ✅ Deployed | ✅ Complete | ✅ Working | ✅ Yes | ✅ LOW |
-| Action Item Extraction | ✅ Deployed | ❌ No button | ❌ Not connected | ❌ No | 🔴 HIGH |
-| Priority Detection | ✅ Deployed | ✅ Red badges | ✅ Working | ✅ Yes | ✅ LOW |
+| Thread Summarization | ✅ Deployed | ✅ Complete | ✅ Working | ✅ Yes | ✅ DONE |
+| Action Item Extraction | ✅ Deployed | ✅ Complete | ✅ Working | ✅ Yes | ✅ DONE |
+| Priority Detection | ✅ Deployed | ✅ Red badges | ✅ Working | ✅ Yes | ✅ DONE |
+| Semantic Search | ✅ Deployed | ✅ Complete | ✅ Working | ✅ Yes | ✅ DONE |
 | Decision Tracking | ✅ Deployed | ✅ Screen exists | 🟡 Partial | ❌ No | 🟡 MEDIUM |
-| Semantic Search | ✅ Deployed | ✅ Screen exists | 🟡 Partial | ❌ No | 🟡 MEDIUM |
 | Proactive Scheduler | ✅ Deployed | ❌ Minimal UI | ❌ Not connected | ❌ No | 🔴 HIGH |
 
-**What's Missing:**
-- No AI menu button in ChatScreen
-- No priority badge in MessageBubble
-- No semantic search toggle in SearchScreen
-- No loading states or error handling
-- Never actually tested if AI calls work
+**What's Working:**
+- ✅ Thread Summarization with smart titles, share, caching
+- ✅ Action Item Extraction with refresh, share, display names
+- ✅ Priority Detection with red badges on urgent messages
+- ✅ Semantic Search with toggle, automatic embeddings
+- ✅ All features show display names (not user IDs)
+- ✅ Dark mode applied to all AI features
 
-**Impact if not fixed:** Lose 25-30 points → Drop from A to C/D
+**Still Missing (7 points):**
+- 🟡 Decision Tracking screen needs testing and polish
+- 🔴 Proactive Scheduler needs UI implementation
+
+**Impact:** Currently at 23/30 points. Need +7 points to hit perfect score.
 
 ### Gap 2: Demo Video Missing (-15 points)
 

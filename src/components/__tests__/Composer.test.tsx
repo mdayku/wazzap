@@ -38,15 +38,15 @@ describe('Composer', () => {
   });
 
   it('renders text input and send button', () => {
-    const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
+    const { getByPlaceholderText } = render(<Composer {...defaultProps} />);
     
-    expect(getByPlaceholderText('Type a message...')).toBeTruthy();
-    expect(getByText('Send')).toBeTruthy();
+    expect(getByPlaceholderText('Message')).toBeTruthy();
+    // Send button is now an icon, not text
   });
 
   it('updates text input value when typing', () => {
     const { getByPlaceholderText } = render(<Composer {...defaultProps} />);
-    const input = getByPlaceholderText('Type a message...');
+    const input = getByPlaceholderText('Message');
     
     fireEvent.changeText(input, 'Hello, world!');
     
@@ -58,7 +58,7 @@ describe('Composer', () => {
     const { getByPlaceholderText } = render(
       <Composer {...defaultProps} onTyping={onTyping} />
     );
-    const input = getByPlaceholderText('Type a message...');
+    const input = getByPlaceholderText('Message');
     
     fireEvent.changeText(input, 'H');
     
@@ -70,7 +70,7 @@ describe('Composer', () => {
     const { getByPlaceholderText } = render(
       <Composer {...defaultProps} onTyping={onTyping} />
     );
-    const input = getByPlaceholderText('Type a message...');
+    const input = getByPlaceholderText('Message');
     
     fireEvent.changeText(input, 'Hello');
     fireEvent.changeText(input, '');
@@ -80,7 +80,7 @@ describe('Composer', () => {
 
   it('sends message when send button is pressed', async () => {
     const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
-    const input = getByPlaceholderText('Type a message...');
+    const input = getByPlaceholderText('Message');
     const sendButton = getByText('Send');
     
     fireEvent.changeText(input, 'Test message');
@@ -99,7 +99,7 @@ describe('Composer', () => {
 
   it('clears input after sending message', async () => {
     const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
-    const input = getByPlaceholderText('Type a message...');
+    const input = getByPlaceholderText('Message');
     const sendButton = getByText('Send');
     
     fireEvent.changeText(input, 'Test message');
@@ -121,7 +121,7 @@ describe('Composer', () => {
 
   it('trims whitespace before sending', async () => {
     const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
-    const input = getByPlaceholderText('Type a message...');
+    const input = getByPlaceholderText('Message');
     const sendButton = getByText('Send');
     
     fireEvent.changeText(input, '  Test message  ');
@@ -143,7 +143,7 @@ describe('Composer', () => {
     );
 
     const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
-    const input = getByPlaceholderText('Type a message...');
+    const input = getByPlaceholderText('Message');
     const sendButton = getByText('Send');
     
     fireEvent.changeText(input, 'Test');

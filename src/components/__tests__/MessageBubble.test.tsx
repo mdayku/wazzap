@@ -1,6 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import MessageBubble from '../MessageBubble';
+import { ThemeProvider } from '../../contexts/ThemeContext';
 
 // Mock Timestamp class
 const Timestamp = {
@@ -9,6 +10,11 @@ const Timestamp = {
     seconds: Math.floor(date.getTime() / 1000),
     nanoseconds: 0,
   }),
+};
+
+// Helper to render with ThemeProvider
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
 };
 
 describe('MessageBubble Component', () => {
@@ -22,7 +28,7 @@ describe('MessageBubble Component', () => {
   };
 
   it('should render message text', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <MessageBubble item={mockMessage} me="user2" />
     );
     
@@ -30,7 +36,7 @@ describe('MessageBubble Component', () => {
   });
 
   it('should show sender name when showSender is true', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <MessageBubble 
         item={mockMessage} 
         me="user2" 
@@ -43,7 +49,7 @@ describe('MessageBubble Component', () => {
   });
 
   it('should not show sender name when showSender is false', () => {
-    const { queryByText } = render(
+    const { queryByText } = renderWithTheme(
       <MessageBubble 
         item={mockMessage} 
         me="user2" 
@@ -56,7 +62,7 @@ describe('MessageBubble Component', () => {
   });
 
   it('should render status checkmarks for sent messages', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <MessageBubble item={mockMessage} me="user1" />
     );
     
@@ -65,7 +71,7 @@ describe('MessageBubble Component', () => {
 
   it('should render double checkmarks for read messages', () => {
     const readMessage = { ...mockMessage, status: 'read' as const };
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <MessageBubble item={readMessage} me="user1" />
     );
     
@@ -77,7 +83,7 @@ describe('MessageBubble Component', () => {
       ...mockMessage, 
       priority: 'high' as const 
     };
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <MessageBubble item={highPriorityMessage} me="user2" />
     );
     
@@ -85,7 +91,7 @@ describe('MessageBubble Component', () => {
   });
 
   it('should not show priority badge for normal priority messages', () => {
-    const { queryByText } = render(
+    const { queryByText } = renderWithTheme(
       <MessageBubble item={mockMessage} me="user2" />
     );
     
@@ -103,7 +109,7 @@ describe('MessageBubble Component', () => {
       },
     };
     
-    const { UNSAFE_getByType } = render(
+    const { UNSAFE_getByType } = renderWithTheme(
       <MessageBubble item={messageWithImage} me="user2" />
     );
     
