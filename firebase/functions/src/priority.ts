@@ -1,6 +1,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import * as admin from 'firebase-admin';
 import OpenAI from 'openai';
+import { generateEmbedding } from './embeddings';
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {
@@ -81,6 +82,17 @@ Message: ${messageText}`;
     }
 
     console.log(`Message ${snap.id} classified as ${result.priority}`);
+    
+    // Generate embedding for semantic search (non-blocking)
+    if (message.text && message.text.trim().length > 0) {
+      try {
+        await generateEmbedding(snap.id, threadId, message.text);
+        console.log(`Embedding generated for message ${snap.id}`);
+      } catch (embeddingError) {
+        console.error('Error generating embedding:', embeddingError);
+        // Don't fail the whole function if embedding generation fails
+      }
+    }
   } catch (error) {
     console.error('Error in onMessageCreate:', error);
     // Don't throw - we don't want to fail message delivery if AI fails
