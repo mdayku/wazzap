@@ -69,7 +69,7 @@ All 11 MVP requirements tested and working!
 - ✅ **Presence indicators** - Green/gray dots showing online status (last 10 mins)
 - ✅ **Group members dropdown** - View all participants with photos
 - ✅ **Media previews** - "📷 Image" and "🎤 Audio" shown in chat list
-- ✅ **Push notifications** - Foreground toast notifications + test button
+- ✅ **Push notifications** - Foreground toast notifications with sound + test button
 - ✅ **Presence tracking** - Online/offline status with last seen
 - ✅ **Unread badges** - Accurate counts with auto-clear
 - ✅ **Multi-user login** - Save and select from multiple accounts
@@ -84,6 +84,10 @@ All 11 MVP requirements tested and working!
 - ✅ **Semantic search** - Toggle AI/simple search, automatic embeddings, error handling
 - ✅ **Decision tracking** - Full screen with display names, navigation, real-time updates
 - 🔴 Proactive meeting scheduler (deployed Cloud Function, needs UI implementation)
+
+**AI Models Used:**
+- **GPT-4o-mini** - Text generation (summarization, action items, priority detection, scheduling)
+- **text-embedding-3-small** - Semantic search embeddings (1536 dimensions)
 
 **Advanced AI Features (Scoped for Final Submission):**
 - 🔄 **n8n Workflow Automation** - Slack integration, email digests, calendar events
