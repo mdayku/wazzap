@@ -47,11 +47,6 @@ export function useThreads(uid: string | null) {
         const threadId = doc.id;
         const currentLastRead = threadData.lastRead?.[uid];
         
-        // Debug: Check if lastRead exists for this user
-        if (!currentLastRead) {
-          console.log(`⚠️ [LASTREAD_MISSING] Thread ${threadId}, User ${uid}, lastRead:`, threadData.lastRead);
-        }
-        
         // Check if lastRead timestamp has changed (e.g., user opened the chat)
         const cachedLastRead = lastReadCache.get(threadId);
         
@@ -106,7 +101,6 @@ export function useThreads(uid: string | null) {
           
           const unsubMessages = onSnapshot(messagesQuery, (messagesSnap) => {
             threadUnreadCounts.set(threadId, messagesSnap.size);
-            console.log(`🔵 [UNREAD_DEBUG] Thread ${threadId}: ${messagesSnap.size} unread, lastRead: ${currentLastRead?.toMillis()}`);
             
             // Re-render threads with updated counts
             setThreads((prevThreads) =>
@@ -117,9 +111,9 @@ export function useThreads(uid: string | null) {
           }, (error) => {
             // Silently handle permission errors (can happen during auth transitions)
             if (error.code === 'permission-denied') {
-              console.log('⚠️ [UNREAD] Permission denied (auth transition) - setting count to 0');
+              // Silent - this is expected during auth transitions
             } else {
-              console.error('❌ [UNREAD_ERROR] Thread:', threadId, 'Error:', error.message || error);
+              console.error('Error counting unread for thread:', threadId, error);
             }
             threadUnreadCounts.set(threadId, 0);
           });
