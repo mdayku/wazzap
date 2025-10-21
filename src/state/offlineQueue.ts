@@ -27,7 +27,8 @@ export async function sendMessageOptimistic(p: Pending, uid: string) {
       lastMessage: {
         text: text ?? '',
         senderId: uid,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        media: media ?? null
       },
       updatedAt: serverTimestamp()
     });

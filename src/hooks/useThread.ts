@@ -12,6 +12,7 @@ export interface Thread {
     text: string;
     senderId: string;
     timestamp: Timestamp;
+    media?: { type: 'image' | 'video' | 'audio'; url: string };
   };
   name?: string; // For group chats
   lastRead?: { [userId: string]: Timestamp }; // Track last read time per user

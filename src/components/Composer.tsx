@@ -27,12 +27,21 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const handleTextChange = (newText: string) => {
     setText(newText);
     
+    const isTyping = newText.length > 0;
+    console.log(`⌨️ [COMPOSER] Text changed, isTyping=${isTyping}, text length=${newText.length}`);
+    
     // Notify typing
-    onTyping?.(newText.length > 0);
+    if (onTyping) {
+      console.log(`⌨️ [COMPOSER] Calling onTyping(${isTyping})`);
+      onTyping(isTyping);
+    } else {
+      console.log(`⌨️ [COMPOSER] ⚠️ onTyping callback is undefined!`);
+    }
     
     // Clear typing after 3 seconds of inactivity
     if (typingTimeout) clearTimeout(typingTimeout);
     const timeout = setTimeout(() => {
+      console.log(`⌨️ [COMPOSER] Timeout fired, calling onTyping(false)`);
       onTyping?.(false);
     }, 3000);
     setTypingTimeout(timeout);

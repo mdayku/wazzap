@@ -6,17 +6,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { doc, getDoc } from 'firebase/firestore';
 import { useThreads } from '../hooks/useThread';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../services/firebase';
-import { formatTimestamp } from '../utils/time';
+import { formatTimestamp, isUserOnline } from '../utils/time';
 import { registerForPush } from '../services/notifications';
+import { Timestamp } from 'firebase/firestore';
 
 interface UserCache {
-  [uid: string]: { displayName: string; photoURL?: string };
+  [uid: string]: { displayName: string; photoURL?: string; presence?: Timestamp };
 }
 
 export default function ThreadsScreen() {
@@ -33,7 +36,7 @@ export default function ThreadsScreen() {
   }, [user]);
 
   useEffect(() => {
-    // Fetch user data for thread members
+    // Fetch user data and presence for thread members
     const fetchUsers = async () => {
       const uids = new Set<string>();
       threads.forEach(thread => {
@@ -50,7 +53,12 @@ export default function ThreadsScreen() {
           try {
             const userDoc = await getDoc(doc(db, 'users', uid));
             if (userDoc.exists()) {
-              newUsers[uid] = userDoc.data() as any;
+              const userData = userDoc.data();
+              newUsers[uid] = {
+                displayName: userData.displayName || 'User',
+                photoURL: userData.photoURL,
+                presence: userData.presence,
+              };
             }
           } catch (error) {
             console.error('Error fetching user:', error);
@@ -77,9 +85,54 @@ export default function ThreadsScreen() {
     return 'Chat';
   };
 
+  // Render a single avatar with presence dot
+  const renderAvatar = (uid: string, size: number = 50, showPresence: boolean = true) => {
+    const userData = userCache[uid];
+    const isOnline = userData?.presence ? isUserOnline(userData.presence) : false;
+    const displayName = userData?.displayName || 'User';
+    const photoURL = userData?.photoURL;
+
+    return (
+      <View style={[styles.avatarContainer, { width: size, height: size }]}>
+        {photoURL ? (
+          <Image source={{ uri: photoURL }} style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]} />
+        ) : (
+          <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+            <Text style={[styles.avatarText, { fontSize: size * 0.4 }]}>
+              {displayName.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
+        {showPresence && (
+          <View style={[styles.presenceDot, isOnline ? styles.presenceDotOnline : styles.presenceDotOffline]} />
+        )}
+      </View>
+    );
+  };
+
+  // Render avatars for group chats (show up to 2 members)
+  const renderGroupAvatars = (thread: any) => {
+    const otherMembers = thread.members.filter((m: string) => m !== user?.uid).slice(0, 2);
+    
+    if (otherMembers.length === 1) {
+      return renderAvatar(otherMembers[0], 50, true);
+    }
+    
+    // Show 2 overlapping avatars for group chats
+    return (
+      <View style={styles.groupAvatarContainer}>
+        {renderAvatar(otherMembers[0], 36, false)}
+        <View style={styles.groupAvatarOverlap}>
+          {renderAvatar(otherMembers[1], 36, false)}
+        </View>
+      </View>
+    );
+  };
+
   const renderThread = ({ item }: any) => {
     const unreadCount = item.unreadCount || 0;
     const hasUnread = unreadCount > 0;
+    const isGroupChat = item.type === 'group' || item.members.length > 2;
     
     console.log('🔵 [BADGE] Thread:', getThreadName(item), 'unreadCount:', unreadCount);
     
@@ -88,11 +141,15 @@ export default function ThreadsScreen() {
         style={styles.threadItem}
         onPress={() => navigation.navigate('Chat' as never, { threadId: item.id, threadName: getThreadName(item) } as never)}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {getThreadName(item).charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        {isGroupChat ? renderGroupAvatars(item) : (
+          <>
+            {item.members.filter((m: string) => m !== user?.uid).map((uid: string) => (
+              <View key={uid}>
+                {renderAvatar(uid, 50, true)}
+              </View>
+            ))[0]}
+          </>
+        )}
         
         <View style={styles.threadContent}>
           <View style={styles.threadHeader}>
@@ -111,11 +168,15 @@ export default function ThreadsScreen() {
             </View>
           </View>
           
-          {item.lastMessage?.text && (
+          {item.lastMessage?.text ? (
             <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
               {item.lastMessage.text}
             </Text>
-          )}
+          ) : item.lastMessage?.media ? (
+            <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]}>
+              📷 Image
+            </Text>
+          ) : null}
         </View>
       </TouchableOpacity>
     );
@@ -138,9 +199,7 @@ export default function ThreadsScreen() {
           style={styles.profileButton}
         >
           <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>
-              {user?.displayName?.charAt(0).toUpperCase() || '?'}
-            </Text>
+            <Ionicons name="person" size={20} color="#FFFFFF" />
           </View>
         </TouchableOpacity>
       </View>
@@ -225,19 +284,49 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
   },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+  },
+  avatarImage: {
+    backgroundColor: '#E5E5EA',
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 20,
     fontWeight: '600',
+  },
+  groupAvatarContainer: {
+    flexDirection: 'row',
+    width: 60,
+    height: 50,
+    marginRight: 12,
+    position: 'relative',
+  },
+  groupAvatarOverlap: {
+    position: 'absolute',
+    left: 24,
+    top: 7,
+  },
+  presenceDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  presenceDotOnline: {
+    backgroundColor: '#34C759',
+  },
+  presenceDotOffline: {
+    backgroundColor: '#8E8E93',
   },
   threadContent: {
     flex: 1,

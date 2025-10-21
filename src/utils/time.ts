@@ -51,3 +51,18 @@ export function formatLastSeen(timestamp: Timestamp | null | undefined): string 
   }
 }
 
+export function isUserOnline(timestamp: Timestamp | null | undefined): boolean {
+  if (!timestamp) return false;
+  
+  try {
+    const date = timestamp.toDate();
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    // Online if within 10 minutes
+    return diff < 600000;
+  } catch (error) {
+    return false;
+  }
+}
+
