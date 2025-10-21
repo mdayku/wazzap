@@ -22,7 +22,7 @@ import Composer from '../components/Composer';
 import MessageBubble from '../components/MessageBubble';
 import TypingDots from '../components/TypingDots';
 import { formatLastSeen, isUserOnline } from '../utils/time';
-import { summarizeThread } from '../services/ai';
+import { summarizeThread, extractAI } from '../services/ai';
 
 export default function ChatScreen({ route, navigation }: any) {
   const { threadId, threadName } = route.params;
@@ -36,6 +36,10 @@ export default function ChatScreen({ route, navigation }: any) {
   const [summary, setSummary] = useState('');
   const [summaryTitle, setSummaryTitle] = useState('Thread Summary');
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [actionItems, setActionItems] = useState<any[]>([]);
+  const [decisions, setDecisions] = useState<any[]>([]);
+  const [loadingActions, setLoadingActions] = useState(false);
   const [userCache, setUserCache] = useState<any>({});
   const [isOnline, setIsOnline] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
@@ -119,17 +123,59 @@ export default function ChatScreen({ route, navigation }: any) {
         if (threadDoc.exists()) {
           const threadData = threadDoc.data();
           const members = threadData.members || [];
+          console.log('👥 [USER_CACHE] Thread members:', members);
           setThreadMembers(members);
           
           // Check if it's a group chat (more than 2 members or has a group name)
           const isGroup = members.length > 2 || !!threadData.name;
           setIsGroupChat(isGroup);
           
+          // FIRST: Fetch all members' data (for both 1:1 and group chats)
+          // This ensures userCache is populated for action items extraction
+          console.log('👥 [USER_CACHE] Starting to fetch', members.length, 'members...');
+          const memberPromises = members.map(async (memberId: string) => {
+            console.log('👥 [USER_CACHE] Fetching user:', memberId);
+            try {
+              const memberDoc = await getDoc(doc(db, 'users', memberId));
+              console.log('👥 [USER_CACHE] Doc exists for', memberId, ':', memberDoc.exists());
+              if (memberDoc.exists()) {
+                const userData = memberDoc.data();
+                console.log('👥 [USER_CACHE] User data for', memberId, ':', userData?.displayName);
+                return { [memberId]: userData };
+              }
+            } catch (error) {
+              console.error('👥 [USER_CACHE] Error fetching member', memberId, ':', error);
+            }
+            return null;
+          });
+          
+          const memberResults = await Promise.all(memberPromises);
+          console.log('👥 [USER_CACHE] Promise.all completed, results:', memberResults.length);
+          const newCache: any = {};
+          memberResults.forEach((result, index) => {
+            console.log('👥 [USER_CACHE] Processing result', index, ':', result ? Object.keys(result)[0] : 'null');
+            if (result) {
+              Object.assign(newCache, result);
+            }
+          });
+          console.log('👥 [USER_CACHE] About to set cache with keys:', Object.keys(newCache));
+          setUserCache((prev: any) => {
+            const updated = { ...prev, ...newCache };
+            console.log('👥 [USER_CACHE] Cache after update - keys:', Object.keys(updated));
+            console.log('👥 [USER_CACHE] Cache after update - data:', 
+              Object.entries(updated).map(([id, data]: [string, any]) => 
+                ({ id, displayName: data?.displayName })
+              )
+            );
+            return updated;
+          });
+          
+          // SECOND: Set up presence tracking for 1:1 chats
           const otherMember = members.find((m: string) => m !== user.uid);
           
           if (otherMember) {
             setOtherUserId(otherMember);
-            // Subscribe to other user's presence (for 1:1 chats)
+            // Subscribe to other user's presence (for 1:1 chats only)
             if (!isGroup) {
               const userDoc = doc(db, 'users', otherMember);
               const unsubscribe = onSnapshot(userDoc, (snap) => {
@@ -142,21 +188,6 @@ export default function ChatScreen({ route, navigation }: any) {
               });
               return unsubscribe;
             }
-          }
-          
-          // Fetch all members' data for group chats
-          if (isGroup) {
-            members.forEach(async (memberId: string) => {
-              try {
-                const memberDoc = await getDoc(doc(db, 'users', memberId));
-                if (memberDoc.exists()) {
-                  const userData = memberDoc.data();
-                  setUserCache((prev: any) => ({ ...prev, [memberId]: userData }));
-                }
-              } catch (error) {
-                console.error('Error fetching member data:', error);
-              }
-            });
           }
         }
       } catch (error) {
@@ -341,6 +372,84 @@ export default function ChatScreen({ route, navigation }: any) {
     }
   };
 
+  const handleExtractActions = async () => {
+    // If we already have cached data, just show it
+    if (actionItems.length > 0 || decisions.length > 0) {
+      setShowActions(true);
+      return;
+    }
+    
+    // Otherwise, fetch new data
+    await generateActions();
+  };
+
+  const generateActions = async () => {
+    setShowActions(true);
+    setLoadingActions(true);
+    
+    try {
+      const result = await extractAI(threadId, 50);
+      console.log('🤖 [ACTIONS] Extracted:', JSON.stringify(result, null, 2));
+      console.log('🤖 [ACTIONS] UserCache keys:', Object.keys(userCache));
+      console.log('🤖 [ACTIONS] UserCache full:', JSON.stringify(
+        Object.fromEntries(
+          Object.entries(userCache).map(([id, data]: [string, any]) => [id, { displayName: data?.displayName, email: data?.email }])
+        ), 
+        null, 
+        2
+      ));
+      setActionItems(result.actionItems || []);
+      setDecisions(result.decisions || []);
+    } catch (error) {
+      console.error('Error extracting actions:', error);
+      setActionItems([]);
+      setDecisions([]);
+    } finally {
+      setLoadingActions(false);
+    }
+  };
+
+  const handleRefreshActions = async () => {
+    await generateActions();
+  };
+
+  const handleShareActions = async () => {
+    try {
+      let message = `Action Items & Decisions: ${threadName}\n\n`;
+      
+      if (actionItems.length > 0) {
+        message += `📋 Action Items:\n`;
+        actionItems.forEach((item, i) => {
+          message += `${i + 1}. ${item.task}\n`;
+          if (item.assignee) {
+            const displayName = userCache[item.assignee]?.displayName || item.assignee;
+            message += `   👤 ${displayName}\n`;
+          }
+          if (item.due) message += `   📅 ${item.due}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (decisions.length > 0) {
+        message += `✅ Decisions:\n`;
+        decisions.forEach((item, i) => {
+          message += `${i + 1}. ${item.summary}\n`;
+          if (item.owner) {
+            const displayName = userCache[item.owner]?.displayName || item.owner;
+            message += `   👤 ${displayName}\n`;
+          }
+        });
+      }
+      
+      await Share.share({
+        message,
+        title: `Action Items & Decisions: ${threadName}`,
+      });
+    } catch (error) {
+      console.error('Error sharing actions:', error);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -397,6 +506,9 @@ export default function ChatScreen({ route, navigation }: any) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.summarizeButton} onPress={handleSummarize}>
             <Ionicons name="sparkles" size={18} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.summarizeButton} onPress={handleExtractActions}>
+            <Ionicons name="list-outline" size={20} color="#007AFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -476,6 +588,110 @@ export default function ChatScreen({ route, navigation }: any) {
               <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
             ) : (
               <Text style={styles.summaryText}>{summary}</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Actions Modal */}
+      <Modal
+        visible={showActions}
+        animationType="slide"
+        onRequestClose={() => setShowActions(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { flex: 1, marginRight: 12 }]}>Action Items & Decisions</Text>
+            <View style={styles.modalHeaderButtons}>
+              {!loadingActions && (actionItems.length > 0 || decisions.length > 0) && (
+                <>
+                  <TouchableOpacity 
+                    onPress={handleRefreshActions}
+                    style={styles.shareButton}
+                  >
+                    <Ionicons name="refresh-outline" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={handleShareActions}
+                    style={styles.shareButton}
+                  >
+                    <Ionicons name="share-outline" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity onPress={() => setShowActions(false)}>
+                <Ionicons name="close" size={28} color="#000" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            {loadingActions ? (
+              <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
+            ) : (
+              <>
+                {/* Action Items */}
+                <Text style={styles.sectionTitle}>📋 Action Items ({actionItems.length})</Text>
+                {actionItems.length === 0 ? (
+                  <Text style={styles.emptyText}>No action items found in this conversation.</Text>
+                ) : (
+                  actionItems.map((item, index) => {
+                    // Check if assignee is a user ID (long string) or a name
+                    let assigneeDisplayName = null;
+                    if (item.assignee) {
+                      if (item.assignee.length > 20) {
+                        // Likely a user ID, look up in cache
+                        assigneeDisplayName = userCache[item.assignee]?.displayName || item.assignee;
+                      } else {
+                        // Likely already a name from AI extraction
+                        assigneeDisplayName = item.assignee;
+                      }
+                    }
+                    return (
+                      <View key={index} style={styles.actionItem}>
+                        <View style={styles.actionItemHeader}>
+                          <Ionicons name="checkbox-outline" size={20} color="#007AFF" />
+                          <Text style={styles.actionItemTask}>{item.task}</Text>
+                        </View>
+                        {assigneeDisplayName && (
+                          <Text style={styles.actionItemMeta}>👤 {assigneeDisplayName}</Text>
+                        )}
+                        {item.due && (
+                          <Text style={styles.actionItemMeta}>📅 {item.due}</Text>
+                        )}
+                      </View>
+                    );
+                  })
+                )}
+
+                {/* Decisions */}
+                <Text style={[styles.sectionTitle, { marginTop: 32 }]}>✅ Decisions ({decisions.length})</Text>
+                {decisions.length === 0 ? (
+                  <Text style={styles.emptyText}>No decisions found in this conversation.</Text>
+                ) : (
+                  decisions.map((item, index) => {
+                    // Check if owner is a user ID (long string) or a name
+                    let ownerDisplayName = null;
+                    if (item.owner) {
+                      if (item.owner.length > 20) {
+                        // Likely a user ID, look up in cache
+                        ownerDisplayName = userCache[item.owner]?.displayName || item.owner;
+                      } else {
+                        // Likely already a name from AI extraction
+                        ownerDisplayName = item.owner;
+                      }
+                    }
+                    return (
+                      <View key={index} style={styles.decisionItem}>
+                        <Text style={styles.decisionSummary}>{item.summary}</Text>
+                        {ownerDisplayName && (
+                          <Text style={styles.decisionMeta}>👤 {ownerDisplayName}</Text>
+                        )}
+                      </View>
+                    );
+                  })
+                )}
+              </>
             )}
           </ScrollView>
         </View>
@@ -770,6 +986,58 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontStyle: 'italic',
+    marginBottom: 16,
+  },
+  actionItem: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  actionItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionItemTask: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
+    marginLeft: 8,
+    flex: 1,
+  },
+  actionItemMeta: {
+    fontSize: 14,
+    color: '#666666',
+    marginLeft: 28,
+    marginTop: 4,
+  },
+  decisionItem: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  decisionSummary: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
+    marginBottom: 8,
+  },
+  decisionMeta: {
+    fontSize: 14,
+    color: '#666666',
   },
 });
 

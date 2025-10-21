@@ -47,8 +47,36 @@ export const summarizeThread = async (data: any, context: any) => {
       return { text: 'No messages to summarize' };
     }
 
-    // Create prompt for summarization
-    const messagesText = JSON.stringify(msgs).slice(0, 6000);
+    // Fetch user display names for all unique senders
+    const uniqueSenderIds = [...new Set(msgs.map(m => m.sender))];
+    const userCache: Record<string, string> = {};
+    
+    await Promise.all(
+      uniqueSenderIds.map(async (senderId) => {
+        try {
+          const userDoc = await db.collection('users').doc(senderId).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            userCache[senderId] = userData?.displayName || userData?.email || senderId;
+          } else {
+            userCache[senderId] = senderId; // Fallback to ID if user not found
+          }
+        } catch (error) {
+          console.error(`Error fetching user ${senderId}:`, error);
+          userCache[senderId] = senderId;
+        }
+      })
+    );
+
+    // Replace sender IDs with display names
+    const msgsWithNames = msgs.map(m => ({
+      sender: userCache[m.sender] || m.sender,
+      text: m.text,
+      timestamp: m.timestamp,
+    }));
+
+    // Create prompt for summarization (using messages with display names)
+    const messagesText = JSON.stringify(msgsWithNames).slice(0, 6000);
     const prompt = `Summarize the following conversation for a remote team. Include:
 - Key discussion points
 - Important decisions made
@@ -123,8 +151,36 @@ export const extractAI = async (data: any, context: any) => {
       return { actionItems: [], decisions: [] };
     }
 
-    // Create prompt for extraction
-    const messagesText = JSON.stringify(msgs).slice(0, 6000);
+    // Fetch user display names for all unique senders
+    const uniqueSenderIds = [...new Set(msgs.map(m => m.sender))];
+    const userCache: Record<string, string> = {};
+    
+    await Promise.all(
+      uniqueSenderIds.map(async (senderId) => {
+        try {
+          const userDoc = await db.collection('users').doc(senderId).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            userCache[senderId] = userData?.displayName || userData?.email || senderId;
+          } else {
+            userCache[senderId] = senderId;
+          }
+        } catch (error) {
+          console.error(`Error fetching user ${senderId}:`, error);
+          userCache[senderId] = senderId;
+        }
+      })
+    );
+
+    // Replace sender IDs with display names
+    const msgsWithNames = msgs.map(m => ({
+      sender: userCache[m.sender] || m.sender,
+      text: m.text,
+      timestamp: m.timestamp,
+    }));
+
+    // Create prompt for extraction (using messages with display names)
+    const messagesText = JSON.stringify(msgsWithNames).slice(0, 6000);
     const prompt = `Extract action items and decisions from this conversation.
 
 For action items, identify:
