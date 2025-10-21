@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../services/firebase';
+import { functions, db } from '../services/firebase';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SearchResult {
   messageId: string;
@@ -21,23 +24,54 @@ interface SearchResult {
 
 export default function SearchScreen({ route, navigation }: any) {
   const { threadId } = route.params || {};
-  const [query, setQuery] = useState('');
+  const { colors } = useTheme();
+  const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
+  const [semanticSearchEnabled, setSemanticSearchEnabled] = useState(true);
 
   const handleSearch = async () => {
-    if (!query.trim()) return;
+    if (!searchQuery.trim()) return;
 
     setLoading(true);
     setSearchPerformed(true);
 
     try {
-      const search = httpsCallable(functions, 'search');
-      const result = await search({ query: query.trim(), threadId, limit: 20 });
-      const data = result.data as any;
-      
-      setResults(data.results || []);
+      if (semanticSearchEnabled) {
+        // AI-powered semantic search
+        const search = httpsCallable(functions, 'search');
+        const result = await search({ query: searchQuery.trim(), threadId, limit: 20 });
+        const data = result.data as any;
+        
+        setResults(data.results || []);
+      } else {
+        // Simple text search (Firestore query)
+        const messagesRef = collection(db, `threads/${threadId}/messages`);
+        const messagesQuery = query(
+          messagesRef,
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
+        const snapshot = await getDocs(messagesQuery);
+        
+        const searchResults: SearchResult[] = [];
+        const searchTerm = searchQuery.trim().toLowerCase();
+        
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          if (data.text && data.text.toLowerCase().includes(searchTerm)) {
+            searchResults.push({
+              messageId: doc.id,
+              threadId: threadId,
+              text: data.text,
+              similarity: 1.0, // Simple match, no similarity score
+            });
+          }
+        });
+        
+        setResults(searchResults);
+      }
     } catch (error) {
       console.error('Error searching:', error);
       setResults([]);
@@ -48,7 +82,7 @@ export default function SearchScreen({ route, navigation }: any) {
 
   const renderResult = ({ item }: { item: SearchResult }) => (
     <TouchableOpacity
-      style={styles.resultItem}
+      style={[styles.resultItem, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
       onPress={() => {
         navigation.navigate('Chat', {
           threadId: item.threadId,
@@ -57,50 +91,80 @@ export default function SearchScreen({ route, navigation }: any) {
       }}
     >
       <View style={styles.resultContent}>
-        <Text style={styles.resultText} numberOfLines={2}>
+        <Text style={[styles.resultText, { color: colors.text }]} numberOfLines={2}>
           {item.text}
         </Text>
-        <View style={styles.resultMeta}>
-          <Text style={styles.similarity}>
-            {Math.round(item.similarity * 100)}% match
-          </Text>
-        </View>
+        {semanticSearchEnabled && (
+          <View style={styles.resultMeta}>
+            <Text style={[styles.similarity, { color: colors.primary }]}>
+              {Math.round(item.similarity * 100)}% match
+            </Text>
+          </View>
+        )}
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#999" />
+      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBackground, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Search</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Search</Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { backgroundColor: colors.inputBackground }]}>
+        <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search messages by meaning..."
-          placeholderTextColor="#999"
+          style={[styles.searchInput, { color: colors.text }]}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={semanticSearchEnabled ? "Search by meaning..." : "Search by text..."}
+          placeholderTextColor={colors.textSecondary}
           onSubmitEditing={handleSearch}
           returnKeyType="search"
         />
-        {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
 
+      {/* Semantic Search Toggle */}
+      <View style={[styles.toggleContainer, { borderBottomColor: colors.border }]}>
+        <View style={styles.toggleLabel}>
+          <Ionicons 
+            name={semanticSearchEnabled ? "sparkles" : "text-outline"} 
+            size={20} 
+            color={semanticSearchEnabled ? colors.primary : colors.textSecondary} 
+            style={{ marginRight: 8 }}
+          />
+          <View>
+            <Text style={[styles.toggleTitle, { color: colors.text }]}>
+              Smart Search {semanticSearchEnabled && '✨'}
+            </Text>
+            <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>
+              {semanticSearchEnabled 
+                ? 'AI-powered semantic search' 
+                : 'Simple text matching'}
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={semanticSearchEnabled}
+          onValueChange={setSemanticSearchEnabled}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+
       <TouchableOpacity
-        style={[styles.searchButton, !query.trim() && styles.searchButtonDisabled]}
+        style={[styles.searchButton, !searchQuery.trim() && styles.searchButtonDisabled]}
         onPress={handleSearch}
-        disabled={!query.trim() || loading}
+        disabled={!searchQuery.trim() || loading}
       >
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
@@ -111,8 +175,10 @@ export default function SearchScreen({ route, navigation }: any) {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Searching...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            {semanticSearchEnabled ? 'Searching with AI...' : 'Searching...'}
+          </Text>
         </View>
       ) : searchPerformed ? (
         results.length > 0 ? (
@@ -124,22 +190,28 @@ export default function SearchScreen({ route, navigation }: any) {
           />
         ) : (
           <View style={styles.centered}>
-            <Ionicons name="search-outline" size={64} color="#CCC" />
-            <Text style={styles.emptyText}>No results found</Text>
-            <Text style={styles.emptySubtext}>
+            <Ionicons name="search-outline" size={64} color={colors.border} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No results found</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
               Try different keywords or phrases
             </Text>
           </View>
         )
       ) : (
         <View style={styles.centered}>
-          <Ionicons name="sparkles-outline" size={64} color="#CCC" />
-          <Text style={styles.emptyText}>Semantic Search</Text>
-          <Text style={styles.emptySubtext}>
-            Search by meaning, not just keywords
+          <Ionicons name={semanticSearchEnabled ? "sparkles-outline" : "text-outline"} size={64} color={colors.border} />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            {semanticSearchEnabled ? 'Semantic Search ✨' : 'Text Search'}
           </Text>
-          <Text style={styles.exampleText}>
-            Try: "decisions about the API" or "action items for Alice"
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+            {semanticSearchEnabled 
+              ? 'Search by meaning, not just keywords'
+              : 'Search for exact text matches'}
+          </Text>
+          <Text style={[styles.exampleText, { color: colors.primary }]}>
+            {semanticSearchEnabled
+              ? 'Try: "decisions about the API"'
+              : 'Try: "production" or "deploy"'}
           </Text>
         </View>
       )}
@@ -150,7 +222,6 @@ export default function SearchScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -158,9 +229,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
   },
   backButton: {
     marginRight: 16,
@@ -168,14 +237,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000000',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     margin: 16,
     paddingHorizontal: 12,
-    backgroundColor: '#F2F2F7',
     borderRadius: 10,
     height: 44,
   },
@@ -185,7 +252,28 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+  },
+  toggleLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  toggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  toggleSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
   searchButton: {
     marginHorizontal: 16,
@@ -213,7 +301,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
   },
   resultsList: {
     padding: 16,
@@ -222,16 +309,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#F9F9F9',
     borderRadius: 8,
     marginBottom: 12,
+    borderWidth: 1,
   },
   resultContent: {
     flex: 1,
   },
   resultText: {
     fontSize: 15,
-    color: '#000000',
     marginBottom: 4,
   },
   resultMeta: {
@@ -240,25 +326,21 @@ const styles = StyleSheet.create({
   },
   similarity: {
     fontSize: 13,
-    color: '#007AFF',
     fontWeight: '600',
   },
   emptyText: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#666',
     marginTop: 16,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 15,
-    color: '#999',
     marginTop: 8,
     textAlign: 'center',
   },
   exampleText: {
     fontSize: 14,
-    color: '#007AFF',
     marginTop: 16,
     textAlign: 'center',
     fontStyle: 'italic',
