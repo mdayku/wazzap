@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Share,
 } from 'react-native';
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const [presenceInfo, setPresenceInfo] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [summary, setSummary] = useState('');
+  const [summaryTitle, setSummaryTitle] = useState('Thread Summary');
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [userCache, setUserCache] = useState<any>({});
   const [isOnline, setIsOnline] = useState(false);
@@ -262,6 +264,17 @@ export default function ChatScreen({ route, navigation }: any) {
   };
 
   const handleSummarize = async () => {
+    // If we already have a summary, just show it
+    if (summary) {
+      setShowSummary(true);
+      return;
+    }
+    
+    // Otherwise, generate a new one
+    await generateSummary();
+  };
+
+  const generateSummary = async () => {
     setShowSummary(true);
     setLoadingSummary(true);
     
@@ -269,19 +282,62 @@ export default function ChatScreen({ route, navigation }: any) {
       const result = await summarizeThread(threadId, 50);
       
       // Fetch the summary from Firestore
+      let summaryText = '';
       if (result.summaryId) {
         const summaryDoc = await getDoc(doc(db, `threads/${threadId}/summaries`, result.summaryId));
         if (summaryDoc.exists()) {
-          setSummary(summaryDoc.data().text || 'Summary generated');
+          summaryText = summaryDoc.data().text || 'Summary generated';
         }
       } else {
-        setSummary(result.text || 'Summary generated');
+        summaryText = result.text || 'Summary generated';
       }
+      
+      setSummary(summaryText);
+      
+      // Generate AI title for the summary
+      generateSummaryTitle(summaryText);
     } catch (error) {
       console.error('Error summarizing:', error);
       setSummary('Failed to generate summary. Please try again.');
+      setSummaryTitle('Thread Summary');
     } finally {
       setLoadingSummary(false);
+    }
+  };
+
+  const generateSummaryTitle = (summaryText: string) => {
+    // Extract first sentence or key phrase for title
+    const firstLine = summaryText.split('\n').find(line => line.trim().length > 0) || '';
+    
+    // If it starts with a heading marker or bullet, extract it
+    if (firstLine.startsWith('**') || firstLine.startsWith('# ')) {
+      const title = firstLine.replace(/[*#-]/g, '').trim();
+      setSummaryTitle(title.slice(0, 50) + (title.length > 50 ? '...' : ''));
+    } else {
+      // Extract key topics (look for common patterns)
+      const keywords = summaryText.match(/(?:discussion|topic|meeting|decision|about|regarding)\s+([^.,\n]{10,40})/i);
+      if (keywords && keywords[1]) {
+        setSummaryTitle(keywords[1].trim());
+      } else {
+        // Fallback: use first few words
+        const words = firstLine.split(' ').slice(0, 6).join(' ');
+        setSummaryTitle(words + (firstLine.split(' ').length > 6 ? '...' : ''));
+      }
+    }
+  };
+
+  const handleResummarize = async () => {
+    await generateSummary();
+  };
+
+  const handleShareSummary = async () => {
+    try {
+      await Share.share({
+        message: `${summaryTitle}\n\n${summary}`,
+        title: summaryTitle,
+      });
+    } catch (error) {
+      console.error('Error sharing summary:', error);
     }
   };
 
@@ -391,10 +447,28 @@ export default function ChatScreen({ route, navigation }: any) {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Thread Summary</Text>
-            <TouchableOpacity onPress={() => setShowSummary(false)}>
-              <Ionicons name="close" size={28} color="#000" />
-            </TouchableOpacity>
+            <Text style={styles.modalTitle} numberOfLines={1}>{summaryTitle}</Text>
+            <View style={styles.modalHeaderButtons}>
+              {!loadingSummary && summary && (
+                <>
+                  <TouchableOpacity 
+                    onPress={handleResummarize}
+                    style={styles.shareButton}
+                  >
+                    <Ionicons name="refresh-outline" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={handleShareSummary}
+                    style={styles.shareButton}
+                  >
+                    <Ionicons name="share-outline" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity onPress={() => setShowSummary(false)}>
+                <Ionicons name="close" size={28} color="#000" />
+              </TouchableOpacity>
+            </View>
           </View>
           
           <ScrollView style={styles.modalContent}>
@@ -592,6 +666,16 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
+    flex: 1,
+    marginRight: 12,
+  },
+  modalHeaderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shareButton: {
+    padding: 4,
   },
   modalContent: {
     flex: 1,

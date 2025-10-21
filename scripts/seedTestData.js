@@ -17,9 +17,9 @@ const db = admin.firestore();
 
 // Test user IDs (replace with your actual test user IDs)
 const USERS = {
-  sarah: 'USER_ID_1', // Replace with actual Sarah's user ID
-  alex: 'USER_ID_2',  // Replace with Alex (Engineering Lead) ID
-  mike: 'USER_ID_3',  // Replace with Mike (Designer) ID
+  sarah: 'JsjSiGt2PUfA6cxqS7LQwYQQ4nz2', // Replace with actual Sarah's user ID
+  alex: 'UkTgTexckHT5Vt8NKHzNrkorLIA2',  // Replace with Alex (Engineering Lead) ID
+  mike: 'yBqd5d9qEZh9U06KO6uGWDUIm7C3',  // Replace with Mike (Designer) ID
 };
 
 // Helper to create timestamps at specific intervals
