@@ -79,9 +79,9 @@ describe('Composer', () => {
   });
 
   it('sends message when send button is pressed', async () => {
-    const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
+    const { getByPlaceholderText, getByTestId } = render(<Composer {...defaultProps} />);
     const input = getByPlaceholderText('Message');
-    const sendButton = getByText('Send');
+    const sendButton = getByTestId('send-button');
     
     fireEvent.changeText(input, 'Test message');
     fireEvent.press(sendButton);
@@ -98,9 +98,9 @@ describe('Composer', () => {
   });
 
   it('clears input after sending message', async () => {
-    const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
+    const { getByPlaceholderText, getByTestId } = render(<Composer {...defaultProps} />);
     const input = getByPlaceholderText('Message');
-    const sendButton = getByText('Send');
+    const sendButton = getByTestId('send-button');
     
     fireEvent.changeText(input, 'Test message');
     fireEvent.press(sendButton);
@@ -111,8 +111,8 @@ describe('Composer', () => {
   });
 
   it('does not send empty messages', () => {
-    const { getByText } = render(<Composer {...defaultProps} />);
-    const sendButton = getByText('Send');
+    const { getByTestId } = render(<Composer {...defaultProps} />);
+    const sendButton = getByTestId('send-button');
     
     fireEvent.press(sendButton);
     
@@ -120,9 +120,9 @@ describe('Composer', () => {
   });
 
   it('trims whitespace before sending', async () => {
-    const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
+    const { getByPlaceholderText, getByTestId } = render(<Composer {...defaultProps} />);
     const input = getByPlaceholderText('Message');
-    const sendButton = getByText('Send');
+    const sendButton = getByTestId('send-button');
     
     fireEvent.changeText(input, '  Test message  ');
     fireEvent.press(sendButton);
@@ -142,9 +142,9 @@ describe('Composer', () => {
       () => new Promise(resolve => setTimeout(resolve, 100))
     );
 
-    const { getByPlaceholderText, getByText } = render(<Composer {...defaultProps} />);
+    const { getByPlaceholderText, getByTestId } = render(<Composer {...defaultProps} />);
     const input = getByPlaceholderText('Message');
-    const sendButton = getByText('Send');
+    const sendButton = getByTestId('send-button');
     
     fireEvent.changeText(input, 'Test');
     fireEvent.press(sendButton);

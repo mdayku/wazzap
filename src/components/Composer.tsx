@@ -229,6 +229,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
         style={[styles.sendButton, (!text.trim() && !uploading) && styles.sendButtonDisabled]} 
         onPress={handleSend}
         disabled={!text.trim() && !uploading}
+        testID="send-button"
       >
         <Ionicons 
           name="send" 
