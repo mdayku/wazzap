@@ -213,6 +213,43 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     }
   };
 
+  const handleShareImage = async (url: string) => {
+    try {
+      console.log('📤 [SHARE] Starting image share:', url);
+      
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Not Supported', 'Sharing is not available on this device');
+        return;
+      }
+
+      // Create a unique filename
+      const filename = `image_${Date.now()}.jpg`;
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
+
+      // Download the file first
+      const downloadResult = await FileSystem.downloadAsync(url, fileUri);
+      
+      if (downloadResult.status === 200) {
+        console.log('📤 [SHARE] Image downloaded to:', downloadResult.uri);
+        
+        // Share the file (opens native share sheet)
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType: 'image/jpeg',
+          dialogTitle: 'Share Image',
+        });
+        
+        console.log('📤 [SHARE] Image shared successfully');
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (error) {
+      console.error('Error sharing image:', error);
+      Alert.alert('Share Failed', 'Could not share the image. Please try again.');
+    }
+  };
+
   return (
     <View style={[styles.container, isMe ? styles.myMessage : styles.theirMessage]}>
       {showSender && !isMe && (
@@ -230,11 +267,35 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           isHighPriority && styles.highPriority
         ]}>
         {item.media?.type === 'image' && item.media?.url && (
-          <Image
-            source={{ uri: item.media.url }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+          <View style={styles.imageWrapper}>
+            <Image
+              source={{ uri: item.media.url }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+            <View style={styles.imageActions}>
+              <TouchableOpacity
+                style={styles.imageActionButton}
+                onPress={() => handleShareImage(item.media!.url)}
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={20}
+                  color={isMe ? colors.messageBubbleSentText : colors.text}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.imageActionButton}
+                onPress={() => handleDeleteMessage()}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={20}
+                  color={isMe ? colors.messageBubbleSentText : colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
         {item.media?.type === 'audio' && item.media?.url && (
@@ -373,11 +434,25 @@ const styles = StyleSheet.create({
   theirText: {
     color: '#000000',
   },
+  imageWrapper: {
+    flexDirection: 'column',
+  },
   image: {
     width: 200,
     height: 200,
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingTop: 4,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  imageActionButton: {
+    padding: 2,
   },
   audioWrapper: {
     flexDirection: 'column',

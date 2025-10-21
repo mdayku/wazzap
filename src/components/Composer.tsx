@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Text, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +19,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const [text, setText] = useState('');
   const [uploading, setUploading] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [previewImage, setPreviewImage] = useState<{ uri: string; width: number; height: number } | null>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -155,25 +154,20 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        setPreviewImage({
-          uri: asset.uri,
-          width: asset.width || 800,
-          height: asset.height || 600
-        });
+        // Send image directly without preview modal
+        await handleSendImage(asset.uri);
       }
     } catch (error) {
       console.error('Error picking image:', error);
     }
   };
 
-  const handleSendImage = async () => {
-    if (!previewImage) return;
-    
+  const handleSendImage = async (imageUri: string) => {
     setUploading(true);
     try {
       // Compress image before uploading
       console.log('📸 [IMAGE] Compressing image...');
-      const compressed = await compressImage(previewImage.uri);
+      const compressed = await compressImage(imageUri);
       console.log(`📸 [IMAGE] Compressed: ${compressed.width}x${compressed.height}`);
       
       const timestamp = Date.now();
@@ -193,18 +187,14 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       );
       
       setText('');
-      setPreviewImage(null);
       // Clear draft after successful send
       await clearDraft();
     } catch (error) {
       console.error('Error uploading image:', error);
+      Alert.alert('Error', 'Failed to send image. Please try again.');
     } finally {
       setUploading(false);
     }
-  };
-
-  const handleCancelImage = () => {
-    setPreviewImage(null);
   };
 
   const startRecording = async () => {
@@ -385,6 +375,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       ) : (
         <>
           <TextInput
+            testID="message-input"
             style={styles.input}
             value={text}
             onChangeText={handleTextChange}
@@ -410,6 +401,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
+              testID="mic-button"
               style={styles.micButton} 
               onPress={startRecording}
               disabled={uploading}
@@ -422,52 +414,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
             </TouchableOpacity>
           )}
         </>
-      )}
-
-      {/* Image Preview Modal */}
-      <Modal
-        visible={!!previewImage}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={handleCancelImage}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.previewContainer}>
-            <Text style={styles.previewTitle}>Send this image?</Text>
-            
-            {previewImage && (
-              <Image 
-                source={{ uri: previewImage.uri }} 
-                style={styles.previewImage}
-                resizeMode="contain"
-              />
-            )}
-            
-            <View style={styles.previewButtons}>
-              <TouchableOpacity 
-                style={[styles.previewButton, styles.cancelButton]} 
-                onPress={handleCancelImage}
-                disabled={uploading}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.previewButton, styles.confirmButton]} 
-                onPress={handleSendImage}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.confirmButtonText}>Send Image</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+      )}    </View>
   );
 }
 
@@ -546,60 +493,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FF3B30',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  previewContainer: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-  },
-  previewTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#000000',
-  },
-  previewImage: {
-    width: '100%',
-    height: 400,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  previewButtons: {
-    flexDirection: 'row',
-    width: '100%',
-    gap: 12,
-  },
-  previewButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#F2F2F7',
-  },
-  confirmButton: {
-    backgroundColor: '#007AFF',
-  },
-  cancelButtonText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 
