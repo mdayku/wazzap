@@ -28,7 +28,10 @@ All 11 MVP requirements tested and working!
 - ✅ **Read receipts** - Gray → Green double checkmarks
 - ✅ **Typing indicators** - See when others are typing
 - ✅ **Image sharing** - Photo upload with preview modal
-- ✅ **Profile photos** - Avatar upload with preview
+- ✅ **Profile photos** - Avatar upload with preview + display in chats
+- ✅ **Presence indicators** - Green/gray dots showing online status (last 10 mins)
+- ✅ **Group members dropdown** - View all participants with photos
+- ✅ **Media previews** - "📷 Image" shown in chat list for media messages
 - ✅ **Push notifications** - Foreground toast notifications + test button
 - ✅ **Presence tracking** - Online/offline status with last seen
 - ✅ **Unread badges** - Accurate counts with auto-clear
