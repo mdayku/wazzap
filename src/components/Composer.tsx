@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Image, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { sendMessageOptimistic } from '../state/offlineQueue';
 import { uploadImage } from '../services/storage';
 
@@ -63,6 +64,31 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     }
   };
 
+  const compressImage = async (uri: string): Promise<{ uri: string; width: number; height: number }> => {
+    try {
+      // Resize image to max 1200px width while maintaining aspect ratio
+      // And compress to 70% quality to reduce file size
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1200 } }], // Maintains aspect ratio
+        {
+          compress: 0.7,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+      
+      return {
+        uri: manipResult.uri,
+        width: manipResult.width,
+        height: manipResult.height,
+      };
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      // Return original if compression fails
+      return { uri, width: 800, height: 600 };
+    }
+  };
+
   const handleImagePick = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -90,17 +116,22 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     
     setUploading(true);
     try {
+      // Compress image before uploading
+      console.log('📸 [IMAGE] Compressing image...');
+      const compressed = await compressImage(previewImage.uri);
+      console.log(`📸 [IMAGE] Compressed: ${compressed.width}x${compressed.height}`);
+      
       const timestamp = Date.now();
       const path = `messages/${uid}/${timestamp}.jpg`;
       
-      const url = await uploadImage(previewImage.uri, path);
+      const url = await uploadImage(compressed.uri, path);
       
       const tempId = `${Date.now()}_${Math.random()}`;
       await sendMessageOptimistic(
         { 
           threadId, 
           text: text.trim() || '',
-          media: { type: 'image', url, width: previewImage.width, height: previewImage.height },
+          media: { type: 'image', url, width: compressed.width, height: compressed.height },
           tempId 
         }, 
         uid

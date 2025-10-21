@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { uploadImage } from '../services/storage';
@@ -84,13 +85,35 @@ export default function ProfileScreen() {
     }
   };
 
+  const compressImage = async (uri: string): Promise<string> => {
+    try {
+      // Resize profile photo to 400x400 and compress
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 400, height: 400 } }],
+        {
+          compress: 0.7,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+      return manipResult.uri;
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      return uri; // Return original if compression fails
+    }
+  };
+
   const handleSavePhoto = async () => {
     if (!previewImage || !user) return;
     
     setUploading(true);
     try {
+      // Compress image before uploading
+      console.log('📸 [PROFILE] Compressing profile photo...');
+      const compressed = await compressImage(previewImage);
+      
       const path = `profiles/${user.uid}/avatar.jpg`;
-      const url = await uploadImage(previewImage, path);
+      const url = await uploadImage(compressed, path);
       
       await updateDoc(doc(db, 'users', user.uid), {
         photoURL: url,
