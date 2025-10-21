@@ -1,6 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
 import { Timestamp } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatTimestamp } from '../utils/time';
 
@@ -24,9 +26,10 @@ interface MessageBubbleProps {
   me: string;
   showSender?: boolean;
   senderName?: string;
+  threadId?: string;
 }
 
-export default function MessageBubble({ item, me, showSender, senderName }: MessageBubbleProps) {
+export default function MessageBubble({ item, me, showSender, senderName, threadId }: MessageBubbleProps) {
   const { colors } = useTheme();
   const isMe = item.senderId === me;
   const isHighPriority = item.priority === 'high';
@@ -36,17 +39,52 @@ export default function MessageBubble({ item, me, showSender, senderName }: Mess
     console.log('✅ [RECEIPT] Message marked as read:', item.id, item.status);
   }
 
+  const handleLongPress = () => {
+    if (!threadId) return;
+    
+    Alert.alert(
+      'Message Options',
+      'What would you like to do?',
+      [
+        {
+          text: isHighPriority ? 'Remove Urgent Flag' : 'Mark as Urgent',
+          onPress: async () => {
+            try {
+              const messageRef = doc(db, `threads/${threadId}/messages`, item.id);
+              await updateDoc(messageRef, {
+                priority: isHighPriority ? 'normal' : 'high',
+              });
+              console.log(`✅ Message ${isHighPriority ? 'unmarked' : 'marked'} as urgent:`, item.id);
+            } catch (error) {
+              console.error('Error updating message priority:', error);
+              Alert.alert('Error', 'Failed to update message priority');
+            }
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, isMe ? styles.myMessage : styles.theirMessage]}>
       {showSender && !isMe && (
         <Text style={styles.senderName}>{senderName || item.senderId}</Text>
       )}
       
-      <View style={[
-        styles.bubble,
-        isMe ? { backgroundColor: colors.messageBubbleSent } : { backgroundColor: colors.messageBubbleReceived },
-        isHighPriority && styles.highPriority
-      ]}>
+      <TouchableOpacity
+        onLongPress={handleLongPress}
+        delayLongPress={500}
+        activeOpacity={0.9}
+      >
+        <View style={[
+          styles.bubble,
+          isMe ? { backgroundColor: colors.messageBubbleSent } : { backgroundColor: colors.messageBubbleReceived },
+          isHighPriority && styles.highPriority
+        ]}>
         {item.media?.url && (
           <Image
             source={{ uri: item.media.url }}
@@ -76,6 +114,7 @@ export default function MessageBubble({ item, me, showSender, senderName }: Mess
           )}
         </View>
       </View>
+      </TouchableOpacity>
       
       {isHighPriority && (
         <View style={styles.priorityBadge}>

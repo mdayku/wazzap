@@ -527,6 +527,7 @@ export default function ChatScreen({ route, navigation }: any) {
               me={user?.uid || ''}
               showSender={showSender}
               senderName={senderName}
+              threadId={threadId}
             />
           );
         }}

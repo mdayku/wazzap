@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../services/firebase';
 import { formatTimestamp } from '../utils/time';
@@ -25,6 +25,7 @@ export default function DecisionsScreen({ route, navigation }: any) {
   const { threadId } = route.params;
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userCache, setUserCache] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!threadId) return;
@@ -34,7 +35,7 @@ export default function DecisionsScreen({ route, navigation }: any) {
       orderBy('decidedAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const decisionsData = snapshot.docs.map(doc => ({
         id: doc.id,
         threadId,
@@ -43,6 +44,30 @@ export default function DecisionsScreen({ route, navigation }: any) {
 
       setDecisions(decisionsData);
       setLoading(false);
+
+      // Fetch display names for all owners
+      const uniqueOwners = [...new Set(decisionsData.map(d => d.owner).filter(Boolean))] as string[];
+      
+      if (uniqueOwners.length > 0) {
+        const newCache: Record<string, string> = {};
+        await Promise.all(
+          uniqueOwners.map(async (userId) => {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                newCache[userId] = userData?.displayName || userData?.email || userId;
+              } else {
+                newCache[userId] = userId;
+              }
+            } catch (error) {
+              console.error(`Error fetching user ${userId}:`, error);
+              newCache[userId] = userId;
+            }
+          })
+        );
+        setUserCache(prev => ({ ...prev, ...newCache }));
+      }
     });
 
     return () => unsubscribe();
@@ -67,7 +92,9 @@ export default function DecisionsScreen({ route, navigation }: any) {
         
         <View style={styles.decisionMeta}>
           {item.owner && (
-            <Text style={styles.owner}>{item.owner}</Text>
+            <Text style={styles.owner}>
+              {userCache[item.owner] || item.owner}
+            </Text>
           )}
           <Text style={styles.timestamp}>
             {formatTimestamp(item.decidedAt)}
