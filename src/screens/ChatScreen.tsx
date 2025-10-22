@@ -26,6 +26,7 @@ import Composer from '../components/Composer';
 import MessageBubble from '../components/MessageBubble';
 import TypingDots from '../components/TypingDots';
 import ErrorBoundary from '../components/ErrorBoundary';
+import HydrationBanner from '../components/HydrationBanner';
 import { formatLastSeen, isUserOnline } from '../utils/time';
 import { summarizeThread, extractAI } from '../services/ai';
 import { sendMessageOptimistic } from '../state/offlineQueue';
@@ -169,7 +170,7 @@ export default function ChatScreen({ route, navigation }: any) {
         // If the most recent message was marked as read, update the thread's lastMessage.readBy
         const mostRecentMessage = rows[0]; // rows are ordered by createdAt desc
         if (mostRecentMessage && messagesToMarkRead.some(m => m.id === mostRecentMessage.id)) {
-          const updatedReadBy = [...(mostRecentMessage.readBy || []), user.uid];
+          const updatedReadBy = [...((mostRecentMessage as any).readBy || []), user.uid];
           await updateDoc(doc(db, `threads/${threadId}`), {
             'lastMessage.readBy': updatedReadBy
           }).catch(err => {
@@ -313,7 +314,7 @@ export default function ChatScreen({ route, navigation }: any) {
         const threadMembers = threadData.members || [];
         
         // Create member doc for each participant
-        await Promise.all(threadMembers.map(async (memberId) => {
+        await Promise.all(threadMembers.map(async (memberId: string) => {
           const memberDoc = doc(db, `threads/${threadId}/members`, memberId);
           await setDoc(memberDoc, {
             uid: memberId,
@@ -648,6 +649,8 @@ export default function ChatScreen({ route, navigation }: any) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <HydrationBanner userId={user?.uid || null} />
+      
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.headerBackground, borderBottomColor: colors.border }]}>
         <View style={styles.headerInfo}>
@@ -728,7 +731,7 @@ export default function ChatScreen({ route, navigation }: any) {
         }}
         ListHeaderComponent={hasMoreMessages ? (
           <TouchableOpacity 
-            style={[styles.loadMoreButton, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            style={[styles.loadMoreButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={handleLoadMore}
             disabled={loadingMore}
           >
@@ -1004,7 +1007,7 @@ export default function ChatScreen({ route, navigation }: any) {
                   >
                     <View style={styles.forwardThreadInfo}>
                       <Text style={styles.forwardThreadName}>{threadDisplayName}</Text>
-                      {thread.unreadCount > 0 && (
+                      {thread.unreadCount && thread.unreadCount > 0 && (
                         <View style={styles.forwardThreadBadge}>
                           <Text style={styles.forwardThreadBadgeText}>{thread.unreadCount}</Text>
                         </View>

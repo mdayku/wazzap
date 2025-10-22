@@ -14,6 +14,7 @@ import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useThreads } from '../hooks/useThread';
 import { useAuth } from '../hooks/useAuth';
 import ErrorBoundary from '../components/ErrorBoundary';
+import HydrationBanner from '../components/HydrationBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { db } from '../services/firebase';
 import { formatTimestamp, isUserOnline } from '../utils/time';
@@ -218,6 +219,8 @@ export default function ThreadsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <HydrationBanner userId={user?.uid || null} />
+      
       <View style={[styles.header, { backgroundColor: colors.headerBackground, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Messages</Text>
         <TouchableOpacity 

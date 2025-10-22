@@ -27,6 +27,8 @@ interface ColorScheme {
   green: string;
   gray: string;
   red: string;
+  success: string;
+  warning: string;
 }
 
 const lightColors: ColorScheme = {
@@ -47,6 +49,8 @@ const lightColors: ColorScheme = {
   green: '#34C759',
   gray: '#8E8E93',
   red: '#FF3B30',
+  success: '#34C759',
+  warning: '#FF9500',
 };
 
 const darkColors: ColorScheme = {
@@ -67,6 +71,8 @@ const darkColors: ColorScheme = {
   green: '#32D74B',
   gray: '#8E8E93',
   red: '#FF453A',
+  success: '#32D74B',
+  warning: '#FF9F0A',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

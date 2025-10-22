@@ -12,6 +12,15 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/**
+ * Redact sensitive token for logging
+ * Shows first 8 and last 4 characters only
+ */
+function redactToken(token: string): string {
+  if (!token || token.length < 20) return '[REDACTED]';
+  return `${token.substring(0, 8)}...${token.substring(token.length - 4)}`;
+}
+
 export async function registerForPush(uid: string): Promise<string | null> {
   console.log('📱 [PUSH] ========================================');
   console.log('📱 [PUSH] Starting push notification registration');
@@ -49,7 +58,7 @@ export async function registerForPush(uid: string): Promise<string | null> {
     let token;
     try {
       token = (await Notifications.getExpoPushTokenAsync()).data;
-      console.log('📱 [PUSH] ✅ Token received:', token.substring(0, 20) + '...');
+      console.log('📱 [PUSH] ✅ Token received:', redactToken(token));
     } catch (tokenError: any) {
       // Expo Go has limitations with push tokens, but local notifications still work
       console.log('📱 [PUSH] ⚠️ Could not get push token (expected in Expo Go)');
@@ -90,7 +99,7 @@ export async function registerForPush(uid: string): Promise<string | null> {
     
     console.log('📱 [PUSH] ========================================');
     console.log('📱 [PUSH] ✅✅✅ PUSH REGISTRATION COMPLETE ✅✅✅');
-    console.log('📱 [PUSH] Token:', token);
+    console.log('📱 [PUSH] Token:', redactToken(token));
     console.log('📱 [PUSH] ⚠️  NOTE: Remote/background push requires dev build');
     console.log('📱 [PUSH] ✅ Foreground notifications WILL work in Expo Go');
     console.log('📱 [PUSH] ========================================');
@@ -238,7 +247,7 @@ export async function diagnosePushSetup(): Promise<{
         const tokenData = await Notifications.getExpoPushTokenAsync();
         result.hasToken = true;
         result.token = tokenData.data;
-        console.log('📱 [DIAG] Token:', tokenData.data.substring(0, 20) + '...');
+        console.log('📱 [DIAG] Token:', redactToken(tokenData.data));
       } catch (error) {
         console.log('📱 [DIAG] Could not get token:', error);
       }
