@@ -134,8 +134,11 @@ export default function ChatScreen({ route, navigation }: any) {
       const messagesToMarkRead = snap.docs.filter(doc => {
         const data = doc.data();
         const isLoadTestMessage = data.text?.includes('Load test message') || data.text?.includes('[WARMUP]');
+        const readBy = data.readBy || [];
+        const alreadyRead = readBy.includes(user.uid);
+        
         return data.senderId !== user.uid && 
-               (data.status === 'delivered' || data.status === 'sent') &&
+               !alreadyRead &&
                !markedAsReadRef.current.has(doc.id) && // Don't re-mark
                !isLoadTestMessage; // Skip load test messages
       });
@@ -147,17 +150,32 @@ export default function ChatScreen({ route, navigation }: any) {
           markedAsReadRef.current.add(msgDoc.id);
         });
         
-        // Update all in parallel
+        // Update all in parallel - add current user to readBy array
         await Promise.all(
-          messagesToMarkRead.map(msgDoc =>
-            updateDoc(doc(db, `threads/${threadId}/messages`, msgDoc.id), {
-              status: 'read'
+          messagesToMarkRead.map(msgDoc => {
+            const data = msgDoc.data();
+            const currentReadBy = data.readBy || [];
+            
+            return updateDoc(doc(db, `threads/${threadId}/messages`, msgDoc.id), {
+              status: 'read',
+              readBy: [...currentReadBy, user.uid]
             }).catch(err => {
               console.error('Error marking message as read:', err);
               markedAsReadRef.current.delete(msgDoc.id); // Remove on error
-            })
-          )
+            });
+          })
         );
+        
+        // If the most recent message was marked as read, update the thread's lastMessage.readBy
+        const mostRecentMessage = rows[0]; // rows are ordered by createdAt desc
+        if (mostRecentMessage && messagesToMarkRead.some(m => m.id === mostRecentMessage.id)) {
+          const updatedReadBy = [...(mostRecentMessage.readBy || []), user.uid];
+          await updateDoc(doc(db, `threads/${threadId}`), {
+            'lastMessage.readBy': updatedReadBy
+          }).catch(err => {
+            console.error('Error updating thread lastMessage.readBy:', err);
+          });
+        }
       }
     });
 
