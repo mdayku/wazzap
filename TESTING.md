@@ -1,7 +1,7 @@
 # 🧪 Testing Guide - MessageAI
 
-**Last Updated:** October 21, 2025  
-**Test Status:** 🎉 **53/53 tests passing (100%)** | **10/10 suites passing (100%)** 🎉
+**Last Updated:** October 22, 2025  
+**Test Status:** 🎉 **73/73 tests passing (100%)** | **11/11 suites passing (100%)** 🎉
 
 ---
 
@@ -10,22 +10,24 @@
 | Suite | Tests | Passing | Failing | Status |
 |-------|-------|---------|---------|--------|
 | `time.test.ts` | 10 | 10 | 0 | ✅ PASS |
-| `offlineQueue.test.ts` | 5 | 5 | 0 | ✅ PASS |
+| `offlineQueue.test.ts` | 14 | 14 | 0 | ✅ PASS |
 | `store.test.ts` | 7 | 7 | 0 | ✅ PASS |
 | `useThread.test.ts` | 4 | 4 | 0 | ✅ PASS |
 | `TypingDots.test.tsx` | 2 | 2 | 0 | ✅ PASS |
 | `NewChatScreen.test.tsx` | 1 | 1 | 0 | ✅ PASS |
 | `MessageBubble.test.tsx` | 8 | 8 | 0 | ✅ PASS |
+| `MessageBubble.audio.test.tsx` | 10 | 10 | 0 | ✅ PASS |
 | `Composer.test.tsx` | 9 | 9 | 0 | ✅ PASS |
 | `LoginScreen.test.tsx` | 1 | 1 | 0 | ✅ PASS |
-| `useAuth.test.ts` | 6 | 6 | 0 | ✅ PASS |
-| **TOTAL** | **53** | **53** | **0** | **100%** ✅ |
+| `useAuth.test.ts` | 7 | 7 | 0 | ✅ PASS |
+| **TOTAL** | **73** | **73** | **0** | **100%** ✅ |
 
 ### Recent Fixes Applied
-1. **MessageBubble** - Added ThemeProvider wrapper ✅ FIXED
+1. **MessageBubble** - Added ThemeProvider wrapper + fixed read receipt test with thread context ✅ FIXED
 2. **Composer** - Added testID props + fixed mock implementations ✅ FIXED
 3. **LoginScreen** - Updated text expectations ✅ FIXED
 4. **useAuth** - Fixed Firebase Auth mock function implementations ✅ FIXED
+5. **offlineQueue** - Added 9 new tests for network detection, media queueing, retry logic ✅ ADDED
 
 ---
 
@@ -97,10 +99,15 @@ src/
 - Presence status checks
 - Date manipulation
 
-### Services (3/3) ✅
+### Services (14/14) ✅
 - Offline queue initialization
-- Message queueing
-- Queue retry logic
+- Message queueing with AsyncStorage persistence
+- Queue retry logic with max attempts
+- Network detection (offline/online/network error)
+- Media upload queueing (images, audio with local URIs)
+- Queue management (subscribe, get queue, clear failed)
+- Read receipt syncing from AsyncStorage
+- Automatic queue processing on network restore
 
 ### State Management (5/5) ✅
 - Initial state
