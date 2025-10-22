@@ -19,7 +19,6 @@ export async function sendMessageOptimistic(p: Pending, uid: string) {
       media: media ?? null,
       status: 'sent',
       priority: 'normal',
-      readBy: [uid], // Sender has "read" their own message
       createdAt: serverTimestamp()
     });
     
@@ -29,8 +28,7 @@ export async function sendMessageOptimistic(p: Pending, uid: string) {
         text: text ?? '',
         senderId: uid,
         timestamp: serverTimestamp(),
-        media: media ?? null,
-        readBy: [uid] // Initialize with sender
+        media: media ?? null
       },
       updatedAt: serverTimestamp()
     });

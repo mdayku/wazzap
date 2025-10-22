@@ -108,7 +108,6 @@ export default function LoadTestScreen({ navigation, route }: LoadTestScreenProp
             seq: i,
             createdAt: serverTimestamp(),
             status: 'sent',
-            readBy: [userId],
           });
           
           const optimisticLatency = performance.now() - sendStart;
@@ -140,8 +139,7 @@ export default function LoadTestScreen({ navigation, route }: LoadTestScreenProp
           text: `Load test message ${count}/${count}`,
           senderId: userId,
           timestamp: serverTimestamp(),
-          media: null,
-          readBy: [userId]
+          media: null
         },
         updatedAt: serverTimestamp()
       }).catch(err => {

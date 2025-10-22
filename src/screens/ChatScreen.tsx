@@ -60,8 +60,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState<any>(null);
-  const markedAsReadRef = useRef<Set<string>>(new Set());
-  const isInitialLoadRef = useRef(true); // Track messages we've already marked
+  const isInitialLoadRef = useRef(true); // Track initial load
   const previousMessageIdsRef = useRef<Set<string>>(new Set()); // Track message IDs for haptic feedback
 
   // Fetch messages
@@ -69,7 +68,6 @@ export default function ChatScreen({ route, navigation }: any) {
     if (!threadId || !user) return;
 
     // Reset state when thread changes
-    markedAsReadRef.current.clear();
     isInitialLoadRef.current = true;
     previousMessageIdsRef.current.clear();
 
@@ -127,57 +125,9 @@ export default function ChatScreen({ route, navigation }: any) {
         }, 300);
       }
       
-      // Update read receipt tracking FIRST (so lastRead timestamp is current)
+      // Update read receipt tracking (updates lastRead timestamp)
+      // This implicitly marks all messages up to the most recent as read
       updateReadReceipt();
-      
-      // Mark messages from others as read (skip "delivered" and go straight to "read" since chat is open)
-      // Skip load test messages to avoid overwhelming Firestore
-      const messagesToMarkRead = snap.docs.filter(doc => {
-        const data = doc.data();
-        const isLoadTestMessage = data.text?.includes('Load test message') || data.text?.includes('[WARMUP]');
-        const readBy = data.readBy || [];
-        const alreadyRead = readBy.includes(user.uid);
-        
-        return data.senderId !== user.uid && 
-               !alreadyRead &&
-               !markedAsReadRef.current.has(doc.id) && // Don't re-mark
-               !isLoadTestMessage; // Skip load test messages
-      });
-      
-      if (messagesToMarkRead.length > 0) {
-        
-        // Track them first
-        messagesToMarkRead.forEach(msgDoc => {
-          markedAsReadRef.current.add(msgDoc.id);
-        });
-        
-        // Update all in parallel - add current user to readBy array
-        await Promise.all(
-          messagesToMarkRead.map(msgDoc => {
-            const data = msgDoc.data();
-            const currentReadBy = data.readBy || [];
-            
-            return updateDoc(doc(db, `threads/${threadId}/messages`, msgDoc.id), {
-              status: 'read',
-              readBy: [...currentReadBy, user.uid]
-            }).catch(err => {
-              console.error('Error marking message as read:', err);
-              markedAsReadRef.current.delete(msgDoc.id); // Remove on error
-            });
-          })
-        );
-        
-        // If the most recent message was marked as read, update the thread's lastMessage.readBy
-        const mostRecentMessage = rows[0]; // rows are ordered by createdAt desc
-        if (mostRecentMessage && messagesToMarkRead.some(m => m.id === mostRecentMessage.id)) {
-          const updatedReadBy = [...((mostRecentMessage as any).readBy || []), user.uid];
-          await updateDoc(doc(db, `threads/${threadId}`), {
-            'lastMessage.readBy': updatedReadBy
-          }).catch(err => {
-            console.error('Error updating thread lastMessage.readBy:', err);
-          });
-        }
-      }
     });
 
     return () => unsubscribe();
@@ -363,12 +313,20 @@ export default function ChatScreen({ route, navigation }: any) {
     }
   };
 
-  // Call updateReadReceipt immediately when chat opens and when messages change
+  // Call updateReadReceipt immediately when chat opens and when new messages arrive
+  useEffect(() => {
+    if (user && threadId) {
+      // Update immediately when chat opens (even if no messages yet)
+      updateReadReceipt();
+    }
+  }, [threadId, user]); // Trigger when thread changes
+  
+  // Also update when messages change (new message arrives)
   useEffect(() => {
     if (user && threadId && messages.length > 0) {
       updateReadReceipt();
     }
-  }, [threadId, user, messages.length]); // Trigger when message count changes
+  }, [messages.length]); // Trigger when message count changes
 
   const handleTyping = async (isTyping: boolean) => {
     if (!user || !threadId) return;

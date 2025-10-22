@@ -197,13 +197,6 @@ export default function ThreadsScreen() {
               🎤 Audio
             </Text>
           ) : null}
-          
-          {/* Show read receipt status for group chats */}
-          {isGroupChat && item.lastMessage?.readBy && item.members && Array.isArray(item.members) && (
-            <Text style={[styles.readReceipt, { color: colors.textSecondary }]}>
-              Read by {item.lastMessage.readBy.length} of {item.members.length}
-            </Text>
-          )}
         </View>
       </TouchableOpacity>
     );
@@ -407,11 +400,6 @@ const styles = StyleSheet.create({
   lastMessageUnread: {
     fontWeight: '600',
     color: '#000000',
-  },
-  readReceipt: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 2,
   },
   emptyText: {
     fontSize: 18,
