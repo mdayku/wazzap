@@ -8,6 +8,7 @@ import { useStore } from './src/state/store';
 import { useAuth } from './src/hooks/useAuth';
 import { usePresence } from './src/hooks/usePresence';
 import { useInAppNotifications } from './src/hooks/useInAppNotifications';
+import { initializeReconnectService } from './src/services/reconnect';
 import LoginScreen from './src/screens/LoginScreen';
 import ThreadsScreen from './src/screens/ThreadsScreen';
 import NewChatScreen from './src/screens/NewChatScreen';
@@ -28,6 +29,12 @@ const Stack = createNativeStackNavigator();
 function AppContent() {
   const { user } = useAuth();
   const { isLoading } = useStore();
+  
+  // Initialize fast reconnect service
+  useEffect(() => {
+    const unsubscribe = initializeReconnectService();
+    return () => unsubscribe();
+  }, []);
   
   // Update presence only when logged in
   usePresence(user?.uid || null);
