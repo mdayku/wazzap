@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy, limit, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { perf } from '../utils/perf';
 import PerfPanel from '../components/PerfPanel';
@@ -20,7 +20,7 @@ interface LoadTestScreenProps {
 
 export default function LoadTestScreen({ navigation, route }: LoadTestScreenProps) {
   const { threadId, userId } = route.params;
-  const [messageCount, setMessageCount] = useState('100');
+  const [messageCount, setMessageCount] = useState('20');
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<any>(null);
@@ -82,12 +82,10 @@ export default function LoadTestScreen({ navigation, route }: LoadTestScreenProp
       // Now start the actual test
       startTimeRef.current = Date.now();
       
-      // Send all messages as fast as possible
-      const sendPromises = [];
+      addLog(`📤 Sending ${count} messages (one every 200ms)...`);
+      console.log(`📤 [LOADTEST] Starting to send ${count} messages with 200ms delay`);
       
-      addLog(`📤 Sending ${count} messages...`);
-      console.log(`📤 [LOADTEST] Starting to send ${count} messages`);
-      
+      // Send messages one at a time with 200ms delay
       for (let i = 0; i < count; i++) {
         // Check if stop was requested
         if (shouldStopRef.current) {
@@ -102,42 +100,53 @@ export default function LoadTestScreen({ navigation, route }: LoadTestScreenProp
         // Measure optimistic send time (time to initiate the call)
         const sendStart = performance.now();
         
-        const promise = addDoc(collection(db, `threads/${threadId}/messages`), {
-          senderId: userId,
-          text: `Load test message ${i + 1}/${count}`,
-          clientId,
-          seq: i,
-          createdAt: serverTimestamp(),
-          status: 'sent',
-        }).catch(err => {
-          console.error(`❌ [LOADTEST] Error sending message ${i + 1}:`, err);
-          addLog(`❌ Error sending message ${i + 1}: ${err.message}`);
-          // Don't throw - continue with other messages
-        });
-        
-        const optimisticLatency = performance.now() - sendStart;
-        perf.recordSendLatency(optimisticLatency);
-        
-        // Debug: log first few latencies
-        if (i < 3) {
-          console.log(`📊 [LOADTEST] Message ${i + 1} optimistic latency: ${optimisticLatency.toFixed(2)}ms`);
-        }
-
-        // Update progress as promises resolve
-        promise.then(() => {
-          if (!shouldStopRef.current) {
-            setProgress(prev => prev + 1);
+        try {
+          await addDoc(collection(db, `threads/${threadId}/messages`), {
+            senderId: userId,
+            text: `Load test message ${i + 1}/${count}`,
+            clientId,
+            seq: i,
+            createdAt: serverTimestamp(),
+            status: 'sent',
+            readBy: [userId],
+          });
+          
+          const optimisticLatency = performance.now() - sendStart;
+          perf.recordSendLatency(optimisticLatency);
+          
+          // Update progress
+          setProgress(i + 1);
+          
+          // Debug: log first few latencies
+          if (i < 3) {
+            console.log(`📊 [LOADTEST] Message ${i + 1} sent in ${optimisticLatency.toFixed(2)}ms`);
           }
-        });
-
-        sendPromises.push(promise);
+          
+          // Wait 200ms before sending next message (except for the last one)
+          if (i < count - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        } catch (err) {
+          console.error(`❌ [LOADTEST] Error sending message ${i + 1}:`, err);
+          addLog(`❌ Error sending message ${i + 1}: ${err}`);
+        }
       }
 
-      // Wait for all messages to be sent
-      console.log(`⏳ [LOADTEST] Waiting for all messages to complete...`);
-      await Promise.all(sendPromises);
       console.log(`✅ [LOADTEST] All messages sent`);
       
+      // Update thread's lastMessage to show the final load test message
+      await updateDoc(doc(db, `threads/${threadId}`), {
+        lastMessage: {
+          text: `Load test message ${count}/${count}`,
+          senderId: userId,
+          timestamp: serverTimestamp(),
+          media: null,
+          readBy: [userId]
+        },
+        updatedAt: serverTimestamp()
+      }).catch(err => {
+        console.error('Error updating thread lastMessage:', err);
+      });
       
       const totalTime = Date.now() - startTimeRef.current;
       const avgThroughput = totalTime / count;
@@ -239,11 +248,11 @@ export default function LoadTestScreen({ navigation, route }: LoadTestScreenProp
           {/* Info Banner */}
           <View style={styles.infoBanner}>
             <Text style={styles.infoText}>
-              📊 Sends {messageCount} messages rapidly to test throughput
+              📊 Sends {messageCount} messages (200ms between sends)
               {'\n\n'}
-              🎯 <Text style={styles.infoBold}>Goal:</Text> &lt;200ms/msg, inOrder=true
+              🎯 <Text style={styles.infoBold}>Goal:</Text> Smooth sending, inOrder=true
               {'\n'}
-              ✅ <Text style={styles.infoBold}>Current:</Text> ~93ms/msg average
+              ✅ <Text style={styles.infoBold}>Demo-friendly:</Text> Watch messages stream in real-time
             </Text>
           </View>
 

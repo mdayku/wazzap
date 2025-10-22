@@ -37,6 +37,7 @@ export default function ProfileScreen() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showThreadPicker, setShowThreadPicker] = useState(false);
   const [userCache, setUserCache] = useState<{ [key: string]: any }>({});
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -288,9 +289,23 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             style={styles.logoutButton}
-            onPress={logout}
+            onPress={async () => {
+              setLoggingOut(true);
+              try {
+                await logout();
+              } catch (error) {
+                console.error('Logout error:', error);
+                Alert.alert('Logout Error', 'Failed to logout. Please try again.');
+                setLoggingOut(false);
+              }
+            }}
+            disabled={loggingOut}
           >
-            <Text style={styles.logoutText}>Logout</Text>
+            {loggingOut ? (
+              <ActivityIndicator color="#FF3B30" />
+            ) : (
+              <Text style={styles.logoutText}>Logout</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>

@@ -54,7 +54,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const [threadMembers, setThreadMembers] = useState<string[]>([]);
   const [isGroupChat, setIsGroupChat] = useState(false);
   const listRef = useRef<FlatList>(null);
-  const [messageLimit, setMessageLimit] = useState(50);
+  const [messageLimit, setMessageLimit] = useState(150); // Increased to support load tests
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showForwardModal, setShowForwardModal] = useState(false);

@@ -100,12 +100,19 @@ export function useThreads(uid: string | null) {
           }
           
           const unsubMessages = onSnapshot(messagesQuery, (messagesSnap) => {
-            threadUnreadCounts.set(threadId, messagesSnap.size);
+            // Filter out load test messages from unread count
+            const realUnreadCount = messagesSnap.docs.filter(doc => {
+              const data = doc.data();
+              const isLoadTestMessage = data.text?.includes('Load test message') || data.text?.includes('[WARMUP]');
+              return !isLoadTestMessage;
+            }).length;
+            
+            threadUnreadCounts.set(threadId, realUnreadCount);
             
             // Re-render threads with updated counts
             setThreads((prevThreads) =>
               prevThreads.map((t) =>
-                t.id === threadId ? { ...t, unreadCount: messagesSnap.size } : t
+                t.id === threadId ? { ...t, unreadCount: realUnreadCount } : t
               )
             );
           }, (error) => {
