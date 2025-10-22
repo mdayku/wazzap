@@ -11,6 +11,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatTimestamp } from '../utils/time';
+import { retryMessage, type QueuedMessage } from '../state/offlineQueue';
 
 interface Message {
   id: string;
@@ -23,11 +24,13 @@ interface Message {
     height?: number;
     duration?: number;
   } | null;
-  status: 'sending' | 'sent' | 'delivered' | 'read';
+  status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   priority?: 'high' | 'normal';
   createdAt: Timestamp;
   deletedFor?: { [userId: string]: boolean };
   reactions?: { [emoji: string]: string[] }; // emoji -> array of user IDs
+  isQueued?: boolean;
+  queuedMessage?: QueuedMessage;
 }
 
 interface MessageBubbleProps {
@@ -429,16 +432,38 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           
           {isMe && (
             <View style={styles.statusContainer}>
-              <Text style={[
-                styles.status,
-                readStatus === 'read' && styles.statusRead
-              ]}>
-                {readStatus === 'read' ? '✓✓' : readStatus === 'delivered' ? '✓✓' : '✓'}
-              </Text>
-              {isGroupChat && totalMembers > 0 && (
-                <Text style={styles.readByCount}>
-                  Seen by {readCount} of {totalMembers}
-                </Text>
+              {item.status === 'failed' ? (
+                <TouchableOpacity 
+                  onPress={() => {
+                    if (item.queuedMessage) {
+                      retryMessage(item.queuedMessage.id);
+                      Alert.alert('Retrying', 'Attempting to send message again...');
+                    }
+                  }}
+                  style={styles.retryButton}
+                >
+                  <Ionicons name="refresh-circle" size={16} color="#FF3B30" />
+                  <Text style={styles.failedText}>Failed • Tap to retry</Text>
+                </TouchableOpacity>
+              ) : item.status === 'sending' || item.isQueued ? (
+                <View style={styles.sendingContainer}>
+                  <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.7)" />
+                  <Text style={styles.sendingText}>Sending...</Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={[
+                    styles.status,
+                    readStatus === 'read' && styles.statusRead
+                  ]}>
+                    {readStatus === 'read' ? '✓✓' : readStatus === 'delivered' ? '✓✓' : '✓'}
+                  </Text>
+                  {isGroupChat && totalMembers > 0 && (
+                    <Text style={styles.readByCount}>
+                      Seen by {readCount} of {totalMembers}
+                    </Text>
+                  )}
+                </>
               )}
             </View>
           )}
@@ -721,6 +746,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
     color: 'rgba(255, 255, 255, 0.7)', // Semi-transparent white for blue bubble
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+  },
+  failedText: {
+    fontSize: 11,
+    color: '#FF3B30',
+    fontWeight: '500',
+  },
+  sendingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sendingText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontStyle: 'italic',
   },
   priorityBadge: {
     position: 'absolute',

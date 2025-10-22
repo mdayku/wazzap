@@ -29,7 +29,8 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import HydrationBanner from '../components/HydrationBanner';
 import { formatLastSeen, isUserOnline } from '../utils/time';
 import { summarizeThread, extractAI } from '../services/ai';
-import { sendMessageOptimistic } from '../state/offlineQueue';
+import { sendMessageOptimistic, subscribeToQueue, type QueuedMessage } from '../state/offlineQueue';
+import NetInfo from '@react-native-community/netinfo';
 
 export default function ChatScreen({ route, navigation }: any) {
   const { threadId, threadName } = route.params;
@@ -37,6 +38,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { threads } = useThreads(user?.uid || '');
   const [messages, setMessages] = useState<any[]>([]);
+  const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [typing, setTyping] = useState(false);
   const [presenceInfo, setPresenceInfo] = useState('');
@@ -134,6 +136,17 @@ export default function ChatScreen({ route, navigation }: any) {
 
     return () => unsubscribe();
   }, [threadId, user, messageLimit]);
+  
+  // Subscribe to offline queue for this thread
+  useEffect(() => {
+    const unsubscribe = subscribeToQueue((queue: QueuedMessage[]) => {
+      // Filter queued messages for this thread
+      const thisThreadQueue = queue.filter(msg => msg.threadId === threadId);
+      setQueuedMessages(thisThreadQueue);
+    });
+    
+    return unsubscribe;
+  }, [threadId]);
 
   // Fetch user data for all threads (for forward modal)
   useEffect(() => {
@@ -312,6 +325,23 @@ export default function ChatScreen({ route, navigation }: any) {
     if (!user || !threadId) return;
     
     try {
+      // Check network status
+      const netInfo = await NetInfo.fetch();
+      const isOnline = netInfo.isConnected && netInfo.isInternetReachable !== false;
+      
+      if (!isOnline) {
+        console.log('📴 [READ_RECEIPT] Offline, will sync when back online');
+        // Store in AsyncStorage to sync later
+        try {
+          const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+          const key = `@pending_read_receipt_${threadId}_${user.uid}`;
+          await AsyncStorage.setItem(key, new Date().toISOString());
+        } catch (storageError) {
+          console.error('Error storing offline read receipt:', storageError);
+        }
+        return;
+      }
+      
       // Update member doc for read receipts
       const memberDoc = doc(db, `threads/${threadId}/members`, user.uid);
       await updateDoc(memberDoc, {
@@ -325,6 +355,15 @@ export default function ChatScreen({ route, navigation }: any) {
       await updateDoc(threadDoc, {
         [`lastRead.${user.uid}`]: serverTimestamp()
       });
+      
+      // Clear any pending offline read receipt
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        const key = `@pending_read_receipt_${threadId}_${user.uid}`;
+        await AsyncStorage.removeItem(key);
+      } catch (storageError) {
+        // Ignore errors
+      }
     } catch (error) {
       console.error('Error updating read receipt:', error);
     }
@@ -349,6 +388,15 @@ export default function ChatScreen({ route, navigation }: any) {
     if (!user || !threadId) return;
     
     try {
+      // Check network status - don't send typing indicator if offline
+      const netInfo = await NetInfo.fetch();
+      const isOnline = netInfo.isConnected && netInfo.isInternetReachable !== false;
+      
+      if (!isOnline) {
+        console.log('📴 [TYPING] Offline, skipping typing indicator');
+        return;
+      }
+      
       const memberDoc = doc(db, `threads/${threadId}/members`, user.uid);
       // Use setDoc with merge to create doc if it doesn't exist
       await setDoc(memberDoc, {
@@ -670,10 +718,36 @@ export default function ChatScreen({ route, navigation }: any) {
       {/* Messages */}
       <FlatList
         ref={listRef}
-        data={messages}
+        data={[
+          ...messages,
+          // Add queued messages as optimistic UI
+          ...queuedMessages.map((qMsg) => ({
+            id: qMsg.id,
+            senderId: qMsg.uid,
+            text: qMsg.text || '',
+            media: qMsg.media || null,
+            status: qMsg.status === 'failed' ? 'failed' : 'sending',
+            createdAt: { toMillis: () => qMsg.timestamp },
+            isQueued: true,
+            queuedMessage: qMsg,
+          }))
+        ]}
         keyExtractor={(i) => String(i.id)}
         renderItem={({ item, index }) => {
-          const showSender = index === 0 || messages[index - 1].senderId !== item.senderId;
+          const allMessages = [
+            ...messages,
+            ...queuedMessages.map((qMsg) => ({
+              id: qMsg.id,
+              senderId: qMsg.uid,
+              text: qMsg.text || '',
+              media: qMsg.media || null,
+              status: qMsg.status === 'failed' ? 'failed' : 'sending',
+              createdAt: { toMillis: () => qMsg.timestamp },
+              isQueued: true,
+              queuedMessage: qMsg,
+            }))
+          ];
+          const showSender = index === 0 || allMessages[index - 1].senderId !== item.senderId;
           const senderName = (userCache[item.senderId]?.displayName && typeof userCache[item.senderId].displayName === 'string') 
             ? userCache[item.senderId].displayName 
             : 'User';

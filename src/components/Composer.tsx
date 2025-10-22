@@ -181,30 +181,50 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       // Compress image before uploading
       const compressed = await compressImage(imageUri);
       
-      const timestamp = Date.now();
-      const path = `messages/${uid}/${timestamp}.jpg`;
-      
-      const url = await uploadImage(compressed.uri, path);
-      
       // Haptic feedback on send
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       const tempId = `${Date.now()}_${Math.random()}`;
-      await sendMessageOptimistic(
-        { 
-          threadId, 
-          text: text.trim() || '',
-          media: { type: 'image', url, width: compressed.width, height: compressed.height },
-          tempId 
-        }, 
-        uid
-      );
+      
+      // Try to upload immediately, but if offline, queue with local URI
+      const timestamp = Date.now();
+      const path = `messages/${uid}/${timestamp}.jpg`;
+      
+      try {
+        const url = await uploadImage(compressed.uri, path);
+        
+        // Online - send with uploaded URL
+        await sendMessageOptimistic(
+          { 
+            threadId, 
+            text: text.trim() || '',
+            media: { type: 'image', url, width: compressed.width, height: compressed.height },
+            tempId 
+          }, 
+          uid
+        );
+      } catch (uploadError: any) {
+        // Upload failed - queue with local URI for later upload
+        console.log('📴 [COMPOSER] Image upload failed, queueing with local URI');
+        await sendMessageOptimistic(
+          { 
+            threadId, 
+            text: text.trim() || '',
+            media: null, // Will be set after upload
+            tempId 
+          }, 
+          uid,
+          compressed.uri, // Local URI
+          'image', // Media type
+          { width: compressed.width, height: compressed.height } // Metadata
+        );
+      }
       
       setText('');
       // Clear draft after successful send
       await clearDraft();
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error sending image:', error);
       Alert.alert('Error', 'Failed to send image. Please try again.');
     } finally {
       setUploading(false);
@@ -305,25 +325,43 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     try {
       setUploading(true);
 
-      // Upload to Firebase Storage with correct path format
-      const timestamp = Date.now();
-      const audioUrl = await uploadImage(audioUri, `messages/${uid}/audio_${timestamp}.m4a`);
-
-      // Send message with audio metadata
       const tempId = `${Date.now()}_${Math.random()}`;
-      await sendMessageOptimistic(
-        {
-          threadId,
-          text: '',
-          media: {
-            type: 'audio',
-            url: audioUrl,
-            duration: duration,
+      const timestamp = Date.now();
+      
+      // Try to upload immediately, but if offline, queue with local URI
+      try {
+        const audioUrl = await uploadImage(audioUri, `messages/${uid}/audio_${timestamp}.m4a`);
+
+        // Online - send with uploaded URL
+        await sendMessageOptimistic(
+          {
+            threadId,
+            text: '',
+            media: {
+              type: 'audio',
+              url: audioUrl,
+              duration: duration,
+            },
+            tempId,
           },
-          tempId,
-        },
-        uid
-      );
+          uid
+        );
+      } catch (uploadError: any) {
+        // Upload failed - queue with local URI for later upload
+        console.log('📴 [COMPOSER] Audio upload failed, queueing with local URI');
+        await sendMessageOptimistic(
+          {
+            threadId,
+            text: '',
+            media: null, // Will be set after upload
+            tempId,
+          },
+          uid,
+          audioUri, // Local URI
+          'audio', // Media type
+          { duration } // Metadata
+        );
+      }
     } catch (error) {
       console.error('Error sending audio message:', error);
       Alert.alert('Error', 'Failed to send voice message. Please try again.');

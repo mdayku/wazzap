@@ -1,5 +1,31 @@
 import { addDoc, collection, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { db } from '../services/firebase';
+
+const QUEUE_KEY = '@offline_message_queue';
+const MAX_RETRY_ATTEMPTS = 3;
+
+export type QueuedMessage = { 
+  id: string; // Unique ID for queue item
+  threadId: string; 
+  text?: string; 
+  media?: any; 
+  tempId: string;
+  uid: string;
+  timestamp: number; // When it was queued
+  retryCount: number;
+  status: 'pending' | 'sending' | 'failed';
+  error?: string;
+  // For offline media uploads
+  localMediaUri?: string; // Local file URI (before upload)
+  mediaType?: 'image' | 'audio';
+  mediaMetadata?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+  };
+};
 
 type Pending = { 
   threadId: string; 
@@ -8,33 +34,386 @@ type Pending = {
   tempId: string 
 };
 
-export async function sendMessageOptimistic(p: Pending, uid: string) {
+// In-memory queue for fast access
+let memoryQueue: QueuedMessage[] = [];
+let isProcessing = false;
+let queueListeners: Array<(queue: QueuedMessage[]) => void> = [];
+
+/**
+ * Initialize the offline queue system
+ * Call this once on app startup
+ */
+export async function initializeOfflineQueue() {
+  try {
+    const stored = await AsyncStorage.getItem(QUEUE_KEY);
+    if (stored) {
+      memoryQueue = JSON.parse(stored);
+      console.log(`📦 [OFFLINE_QUEUE] Loaded ${memoryQueue.length} queued messages from storage`);
+      notifyListeners();
+    }
+    
+    // Listen for network changes and auto-process queue
+    NetInfo.addEventListener(state => {
+      const isOnline = state.isConnected && state.isInternetReachable !== false;
+      if (isOnline) {
+        if (memoryQueue.length > 0 && !isProcessing) {
+          console.log('🔄 [OFFLINE_QUEUE] Network restored, processing queue...');
+          processQueue();
+        }
+        // Also sync pending read receipts
+        syncPendingReadReceipts();
+      }
+    });
+  } catch (error) {
+    console.error('❌ [OFFLINE_QUEUE] Failed to initialize:', error);
+  }
+}
+
+/**
+ * Subscribe to queue changes
+ */
+export function subscribeToQueue(listener: (queue: QueuedMessage[]) => void) {
+  queueListeners.push(listener);
+  return () => {
+    queueListeners = queueListeners.filter(l => l !== listener);
+  };
+}
+
+/**
+ * Get current queue
+ */
+export function getQueue(): QueuedMessage[] {
+  return [...memoryQueue];
+}
+
+/**
+ * Notify all listeners of queue changes
+ */
+function notifyListeners() {
+  queueListeners.forEach(listener => listener([...memoryQueue]));
+}
+
+/**
+ * Save queue to AsyncStorage
+ */
+async function persistQueue() {
+  try {
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(memoryQueue));
+  } catch (error) {
+    console.error('❌ [OFFLINE_QUEUE] Failed to persist queue:', error);
+  }
+}
+
+/**
+ * Add message to offline queue
+ */
+async function enqueueMessage(message: Omit<QueuedMessage, 'id' | 'timestamp' | 'retryCount' | 'status'>) {
+  const queuedMessage: QueuedMessage = {
+    ...message,
+    id: `queue_${Date.now()}_${Math.random()}`,
+    timestamp: Date.now(),
+    retryCount: 0,
+    status: 'pending',
+  };
+  
+  memoryQueue.push(queuedMessage);
+  await persistQueue();
+  notifyListeners();
+  
+  console.log(`📥 [OFFLINE_QUEUE] Enqueued message (queue size: ${memoryQueue.length})`);
+}
+
+/**
+ * Remove message from queue
+ */
+async function dequeueMessage(id: string) {
+  memoryQueue = memoryQueue.filter(msg => msg.id !== id);
+  await persistQueue();
+  notifyListeners();
+}
+
+/**
+ * Update message status in queue
+ */
+async function updateMessageStatus(id: string, updates: Partial<QueuedMessage>) {
+  const index = memoryQueue.findIndex(msg => msg.id === id);
+  if (index !== -1) {
+    memoryQueue[index] = { ...memoryQueue[index], ...updates };
+    await persistQueue();
+    notifyListeners();
+  }
+}
+
+/**
+ * Process the offline queue
+ * Sends all pending messages in FIFO order
+ */
+export async function processQueue() {
+  if (isProcessing) {
+    console.log('⏳ [OFFLINE_QUEUE] Already processing queue');
+    return;
+  }
+  
+  if (memoryQueue.length === 0) {
+    console.log('✅ [OFFLINE_QUEUE] Queue is empty');
+    return;
+  }
+  
+  isProcessing = true;
+  console.log(`🔄 [OFFLINE_QUEUE] Processing ${memoryQueue.length} queued messages...`);
+  
+  // Process messages in order
+  const messagesToProcess = [...memoryQueue];
+  
+  for (const message of messagesToProcess) {
+    try {
+      // Update status to sending
+      await updateMessageStatus(message.id, { status: 'sending' });
+      
+      // Attempt to send (pass queued message for media upload handling)
+      await sendMessageToFirestore({
+        threadId: message.threadId,
+        text: message.text,
+        media: message.media,
+        tempId: message.tempId,
+      }, message.uid, message);
+      
+      // Success - remove from queue
+      console.log(`✅ [OFFLINE_QUEUE] Successfully sent message ${message.id}`);
+      await dequeueMessage(message.id);
+      
+    } catch (error: any) {
+      console.error(`❌ [OFFLINE_QUEUE] Failed to send message ${message.id}:`, error);
+      
+      // Increment retry count
+      const newRetryCount = message.retryCount + 1;
+      
+      if (newRetryCount >= MAX_RETRY_ATTEMPTS) {
+        // Max retries reached - mark as failed
+        await updateMessageStatus(message.id, {
+          status: 'failed',
+          retryCount: newRetryCount,
+          error: error.message || 'Unknown error',
+        });
+        console.log(`💀 [OFFLINE_QUEUE] Message ${message.id} failed after ${MAX_RETRY_ATTEMPTS} attempts`);
+      } else {
+        // Update retry count and reset to pending
+        await updateMessageStatus(message.id, {
+          status: 'pending',
+          retryCount: newRetryCount,
+          error: error.message || 'Unknown error',
+        });
+        console.log(`🔄 [OFFLINE_QUEUE] Message ${message.id} will retry (attempt ${newRetryCount}/${MAX_RETRY_ATTEMPTS})`);
+      }
+    }
+  }
+  
+  isProcessing = false;
+  console.log(`✅ [OFFLINE_QUEUE] Queue processing complete. Remaining: ${memoryQueue.length}`);
+}
+
+/**
+ * Retry a specific failed message
+ */
+export async function retryMessage(id: string) {
+  const message = memoryQueue.find(msg => msg.id === id);
+  if (!message) {
+    console.warn(`⚠️ [OFFLINE_QUEUE] Message ${id} not found in queue`);
+    return;
+  }
+  
+  // Reset status and retry count
+  await updateMessageStatus(id, {
+    status: 'pending',
+    retryCount: 0,
+    error: undefined,
+  });
+  
+  // Process queue
+  await processQueue();
+}
+
+/**
+ * Clear all failed messages from queue
+ */
+export async function clearFailedMessages() {
+  memoryQueue = memoryQueue.filter(msg => msg.status !== 'failed');
+  await persistQueue();
+  notifyListeners();
+  console.log(`🗑️ [OFFLINE_QUEUE] Cleared failed messages`);
+}
+
+/**
+ * Internal function to send message to Firestore
+ * Handles media uploads if localMediaUri is provided
+ */
+async function sendMessageToFirestore(p: Pending, uid: string, queuedMsg?: QueuedMessage) {
+  const { threadId, text, media } = p;
+  
+  let finalMedia = media;
+  
+  // If there's a local media URI, upload it first
+  if (queuedMsg?.localMediaUri && queuedMsg?.mediaType) {
+    try {
+      // Dynamic import to avoid circular dependency
+      const { uploadImage } = await import('../services/storage');
+      
+      const timestamp = Date.now();
+      const extension = queuedMsg.mediaType === 'audio' ? 'm4a' : 'jpg';
+      const mediaUrl = await uploadImage(
+        queuedMsg.localMediaUri,
+        `messages/${uid}/${queuedMsg.mediaType}_${timestamp}.${extension}`
+      );
+      
+      finalMedia = {
+        type: queuedMsg.mediaType,
+        url: mediaUrl,
+        ...queuedMsg.mediaMetadata,
+      };
+      
+      console.log(`✅ [OFFLINE_QUEUE] Uploaded ${queuedMsg.mediaType} from queue`);
+    } catch (error) {
+      console.error(`❌ [OFFLINE_QUEUE] Failed to upload ${queuedMsg.mediaType}:`, error);
+      throw error;
+    }
+  }
+  
+  // Client writes; serverTimestamp becomes authoritative
+  await addDoc(collection(db, `threads/${threadId}/messages`), {
+    senderId: uid,
+    text: text ?? '',
+    media: finalMedia ?? null,
+    status: 'sent',
+    priority: 'normal',
+    createdAt: serverTimestamp()
+  });
+  
+  // Update thread's lastMessage
+  await updateDoc(doc(db, `threads/${threadId}`), {
+    lastMessage: {
+      text: text ?? '',
+      senderId: uid,
+      timestamp: serverTimestamp(),
+      media: finalMedia ?? null
+    },
+    updatedAt: serverTimestamp()
+  });
+}
+
+/**
+ * Sync pending read receipts from AsyncStorage
+ */
+async function syncPendingReadReceipts() {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const readReceiptKeys = keys.filter(k => k.startsWith('@pending_read_receipt_'));
+    
+    if (readReceiptKeys.length === 0) return;
+    
+    console.log(`🔄 [OFFLINE_QUEUE] Syncing ${readReceiptKeys.length} pending read receipts...`);
+    
+    for (const key of readReceiptKeys) {
+      try {
+        const timestamp = await AsyncStorage.getItem(key);
+        if (!timestamp) continue;
+        
+        // Parse key: @pending_read_receipt_{threadId}_{uid}
+        const parts = key.replace('@pending_read_receipt_', '').split('_');
+        if (parts.length < 2) continue;
+        
+        const uid = parts.pop();
+        const threadId = parts.join('_');
+        
+        // Update Firestore
+        const { updateDoc, doc, serverTimestamp } = await import('firebase/firestore');
+        const { db } = await import('../services/firebase');
+        
+        const memberDoc = doc(db, `threads/${threadId}/members`, uid!);
+        await updateDoc(memberDoc, {
+          readAt: new Date(timestamp)
+        }).catch(() => {
+          // Member doc might not exist yet
+        });
+        
+        const threadDoc = doc(db, 'threads', threadId);
+        await updateDoc(threadDoc, {
+          [`lastRead.${uid}`]: serverTimestamp()
+        });
+        
+        // Remove from AsyncStorage
+        await AsyncStorage.removeItem(key);
+        console.log(`✅ [OFFLINE_QUEUE] Synced read receipt for ${threadId}`);
+      } catch (error) {
+        console.error(`❌ [OFFLINE_QUEUE] Failed to sync read receipt ${key}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('❌ [OFFLINE_QUEUE] Error syncing read receipts:', error);
+  }
+}
+
+/**
+ * Main function to send a message (with offline queue support)
+ * @param p - Message data
+ * @param uid - User ID
+ * @param localMediaUri - Optional local media URI for offline queueing
+ * @param mediaType - Type of media (image or audio)
+ * @param mediaMetadata - Optional media metadata (width, height, duration)
+ */
+export async function sendMessageOptimistic(
+  p: Pending, 
+  uid: string,
+  localMediaUri?: string,
+  mediaType?: 'image' | 'audio',
+  mediaMetadata?: { width?: number; height?: number; duration?: number }
+) {
   const { threadId, text, media, tempId } = p;
   
   try {
-    // Client writes; serverTimestamp becomes authoritative
-    await addDoc(collection(db, `threads/${threadId}/messages`), {
-      senderId: uid,
-      text: text ?? '',
-      media: media ?? null,
-      status: 'sent',
-      priority: 'normal',
-      createdAt: serverTimestamp()
-    });
+    // Check network status
+    const netInfo = await NetInfo.fetch();
+    const isOnline = netInfo.isConnected && netInfo.isInternetReachable !== false;
     
-    // Update thread's lastMessage
-    await updateDoc(doc(db, `threads/${threadId}`), {
-      lastMessage: {
-        text: text ?? '',
-        senderId: uid,
-        timestamp: serverTimestamp(),
-        media: media ?? null
-      },
-      updatedAt: serverTimestamp()
-    });
-  } catch (error) {
-    console.error('Error sending message:', error);
-    throw error;
+    if (!isOnline) {
+      // Offline - add to queue with local media URI
+      console.log('📴 [OFFLINE_QUEUE] Offline detected, queueing message');
+      await enqueueMessage({ 
+        threadId, 
+        text, 
+        media, 
+        tempId, 
+        uid,
+        localMediaUri,
+        mediaType,
+        mediaMetadata,
+      });
+      return;
+    }
+    
+    // Online - try to send immediately
+    await sendMessageToFirestore(p, uid);
+    console.log('✅ [OFFLINE_QUEUE] Message sent successfully');
+    
+  } catch (error: any) {
+    console.error('❌ [OFFLINE_QUEUE] Error sending message:', error);
+    
+    // If it's a network error, queue it with local media URI
+    if (error.code === 'unavailable' || error.message?.includes('network')) {
+      console.log('📴 [OFFLINE_QUEUE] Network error detected, queueing message');
+      await enqueueMessage({ 
+        threadId, 
+        text, 
+        media, 
+        tempId, 
+        uid,
+        localMediaUri,
+        mediaType,
+        mediaMetadata,
+      });
+    } else {
+      // Other errors (permissions, etc.) - throw
+      throw error;
+    }
   }
 }
 

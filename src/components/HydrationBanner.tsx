@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, AppState } from 'react-native';
+import { View, Text, StyleSheet, Animated, AppState, TouchableOpacity } from 'react-native';
 import { onSnapshot, doc } from 'firebase/firestore';
 import NetInfo from '@react-native-community/netinfo';
 import { db } from '../services/firebase';
 import { useTheme } from '../contexts/ThemeContext';
+import { subscribeToQueue, getQueue, type QueuedMessage } from '../state/offlineQueue';
 
 interface HydrationBannerProps {
   userId: string | null;
@@ -14,6 +15,7 @@ export default function HydrationBanner({ userId }: HydrationBannerProps) {
   const [isOnline, setIsOnline] = useState(true);
   const [showBanner, setShowBanner] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [queuedCount, setQueuedCount] = useState(0);
 
   useEffect(() => {
     // Listen to network state for persistent offline banner
@@ -59,9 +61,49 @@ export default function HydrationBanner({ userId }: HydrationBannerProps) {
       unsubscribeNetwork();
     };
   }, [isOnline]);
+  
+  // Subscribe to queue changes
+  useEffect(() => {
+    const unsubscribe = subscribeToQueue((queue: QueuedMessage[]) => {
+      const pendingCount = queue.filter(msg => msg.status === 'pending' || msg.status === 'sending').length;
+      setQueuedCount(pendingCount);
+      
+      // Show banner if there are queued messages
+      if (pendingCount > 0 && !showBanner) {
+        setShowBanner(true);
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
+    });
+    
+    // Initialize with current queue
+    const currentQueue = getQueue();
+    const pendingCount = currentQueue.filter(msg => msg.status === 'pending' || msg.status === 'sending').length;
+    setQueuedCount(pendingCount);
+    
+    return unsubscribe;
+  }, []);
 
   if (!showBanner) return null;
 
+  const getBannerText = () => {
+    if (!isOnline) {
+      if (queuedCount > 0) {
+        return `📴 Offline • ${queuedCount} message${queuedCount === 1 ? '' : 's'} queued`;
+      }
+      return '📴 Offline';
+    }
+    
+    if (queuedCount > 0) {
+      return `🔄 Syncing ${queuedCount} message${queuedCount === 1 ? '' : 's'}...`;
+    }
+    
+    return '✅ Synced';
+  };
+  
   return (
     <Animated.View
       style={[
@@ -73,7 +115,7 @@ export default function HydrationBanner({ userId }: HydrationBannerProps) {
       ]}
     >
       <Text style={styles.bannerText}>
-        {isOnline ? '✅ Synced' : '🔄 Syncing...'}
+        {getBannerText()}
       </Text>
     </Animated.View>
   );

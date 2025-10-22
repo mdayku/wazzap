@@ -9,6 +9,7 @@ import { useAuth } from './src/hooks/useAuth';
 import { usePresence } from './src/hooks/usePresence';
 import { useInAppNotifications } from './src/hooks/useInAppNotifications';
 import { initializeReconnectService } from './src/services/reconnect';
+import { initializeOfflineQueue } from './src/state/offlineQueue';
 import LoginScreen from './src/screens/LoginScreen';
 import ThreadsScreen from './src/screens/ThreadsScreen';
 import NewChatScreen from './src/screens/NewChatScreen';
@@ -34,6 +35,11 @@ function AppContent() {
   useEffect(() => {
     const unsubscribe = initializeReconnectService();
     return () => unsubscribe();
+  }, []);
+  
+  // Initialize offline queue system
+  useEffect(() => {
+    initializeOfflineQueue();
   }, []);
   
   // Update presence only when logged in
