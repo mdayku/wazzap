@@ -96,9 +96,31 @@ describe('MessageBubble Component', () => {
   });
 
   it('should render double checkmarks for read messages', () => {
-    const readMessage = { ...mockMessage, status: 'read' as const };
+    const messageTime = Date.now() - 10000; // Message sent 10 seconds ago
+    const readMessage = { 
+      ...mockMessage, 
+      status: 'read' as const,
+      createdAt: {
+        toMillis: () => messageTime,
+        toDate: () => new Date(messageTime),
+        seconds: Math.floor(messageTime / 1000),
+        nanoseconds: 0,
+      }
+    };
+    
+    // Mock thread members and lastRead for read receipt calculation
+    const threadMembers = ['user1', 'user2'];
+    const threadLastRead = {
+      'user2': { toMillis: () => Date.now() } // Read after message (now > messageTime)
+    };
+    
     const { getByText } = renderWithTheme(
-      <MessageBubble item={readMessage} me="user1" />
+      <MessageBubble 
+        item={readMessage} 
+        me="user1" 
+        threadMembers={threadMembers}
+        threadLastRead={threadLastRead}
+      />
     );
     
     expect(getByText('✓✓')).toBeTruthy();
