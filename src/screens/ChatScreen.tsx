@@ -63,6 +63,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const [messageToForward, setMessageToForward] = useState<any>(null);
   const isInitialLoadRef = useRef(true); // Track initial load
   const previousMessageIdsRef = useRef<Set<string>>(new Set()); // Track message IDs for haptic feedback
+  const [showAIMenu, setShowAIMenu] = useState(false); // AI menu modal
 
   // Fetch messages
   useEffect(() => {
@@ -658,22 +659,10 @@ export default function ChatScreen({ route, navigation }: any) {
         )}
         <View style={styles.headerActions}>
           <TouchableOpacity 
-            style={styles.iconButton} 
-            onPress={() => navigation.navigate('Decisions' as never, { threadId } as never)}
+            style={styles.aiMenuButton} 
+            onPress={() => setShowAIMenu(true)}
           >
-            <Ionicons name="checkmark-circle-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton} 
-            onPress={() => navigation.navigate('Search' as never, { threadId } as never)}
-          >
-            <Ionicons name="search-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.summarizeButton} onPress={handleSummarize}>
-            <Ionicons name="sparkles" size={18} color="#007AFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.summarizeButton} onPress={handleExtractActions}>
-            <Ionicons name="list-outline" size={20} color="#007AFF" />
+            <Ionicons name="sparkles" size={24} color="#007AFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -741,6 +730,133 @@ export default function ChatScreen({ route, navigation }: any) {
       >
         <Composer threadId={threadId} uid={user?.uid || ''} onTyping={handleTyping} />
       </KeyboardAvoidingView>
+
+      {/* AI Menu Modal */}
+      <Modal
+        visible={showAIMenu}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAIMenu(false)}
+      >
+        <TouchableOpacity 
+          style={styles.aiMenuOverlay}
+          activeOpacity={1}
+          onPress={() => setShowAIMenu(false)}
+        >
+          <View style={styles.aiMenuContainer} onStartShouldSetResponder={() => true}>
+            <View style={styles.aiMenuHeader}>
+              <Ionicons name="sparkles" size={28} color="#007AFF" />
+              <Text style={styles.aiMenuTitle}>AI Features</Text>
+              <TouchableOpacity onPress={() => setShowAIMenu(false)}>
+                <Ionicons name="close" size={28} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.aiMenuGrid}>
+              {/* Summarize Thread */}
+              <TouchableOpacity 
+                style={styles.aiMenuItem}
+                onPress={() => {
+                  setShowAIMenu(false);
+                  handleSummarize();
+                }}
+              >
+                <View style={[styles.aiMenuIcon, { backgroundColor: '#E3F2FD' }]}>
+                  <Ionicons name="document-text-outline" size={32} color="#2196F3" />
+                </View>
+                <Text style={styles.aiMenuItemTitle}>Summarize</Text>
+                <Text style={styles.aiMenuItemDesc}>Get a concise summary</Text>
+              </TouchableOpacity>
+
+              {/* Action Items */}
+              <TouchableOpacity 
+                style={styles.aiMenuItem}
+                onPress={() => {
+                  setShowAIMenu(false);
+                  handleExtractActions();
+                }}
+              >
+                <View style={[styles.aiMenuIcon, { backgroundColor: '#FFF3E0' }]}>
+                  <Ionicons name="checkbox-outline" size={32} color="#FF9800" />
+                </View>
+                <Text style={styles.aiMenuItemTitle}>Action Items</Text>
+                <Text style={styles.aiMenuItemDesc}>Extract tasks & decisions</Text>
+              </TouchableOpacity>
+
+              {/* Semantic Search */}
+              <TouchableOpacity 
+                style={styles.aiMenuItem}
+                onPress={() => {
+                  setShowAIMenu(false);
+                  navigation.navigate('Search' as never, { threadId } as never);
+                }}
+              >
+                <View style={[styles.aiMenuIcon, { backgroundColor: '#F3E5F5' }]}>
+                  <Ionicons name="search-outline" size={32} color="#9C27B0" />
+                </View>
+                <Text style={styles.aiMenuItemTitle}>Search</Text>
+                <Text style={styles.aiMenuItemDesc}>Find messages by meaning</Text>
+              </TouchableOpacity>
+
+              {/* Decisions */}
+              <TouchableOpacity 
+                style={styles.aiMenuItem}
+                onPress={() => {
+                  setShowAIMenu(false);
+                  navigation.navigate('Decisions' as never, { threadId } as never);
+                }}
+              >
+                <View style={[styles.aiMenuIcon, { backgroundColor: '#E8F5E9' }]}>
+                  <Ionicons name="checkmark-circle-outline" size={32} color="#4CAF50" />
+                </View>
+                <Text style={styles.aiMenuItemTitle}>Decisions</Text>
+                <Text style={styles.aiMenuItemDesc}>Track key decisions</Text>
+              </TouchableOpacity>
+
+              {/* Priority Detection */}
+              <TouchableOpacity 
+                style={styles.aiMenuItem}
+                onPress={() => {
+                  setShowAIMenu(false);
+                  Alert.alert(
+                    'Priority Detection',
+                    'AI automatically detects urgent messages and marks them with a red badge. Try sending a message with "URGENT" or "ASAP"!',
+                    [{ text: 'Got it', style: 'default' }]
+                  );
+                }}
+              >
+                <View style={[styles.aiMenuIcon, { backgroundColor: '#FFEBEE' }]}>
+                  <Ionicons name="alert-circle-outline" size={32} color="#F44336" />
+                </View>
+                <Text style={styles.aiMenuItemTitle}>Priority</Text>
+                <Text style={styles.aiMenuItemDesc}>Auto-detect urgent messages</Text>
+              </TouchableOpacity>
+
+              {/* Proactive Assistant (Coming Soon) */}
+              <TouchableOpacity 
+                style={[styles.aiMenuItem, styles.aiMenuItemDisabled]}
+                onPress={() => {
+                  Alert.alert(
+                    'Coming Soon',
+                    'Proactive Assistant will monitor conversations and suggest actions automatically.',
+                    [{ text: 'OK', style: 'default' }]
+                  );
+                }}
+              >
+                <View style={[styles.aiMenuIcon, { backgroundColor: '#ECEFF1' }]}>
+                  <Ionicons name="bulb-outline" size={32} color="#607D8B" />
+                </View>
+                <Text style={styles.aiMenuItemTitle}>Proactive AI</Text>
+                <Text style={styles.aiMenuItemDesc}>Coming soon...</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.aiMenuFooter}>
+              Powered by GPT-4o-mini & OpenAI Embeddings
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Summary Modal */}
       <Modal
@@ -1100,6 +1216,88 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  aiMenuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  aiMenuContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 32,
+    maxHeight: '85%',
+  },
+  aiMenuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  aiMenuTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000000',
+    flex: 1,
+    marginLeft: 12,
+  },
+  aiMenuGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
+    gap: 12,
+  },
+  aiMenuItem: {
+    width: '48%',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  aiMenuItemDisabled: {
+    opacity: 0.5,
+  },
+  aiMenuIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  aiMenuItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  aiMenuItemDesc: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  aiMenuFooter: {
+    fontSize: 12,
+    color: '#999999',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   messagesList: {
     paddingVertical: 8,
