@@ -392,6 +392,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
               item.status === 'read' && styles.statusRead
             ]}>
               {item.status === 'read' ? '✓✓' : item.status === 'delivered' ? '✓✓' : '✓'}
+              {/* Debug: {item.status} */}
             </Text>
           )}
         </View>
@@ -663,7 +664,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
   },
   statusRead: {
-    color: '#34C759',
+    color: '#34C759', // Green for read receipts
+    fontWeight: '600', // Make it slightly bolder to ensure visibility
   },
   priorityBadge: {
     position: 'absolute',

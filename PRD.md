@@ -1,9 +1,9 @@
 # 🎯 MessageAI - Master Plan & Status
 
-**Last Updated:** October 21, 2025 (Final Demo-Ready Build)
+**Last Updated:** October 22, 2025 (Post-Demo Optimization Phase)
 **Current Score:** ~72 points (C+) → **Target:** 100+ points (A+)  
-**Days Remaining:** 4-5 days to final submission  
-**Status:** MVP Complete (11/11) ✅ | AI Features Working (5/6) ✅ | Demo-Ready 🟢
+**Days Remaining:** 3-4 days to final submission  
+**Status:** MVP Complete (11/11) ✅ | AI Features Working (5/6) ✅ | 52 Todos Identified 📋
 
 **Latest Updates (October 21, 2025 - Final Demo Build):**
 - ✅ **Copy/Paste** - Long-press message input to paste, long-press message to copy
@@ -142,83 +142,139 @@ You're **2 focused days** away from 97 points (A+):
 
 ---
 
-## 📋 5-DAY EXECUTION PLAN
+## 📋 COMPREHENSIVE TODO LIST (52 Items)
+
+### **Priority 1: Grader-Requested (Critical - 8 items)**
+- [ ] Build LoadTest screen for 100-message rapid-fire testing with inOrder proof
+- [ ] Add PerfPanel for real-time performance metrics (p50/p95 latency, reconnect time)
+- [ ] Implement per-message readBy tracking with 'Read by X of N' display in threads list
+- [ ] Build token logging redaction in src/services/notifications.ts
+- [ ] Remove unused params in Composer.tsx and ChatScreen.tsx
+- [ ] Add CI/CD pipeline with lint + typecheck gates on main
+- [ ] Create README Test Matrix documenting exact test scenarios
+- [ ] Add architecture diagram to README (App ↔ Firestore ↔ Functions ↔ AI)
+
+### **Priority 2: AI Features Polish (12 items)**
+- [ ] Add AI menu button to ChatScreen header (sparkles icon)
+- [ ] Create AI menu modal with 5 buttons for AI features
+- [ ] Add priority badge to MessageBubble for urgent messages
+- [ ] Test thread summarization with 20+ messages
+- [ ] Test action item extraction feature
+- [ ] Test priority detection (send URGENT messages)
+- [ ] Test semantic search functionality
+- [ ] Test decision tracking feature
+- [ ] Test proactive scheduler feature
+- [ ] Add error handling and loading states for all AI features
+- [ ] Add streaming support for AI summary generation
+- [ ] Implement rate limiting UI for AI calls (20 per 10 min)
+
+### **Priority 3: Required Deliverables (6 items)**
+- [ ] Write detailed demo video script (30 min)
+- [ ] Record demo video on 2 devices (2 hours)
+- [ ] Edit and upload demo video (1.5 hours)
+- [ ] Write persona brainlift document (2 hours)
+- [ ] Create social media post with demo link
+- [ ] Final testing pass of all features (1-2 hours)
+
+### **Priority 4: Performance & Polish (10 items)**
+- [ ] Remove 138 console.log statements (1 hour)
+- [ ] Implement message pagination for performance
+- [ ] Install and configure expo-image for optimization
+- [ ] Refactor ChatScreen (split into smaller files)
+- [ ] Refactor NewChatscreen (split into smaller files)
+- [ ] Add error boundaries for crash prevention
+- [ ] Improve reconnect logic to <1s after 30s network drop
+- [ ] Add Hydration banner for offline sync status (✅ when synced)
+- [ ] Add force-quit/reinstall test documentation with both devices
+- [ ] Update all documentation with final features
+
+### **Priority 5: Bonus Features (8 items)**
+- [ ] Add voice message transcription with inline highlights (bonus +3)
+- [ ] Add dark mode with theme switch and micro-interactions (bonus +3)
+- [ ] Build RAG pipeline for conversation context and memory
+- [ ] Add slash commands for AI features in composer
+- [ ] Create AI feature usage analytics/logging
+- [ ] Add proactive assistant opt-in per thread
+- [ ] Implement proactive suggestion pill UI under composer
+- [ ] Add thumbs up/down feedback for proactive suggestions
+
+### **Priority 6: Advanced Features (8 items)**
+- [ ] Implement proactive assistant that monitors threads and suggests AI features
+- [ ] Polish 5 AI features UI with sticky AI menu in thread
+- [ ] Fix Composer.tsx unused params
+- [ ] Fix ChatScreen.tsx unused params
+- [ ] Create comprehensive demo video script (5-7 min) following rubric
+- [ ] Record demo video with two physical devices
+- [ ] Create Persona Brainlift 1-pager (Remote Team Professional)
+- [ ] Write social post with 10-15s GIF for @GauntletAI
+
+**Total: 52 todos across 6 priority tiers**
+
+---
+
+## 📅 REVISED 4-DAY EXECUTION PLAN
 
 ### **Day 1 (Wednesday) - 10-12 hours**
-**Goal: Make AI features work**
+**Goal: Grader-requested items + AI testing**
 
-**Morning (4-6 hours): Add AI UI**
-- [ ] Add AI menu button to ChatScreen header (sparkles icon)
-- [ ] Create AI menu modal with 5 buttons
-- [ ] Add priority badge to MessageBubble
-- [ ] Add semantic search toggle to SearchScreen
+**Morning (5-6 hours): Grader Priorities**
+- [ ] Build LoadTest screen + PerfPanel (3 hours)
+- [ ] Implement "Read by X of N" read receipts (2 hours)
+- [ ] Token redaction + remove unused params (1 hour)
 
-**Afternoon (4-6 hours): Test & Fix**
-- [ ] Test thread summarization (20+ messages)
-- [ ] Test action item extraction
-- [ ] Test priority detection (send "URGENT")
-- [ ] Test semantic search
-- [ ] Test decision tracking
-- [ ] Test proactive scheduler
-- [ ] Fix any bugs found
-- [ ] Add error handling and loading states
+**Afternoon (5-6 hours): AI Testing**
+- [ ] Add AI menu button + modal (2 hours)
+- [ ] Test all 6 AI features (2 hours)
+- [ ] Add error handling and loading states (2 hours)
 
-**Deliverable:** All 6 AI features working → **+29 points** → Score: 67 (D+)
+**Deliverable:** Grader items complete + AI tested → **+15 points** → Score: 87 (B+)
 
 ---
 
 ### **Day 2 (Thursday) - 8-10 hours**
-**Goal: Complete deliverables**
+**Goal: CI/CD + Documentation + Deliverables**
 
-**Morning (4 hours): Demo Video**
-- [ ] Write detailed script (30 min)
-- [ ] Record on 2 devices (2 hours)
+**Morning (4 hours): Infrastructure**
+- [ ] Add CI/CD pipeline with lint + typecheck (2 hours)
+- [ ] Create README Test Matrix (1 hour)
+- [ ] Add architecture diagram (1 hour)
+
+**Afternoon (4-6 hours): Deliverables**
+- [ ] Write demo video script (30 min)
+- [ ] Record demo video on 2 devices (2 hours)
 - [ ] Edit and upload (1.5 hours)
-
-**Afternoon (4-6 hours): Documents**
 - [ ] Write persona brainlift (2 hours)
-- [ ] Create social media post (1 hour)
+
+**Deliverable:** All infrastructure + partial deliverables → **+10 points** → Score: 97 (A+)
+
+---
+
+### **Day 3 (Friday) - 8-10 hours**
+**Goal: Performance + Final deliverables**
+
+**Morning (4 hours): Performance**
 - [ ] Remove 138 console.log statements (1 hour)
-- [ ] Final testing pass (1-2 hours)
+- [ ] Implement message pagination (2 hours)
+- [ ] Add Hydration banner (1 hour)
 
-**Deliverable:** All required items → **Avoid -30 penalty** → Score: 97 (A+)
+**Afternoon (4-6 hours): Final Deliverables**
+- [ ] Create social media post (1 hour)
+- [ ] Final testing pass (2 hours)
+- [ ] Update all documentation (2 hours)
 
----
-
-### **Day 3 (Friday) - 8-10 hours (OPTIONAL)**
-**Goal: Performance & polish**
-
-**Morning (4 hours):**
-- [ ] Implement message pagination (2-3 hours)
-- [ ] Install react-native-fast-image for image optimization (1-2 hours)
-
-**Afternoon (4-6 hours):**
-- [ ] Refactor ChatScreen (split into smaller files)
-- [ ] Refactor NewChatScreen (split into smaller files)
-
-**Deliverable:** Clean, performant codebase → **+2-3 points** → Score: 99-100 (A+)
+**Deliverable:** Performance optimized + all deliverables → **+3 points** → Score: 100 (A+)
 
 ---
 
-### **Day 4 (Saturday) - 8-10 hours (OPTIONAL)**
+### **Day 4 (Saturday) - 6-8 hours (OPTIONAL)**
 **Goal: Bonus features**
 
-**Options (pick 2-3):**
-- [ ] Voice messages (8 hours) → +3 points
-- [ ] Message reactions (4 hours) → +2 points
-- [ ] Dark mode (3 hours) → +2 points
-- [ ] Accessibility features (2 hours) → +1 point
+**Options (pick 2):**
+- [ ] Voice transcription (3 hours) → +3 points
+- [ ] Dark mode (3 hours) → +3 points
+- [ ] Proactive assistant polish (2 hours) → +2 points
 
 **Deliverable:** Bonus features → **+5-8 points** → Score: 105+ (A+)
-
----
-
-### **Day 5 (Sunday) - 4-6 hours**
-**Goal: Final polish & submit**
-
-- [ ] Final testing all features (2 hours)
-- [ ] Update all documentation (2 hours)
-- [ ] Submit by 10:59 PM CT
 
 ---
 
@@ -489,20 +545,20 @@ wazzap/
 
 ## 🚀 IMMEDIATE NEXT STEPS
 
-### Right Now (Next 30 minutes)
-1. **Start Day 1, Task 1** - Add AI menu button to ChatScreen
-2. **Test if Cloud Functions work** - Try calling one function manually
-3. **Commit current state** - Save progress to GitHub
+### Right Now (Next 2-3 hours) - PRIORITY 1
+1. **Build LoadTest screen** - 100-message rapid-fire with inOrder proof
+2. **Add PerfPanel** - Real-time metrics display (p50/p95 latency)
+3. **Screenshot for README** - Evidence for grader
 
-### Today (Next 8-12 hours)
-1. **Complete Day 1 tasks** - Add all AI UI
-2. **Test each AI feature** - Verify they work
-3. **Fix any bugs** - Debug issues found
+### Today (Next 8-12 hours) - DAY 1
+1. **Complete grader priorities** - LoadTest, read receipts, token redaction
+2. **Add AI menu + test features** - Verify all 6 AI features work
+3. **Add error handling** - Loading states and retry logic
 
-### Tomorrow (Next 8-10 hours)
-1. **Complete Day 2 tasks** - Create all deliverables
-2. **Avoid -30 point penalty** - Submit everything required
-3. **Achieve 97 points (A+)** - You'll be done!
+### Tomorrow (Next 8-10 hours) - DAY 2
+1. **Add CI/CD pipeline** - GitHub Actions for lint + typecheck
+2. **Create documentation** - Test Matrix + architecture diagram
+3. **Start demo video** - Write script and begin recording
 
 ---
 

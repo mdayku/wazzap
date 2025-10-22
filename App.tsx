@@ -15,6 +15,7 @@ import ChatScreen from './src/screens/ChatScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import DecisionsScreen from './src/screens/DecisionsScreen';
+import LoadTestScreen from './src/screens/LoadTestScreen';
 
 // Suppress specific warnings/errors
 LogBox.ignoreLogs([
@@ -83,6 +84,10 @@ function AppContent() {
               <Stack.Screen 
                 name="Decisions" 
                 component={DecisionsScreen}
+              />
+              <Stack.Screen 
+                name="LoadTest" 
+                component={LoadTestScreen}
               />
             </>
           )}

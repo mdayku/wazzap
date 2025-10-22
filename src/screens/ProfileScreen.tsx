@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Modal,
   Switch,
+  ScrollView,
+  FlatList,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,21 +21,63 @@ import { uploadImage } from '../services/storage';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
 import { testLocalNotification } from '../services/notifications';
+import { useNavigation } from '@react-navigation/native';
+import { useThreads } from '../hooks/useThread';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme, colors } = useTheme();
+  const navigation = useNavigation();
+  const { threads } = useThreads(user?.uid || '');
   const [displayName, setDisplayName] = useState('');
   const [photoURL, setPhotoURL] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [showThreadPicker, setShowThreadPicker] = useState(false);
+  const [userCache, setUserCache] = useState<{ [key: string]: any }>({});
 
   useEffect(() => {
     if (user) {
       loadProfile();
     }
   }, [user]);
+
+  // Fetch user data for all thread members to display names
+  useEffect(() => {
+    if (!threads || threads.length === 0) return;
+    
+    const fetchUserData = async () => {
+      const uniqueUserIds = new Set<string>();
+      threads.forEach(thread => {
+        if (thread.members && Array.isArray(thread.members)) {
+          thread.members.forEach(memberId => {
+            if (memberId !== user?.uid) {
+              uniqueUserIds.add(memberId);
+            }
+          });
+        }
+      });
+      
+      const newUserCache: { [key: string]: any } = { ...userCache };
+      for (const userId of uniqueUserIds) {
+        if (!newUserCache[userId]) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+              newUserCache[userId] = userDoc.data();
+            }
+          } catch (error) {
+            console.error('Error fetching user data:', error);
+          }
+        }
+      }
+      setUserCache(newUserCache);
+    };
+    
+    fetchUserData();
+  }, [threads, user?.uid]);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -133,6 +177,22 @@ export default function ProfileScreen() {
     }
   };
 
+  const getThreadDisplayName = (thread: any) => {
+    if (thread.name) return thread.name; // Group chat
+    
+    // 1:1 chat - get other user's name
+    const otherMember = thread.members?.find((m: string) => m !== user?.uid);
+    if (otherMember && userCache[otherMember]) {
+      return userCache[otherMember].displayName || 'User';
+    }
+    return 'Chat';
+  };
+
+  const handleSelectThread = (threadId: string) => {
+    setShowThreadPicker(false);
+    navigation.navigate('LoadTest' as never, { threadId, userId: user?.uid } as never);
+  };
+
   const handleCancelPhoto = () => {
     setPreviewImage(null);
   };
@@ -220,6 +280,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={styles.testButton}
+            onPress={() => setShowThreadPicker(true)}
+          >
+            <Text style={styles.testButtonText}>⚡ Load Test (Performance)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.logoutButton}
             onPress={logout}
           >
@@ -268,6 +335,57 @@ export default function ProfileScreen() {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Thread Picker Modal for Load Test */}
+      <Modal
+        visible={showThreadPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowThreadPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.threadPickerContainer, { backgroundColor: colors.background }]}>
+            <View style={styles.threadPickerHeader}>
+              <Text style={[styles.threadPickerTitle, { color: colors.text }]}>
+                Select a Thread for Load Test
+              </Text>
+              <TouchableOpacity onPress={() => setShowThreadPicker(false)}>
+                <Ionicons name="close-circle" size={28} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.threadList}>
+              {threads.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+                    No threads available. Create a chat first!
+                  </Text>
+                </View>
+              ) : (
+                threads.map((thread) => (
+                  <TouchableOpacity
+                    key={thread.id}
+                    style={[styles.threadItem, { borderBottomColor: colors.border }]}
+                    onPress={() => handleSelectThread(thread.id)}
+                  >
+                    <View style={styles.threadItemContent}>
+                      <Ionicons 
+                        name={thread.members && thread.members.length > 2 ? "people" : "person"} 
+                        size={24} 
+                        color={colors.primary} 
+                      />
+                      <Text style={[styles.threadItemName, { color: colors.text }]}>
+                        {getThreadDisplayName(thread)}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -462,6 +580,50 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  threadPickerContainer: {
+    width: '90%',
+    maxHeight: '70%',
+    borderRadius: 12,
+    padding: 20,
+  },
+  threadPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  threadPickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  threadList: {
+    maxHeight: 400,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  threadItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+  },
+  threadItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  threadItemName: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

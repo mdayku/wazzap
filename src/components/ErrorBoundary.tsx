@@ -2,48 +2,37 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-  name?: string;
+  children?: ReactNode;
+  name: string; // Name of the component being wrapped
+  fallback?: ReactNode; // Optional fallback UI
 }
 
 interface State {
   hasError: boolean;
-  error: Error | null;
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null };
+  public state: State = {
+    hasError: false
+  };
+
+  public static getDerivedStateFromError(_: Error): State {
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error(`❌ [ERROR_BOUNDARY] Error in ${this.props.name}:`, error, errorInfo);
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const boundaryName = this.props.name || 'Unknown';
-    console.error(`🚨 [ERROR BOUNDARY: ${boundaryName}]`, error);
-    console.error(`🚨 [ERROR BOUNDARY: ${boundaryName}] Component Stack:`, errorInfo.componentStack);
-    console.error(`🚨 [ERROR BOUNDARY: ${boundaryName}] Error Message:`, error.message);
-    console.error(`🚨 [ERROR BOUNDARY: ${boundaryName}] Error Stack:`, error.stack);
-  }
-
-  render() {
+  public render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
       }
-      
       return (
         <View style={styles.container}>
-          <Text style={styles.errorText}>
-            Error in {this.props.name || 'component'}
-          </Text>
-          <Text style={styles.errorMessage}>
-            {this.state.error?.message || 'Unknown error'}
-          </Text>
+          <Text style={styles.text}>Something went wrong in {this.props.name}.</Text>
         </View>
       );
     }
@@ -54,22 +43,15 @@ class ErrorBoundary extends Component<Props, State> {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: '#FFF0F0',
-    borderRadius: 8,
-    margin: 8,
+    padding: 10,
+    backgroundColor: '#FFCCCC',
+    borderRadius: 5,
+    margin: 5,
   },
-  errorText: {
-    fontSize: 16,
+  text: {
+    color: '#CC0000',
     fontWeight: 'bold',
-    color: '#FF0000',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#666',
   },
 });
 
 export default ErrorBoundary;
-

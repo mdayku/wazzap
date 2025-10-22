@@ -179,9 +179,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     setUploading(true);
     try {
       // Compress image before uploading
-      console.log('📸 [IMAGE] Compressing image...');
       const compressed = await compressImage(imageUri);
-      console.log(`📸 [IMAGE] Compressed: ${compressed.width}x${compressed.height}`);
       
       const timestamp = Date.now();
       const path = `messages/${uid}/${timestamp}.jpg`;
@@ -215,7 +213,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
 
   const startRecording = async () => {
     try {
-      console.log('🎤 [AUDIO] Requesting permissions...');
       const { granted } = await Audio.requestPermissionsAsync();
       
       if (!granted) {
@@ -228,7 +225,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
         playsInSilentModeIOS: true,
       });
 
-      console.log('🎤 [AUDIO] Starting recording...');
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
@@ -241,8 +237,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       recordingInterval.current = setInterval(() => {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
-
-      console.log('🎤 [AUDIO] Recording started');
     } catch (error) {
       console.error('Error starting recording:', error);
       Alert.alert('Error', 'Failed to start recording. Please try again.');
@@ -253,7 +247,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     if (!recording) return;
 
     try {
-      console.log('🎤 [AUDIO] Stopping recording...');
       setIsRecording(false);
       
       if (recordingInterval.current) {
@@ -267,7 +260,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       });
 
       const uri = recording.getURI();
-      console.log('🎤 [AUDIO] Recording saved to:', uri);
 
       if (uri && recordingDuration >= 1) {
         // Haptic feedback on send
@@ -290,7 +282,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     if (!recording) return;
 
     try {
-      console.log('🎤 [AUDIO] Canceling recording...');
       setIsRecording(false);
       
       if (recordingInterval.current) {
@@ -305,7 +296,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
 
       setRecording(null);
       setRecordingDuration(0);
-      console.log('🎤 [AUDIO] Recording canceled');
     } catch (error) {
       console.error('Error canceling recording:', error);
     }
@@ -314,13 +304,10 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const sendAudioMessage = async (audioUri: string, duration: number) => {
     try {
       setUploading(true);
-      console.log('🎤 [AUDIO] Uploading audio file...');
 
       // Upload to Firebase Storage with correct path format
       const timestamp = Date.now();
       const audioUrl = await uploadImage(audioUri, `messages/${uid}/audio_${timestamp}.m4a`);
-      
-      console.log('🎤 [AUDIO] Audio uploaded:', audioUrl);
 
       // Send message with audio metadata
       const tempId = `${Date.now()}_${Math.random()}`;
@@ -337,8 +324,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
         },
         uid
       );
-
-      console.log('🎤 [AUDIO] Audio message sent!');
     } catch (error) {
       console.error('Error sending audio message:', error);
       Alert.alert('Error', 'Failed to send voice message. Please try again.');
