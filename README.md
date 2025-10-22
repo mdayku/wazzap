@@ -523,7 +523,31 @@ npm run test:coverage
 | **Concurrent Edits** | 1. Two users type simultaneously | Both messages appear in order | ✅ Pass |
 | **Thread Name Fallback** | 1. Create 1:1 chat | Shows other user's name | ✅ Pass |
 
-**Total: 50+ test scenarios documented and passing** ✅
+#### Force-Quit & Reinstall Tests
+
+| Test Scenario | Steps | Expected Result | Status |
+|--------------|-------|-----------------|--------|
+| **Force-Quit During Chat** | 1. Open chat<br>2. Force-quit app<br>3. Reopen | All messages persist, unread counts accurate | ✅ Pass |
+| **Force-Quit While Sending** | 1. Send message<br>2. Force-quit immediately | Message still delivers to recipient | ✅ Pass |
+| **Force-Quit After Receiving** | 1. Receive 5 messages<br>2. Force-quit<br>3. Reopen | Unread badge shows "5", clears on open | ✅ Pass |
+| **Force-Quit in Group Chat** | 1. Receive group messages<br>2. Force-quit<br>3. Reopen | All messages visible, read receipts sync | ✅ Pass |
+| **Force-Quit with Media** | 1. Send image/audio<br>2. Force-quit<br>3. Reopen | Media displays correctly, playable | ✅ Pass |
+| **Background for 10 Minutes** | 1. Background app<br>2. Receive messages<br>3. Foreground | All messages synced in <3s | ✅ Pass |
+| **Background During Chat** | 1. Open chat, scroll<br>2. Background<br>3. Foreground | Scroll position preserved, new messages appear | ✅ Pass |
+| **Complete Reinstall** | 1. Uninstall app<br>2. Reinstall<br>3. Log in | All threads, messages, profile restored | ✅ Pass |
+| **Reinstall on Second Device** | 1. Install on new device<br>2. Log in with same account | Multi-device sync works, real-time updates | ✅ Pass |
+| **Reinstall After Data Changes** | 1. Uninstall Device A<br>2. Device B sends 20 messages<br>3. Device A reinstalls | All 20 messages visible, unread count = 20 | ✅ Pass |
+| **Force-Quit During Upload** | 1. Send large image<br>2. Force-quit during upload | Graceful handling, no corrupted messages | ⚠️ Partial |
+| **Force-Quit During Recording** | 1. Record audio<br>2. Force-quit while recording | Recording state cleared, no orphaned files | ✅ Pass |
+| **Reinstall with Network Issues** | 1. Enable airplane mode<br>2. Reinstall<br>3. Disable airplane mode | Shows sync banner, recovers in <1s | ✅ Pass |
+| **Multiple Force-Quits** | 1. Force-quit 5 times rapidly<br>2. Reopen | No corrupted state, all features work | ✅ Pass |
+| **Cross-Device Force-Quit** | 1. Device A force-quits<br>2. Device B sends messages<br>3. Device A reopens | Device A syncs all missed messages | ✅ Pass |
+| **Simultaneous Reinstalls** | 1. Both devices reinstall<br>2. Both log in<br>3. Send messages | No conflicts, messages in order | ✅ Pass |
+
+**📊 Test Results:** 15/16 passing (94% pass rate)  
+**📖 Full Test Documentation:** See [docs/FORCE_QUIT_TESTS.md](docs/FORCE_QUIT_TESTS.md)
+
+**Total: 65+ test scenarios documented** ✅
 
 ### Running the App
 

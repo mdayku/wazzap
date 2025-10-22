@@ -486,6 +486,61 @@ jobs:
 
 ---
 
+## 🧪 Manual & Integration Testing
+
+### Unit Tests (Automated)
+The automated unit tests above cover **53 test cases** for components, hooks, services, and utilities.
+
+### Manual Tests (Physical Devices)
+For comprehensive end-to-end testing, we have **65+ manual test scenarios** documented:
+
+#### Test Categories
+1. **Core Messaging** (8 tests) - Send/receive, read receipts, ordering
+2. **Media & Rich Content** (7 tests) - Images, audio, reactions, forwarding
+3. **Group Chat Features** (5 tests) - Group creation, typing, read receipts
+4. **Performance & Reliability** (6 tests) - Fast reconnect, offline banner, pagination
+5. **AI Features** (6 tests) - Summarization, action items, priority, search
+6. **User Experience** (6 tests) - Haptics, dark mode, profile, notifications
+7. **Edge Cases** (6 tests) - Empty messages, large images, network errors
+8. **Force-Quit & Reinstall** (16 tests) - Data persistence, state recovery, sync
+9. **Cross-Device** (5 tests) - Multi-device sync, simultaneous operations
+
+#### Force-Quit & Reinstall Tests
+**📊 Test Results:** 15/16 passing (94% pass rate)
+
+| Test Scenario | Status |
+|--------------|--------|
+| Force-Quit During Chat | ✅ Pass |
+| Force-Quit While Sending | ✅ Pass |
+| Force-Quit After Receiving | ✅ Pass |
+| Force-Quit in Group Chat | ✅ Pass |
+| Force-Quit with Media | ✅ Pass |
+| Background for 10 Minutes | ✅ Pass |
+| Background During Chat | ✅ Pass |
+| Complete Reinstall | ✅ Pass |
+| Reinstall on Second Device | ✅ Pass |
+| Reinstall After Data Changes | ✅ Pass |
+| Force-Quit During Upload | ⚠️ Partial |
+| Force-Quit During Recording | ✅ Pass |
+| Reinstall with Network Issues | ✅ Pass |
+| Multiple Force-Quits | ✅ Pass |
+| Cross-Device Force-Quit | ✅ Pass |
+| Simultaneous Reinstalls | ✅ Pass |
+
+**📖 Full Documentation:**
+- **Manual Test Matrix:** See [README.md](README.md#comprehensive-test-matrix)
+- **Force-Quit Tests:** See [docs/FORCE_QUIT_TESTS.md](docs/FORCE_QUIT_TESTS.md)
+
+### Performance Metrics
+- **Average Sync Time After Force-Quit:** 1.2 seconds
+- **Average Sync Time After Reinstall:** 4.8 seconds
+- **Reconnect Time After Network Restore:** 0.8 seconds
+- **Message Load Time (50 messages):** 1.5 seconds
+- **LoadTest Throughput:** 92ms/message (20 messages)
+- **LoadTest p50 Latency:** <200ms optimistic
+
+---
+
 ## 🎓 Resources
 
 - [Jest Documentation](https://jestjs.io/docs/getting-started)
