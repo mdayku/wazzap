@@ -54,6 +54,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [threadMembers, setThreadMembers] = useState<string[]>([]);
   const [isGroupChat, setIsGroupChat] = useState(false);
+  const [threadLastRead, setThreadLastRead] = useState<{ [userId: string]: any }>({});
   const listRef = useRef<FlatList>(null);
   const [messageLimit, setMessageLimit] = useState(150); // Increased to support load tests
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
@@ -178,6 +179,20 @@ export default function ChatScreen({ route, navigation }: any) {
     fetchAllThreadMembers();
   }, [threads?.length, user?.uid]);
 
+  // Listen to thread document for lastRead updates (for read receipts)
+  useEffect(() => {
+    if (!threadId) return;
+    
+    const unsubscribe = onSnapshot(doc(db, 'threads', threadId), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setThreadLastRead(data.lastRead || {});
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [threadId]);
+
   // Fetch thread members for presence
   useEffect(() => {
     if (!threadId || !user) return;
@@ -189,6 +204,7 @@ export default function ChatScreen({ route, navigation }: any) {
           const threadData = threadDoc.data();
           const members = threadData.members || [];
           setThreadMembers(members);
+          setThreadLastRead(threadData.lastRead || {});
           
           // Check if it's a group chat (more than 2 members or has a group name)
           const isGroup = members.length > 2 || !!threadData.name;
@@ -683,6 +699,8 @@ export default function ChatScreen({ route, navigation }: any) {
                 senderName={senderName}
                 threadId={threadId}
                 onForward={handleForwardMessage}
+                threadMembers={threadMembers}
+                threadLastRead={threadLastRead}
               />
             </ErrorBoundary>
           );

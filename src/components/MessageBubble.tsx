@@ -37,9 +37,11 @@ interface MessageBubbleProps {
   senderName?: string;
   threadId?: string;
   onForward?: (message: Message) => void;
+  threadMembers?: string[];
+  threadLastRead?: { [userId: string]: any };
 }
 
-export default function MessageBubble({ item, me, showSender, senderName, threadId, onForward }: MessageBubbleProps) {
+export default function MessageBubble({ item, me, showSender, senderName, threadId, onForward, threadMembers = [], threadLastRead = {} }: MessageBubbleProps) {
   const { colors } = useTheme();
   const isMe = item.senderId === me;
   const isHighPriority = item.priority === 'high';
@@ -48,6 +50,45 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [isLoading, setIsLoading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMessageOptions, setShowMessageOptions] = useState(false);
+  
+  // Calculate read status and count based on lastRead timestamps
+  const calculateReadStatus = (): { status: 'sending' | 'sent' | 'delivered' | 'read', readCount: number, totalMembers: number } => {
+    if (!isMe) return { status: 'sent', readCount: 0, totalMembers: 0 }; // Only show status for own messages
+    
+    // Get other members (exclude sender)
+    const otherMembers = threadMembers.filter(memberId => memberId !== me);
+    if (otherMembers.length === 0) return { status: 'sent', readCount: 0, totalMembers: 0 };
+    
+    const messageTime = item.createdAt?.toMillis?.() || 0;
+    if (!messageTime) return { status: 'sent', readCount: 0, totalMembers: otherMembers.length };
+    
+    // Check how many members have read this message
+    let readCount = 0;
+    for (const memberId of otherMembers) {
+      const memberLastRead = threadLastRead[memberId];
+      if (memberLastRead) {
+        const lastReadTime = memberLastRead.toMillis ? memberLastRead.toMillis() : 0;
+        if (lastReadTime >= messageTime) {
+          readCount++;
+        }
+      }
+    }
+    
+    // Determine status
+    let status: 'sending' | 'sent' | 'delivered' | 'read';
+    if (readCount === otherMembers.length) {
+      status = 'read';
+    } else if (readCount > 0) {
+      status = 'delivered';
+    } else {
+      status = 'sent';
+    }
+    
+    return { status, readCount, totalMembers: otherMembers.length };
+  };
+  
+  const { status: readStatus, readCount, totalMembers } = calculateReadStatus();
+  const isGroupChat = threadMembers.length > 2;
   
 
   // Cleanup sound on unmount
@@ -387,13 +428,19 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           )}
           
           {isMe && (
-            <Text style={[
-              styles.status,
-              item.status === 'read' && styles.statusRead
-            ]}>
-              {item.status === 'read' ? '✓✓' : item.status === 'delivered' ? '✓✓' : '✓'}
-              {/* Debug: {item.status} */}
-            </Text>
+            <View style={styles.statusContainer}>
+              <Text style={[
+                styles.status,
+                readStatus === 'read' && styles.statusRead
+              ]}>
+                {readStatus === 'read' ? '✓✓' : readStatus === 'delivered' ? '✓✓' : '✓'}
+              </Text>
+              {isGroupChat && totalMembers > 0 && (
+                <Text style={styles.readByCount}>
+                  Seen by {readCount} of {totalMembers}
+                </Text>
+              )}
+            </View>
           )}
         </View>
       </View>
@@ -659,6 +706,9 @@ const styles = StyleSheet.create({
   theirTimestamp: {
     color: '#666',
   },
+  statusContainer: {
+    alignItems: 'flex-end',
+  },
   status: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.7)',
@@ -666,6 +716,11 @@ const styles = StyleSheet.create({
   statusRead: {
     color: '#34C759', // Green for read receipts
     fontWeight: '600', // Make it slightly bolder to ensure visibility
+  },
+  readByCount: {
+    fontSize: 10,
+    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.7)', // Semi-transparent white for blue bubble
   },
   priorityBadge: {
     position: 'absolute',
