@@ -27,7 +27,7 @@ interface UserCache {
 
 export default function ThreadsScreen() {
   const navigation = useNavigation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { colors } = useTheme();
   const { threads, loading } = useThreads(user?.uid || null);
   const [userCache, setUserCache] = useState<UserCache>({});
