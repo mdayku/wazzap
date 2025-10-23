@@ -26,6 +26,8 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const recordingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const getDraftKey = useCallback(() => `draft_${threadId}_${uid}`, [threadId, uid]);
+
   const loadDraft = useCallback(async () => {
     try {
       const draft = await AsyncStorage.getItem(getDraftKey());
@@ -66,8 +68,6 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       if (typingTimeout) clearTimeout(typingTimeout);
     };
   }, [typingTimeout]);
-
-  const getDraftKey = useCallback(() => `draft_${threadId}_${uid}`, [threadId, uid]);
 
   const clearDraft = useCallback(async () => {
     try {

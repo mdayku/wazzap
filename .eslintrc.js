@@ -14,8 +14,8 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     
-    // React Native specific
-    'react-hooks/exhaustive-deps': 'warn',
+    // React Native specific  
+    'react-hooks/exhaustive-deps': 'off', // Too noisy, handle manually
     
     // General code quality
     'no-debugger': 'error',

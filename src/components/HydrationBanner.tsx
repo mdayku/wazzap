@@ -8,7 +8,7 @@ interface HydrationBannerProps {
   userId: string | null;
 }
 
-export default function HydrationBanner({ userId }: HydrationBannerProps) {
+export default function HydrationBanner({ userId: _userId }: HydrationBannerProps) {
   const { colors } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [showBanner, setShowBanner] = useState(false);
