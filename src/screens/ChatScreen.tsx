@@ -76,6 +76,25 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [streamingMessage, setStreamingMessage] = useState(''); // AI streaming simulation
   const [proactiveSuggestion, setProactiveSuggestion] = useState<any>(null); // Proactive assistant suggestion
   const [showSuggestionDetail, setShowSuggestionDetail] = useState(false); // Detail modal for suggestion
+  const [showSettingsModal, setShowSettingsModal] = useState(false); // Thread settings modal
+  const [proactiveEnabled, setProactiveEnabled] = useState(true); // Proactive assistant toggle
+
+  // Load proactive assistant setting
+  useEffect(() => {
+    if (!threadId) return;
+    
+    const loadProactiveSetting = async () => {
+      try {
+        const threadDoc = await getDoc(doc(db, 'threads', threadId));
+        const enabled = threadDoc.data()?.proactiveEnabled !== false; // Default to true
+        setProactiveEnabled(enabled);
+      } catch (error) {
+        console.error('Error loading proactive setting:', error);
+      }
+    };
+    
+    loadProactiveSetting();
+  }, [threadId]);
 
   // Update rate limit when AI menu opens
   useEffect(() => {
@@ -799,6 +818,30 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     }
   };
 
+  // Thread Settings Handlers
+  const handleToggleProactive = async () => {
+    const newValue = !proactiveEnabled;
+    setProactiveEnabled(newValue);
+    
+    try {
+      await updateDoc(doc(db, 'threads', threadId), {
+        proactiveEnabled: newValue,
+      });
+      
+      Toast.show({
+        type: 'success',
+        text1: newValue ? 'Proactive AI Enabled' : 'Proactive AI Disabled',
+        text2: newValue ? 'AI will suggest helpful actions' : 'AI suggestions turned off',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+    } catch (error) {
+      console.error('Error updating proactive setting:', error);
+      // Revert on error
+      setProactiveEnabled(!newValue);
+    }
+  };
+
   // Proactive Suggestion Handlers
   const handleSuggestionPress = () => {
     setShowSuggestionDetail(true);
@@ -895,6 +938,12 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           </View>
         )}
         <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.aiMenuButton} 
+            onPress={() => setShowSettingsModal(true)}
+          >
+            <Ionicons name="settings-outline" size={24} color="#007AFF" />
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.aiMenuButton} 
             onPress={() => setShowAIMenu(true)}
@@ -1418,6 +1467,53 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         </TouchableOpacity>
       </Modal>
 
+      {/* Thread Settings Modal */}
+      <Modal
+        visible={showSettingsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.membersModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSettingsModal(false)}
+        >
+          <View style={styles.membersModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.membersModalHeader}>
+              <Text style={styles.membersModalTitle}>Thread Settings</Text>
+              <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.settingsSection}>
+              <View style={styles.settingRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingTitle}>Proactive AI Assistant</Text>
+                  <Text style={styles.settingDescription}>
+                    Get smart suggestions for scheduling, follow-ups, and more
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    proactiveEnabled && styles.toggleButtonActive
+                  ]}
+                  onPress={handleToggleProactive}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    styles.toggleCircle,
+                    proactiveEnabled && styles.toggleCircleActive
+                  ]} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Forward Modal */}
       <Modal
         visible={showForwardModal}
@@ -1928,6 +2024,51 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     fontSize: 15,
     marginTop: 20,
+  },
+  settingsSection: {
+    padding: 16,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: '#8E8E93',
+    lineHeight: 18,
+  },
+  toggleButton: {
+    width: 51,
+    height: 31,
+    borderRadius: 15.5,
+    backgroundColor: '#E5E5EA',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#34C759',
+  },
+  toggleCircle: {
+    width: 27,
+    height: 27,
+    borderRadius: 13.5,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleCircleActive: {
+    transform: [{ translateX: 20 }],
   },
 });
 
