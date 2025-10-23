@@ -1187,6 +1187,118 @@ AI Detects: ❌ (no meeting context)
 
 ## 🎭 Seinfeld Mode - AI Agent System (IMPLEMENTED!)
 
+### Design Decision: RAG vs Fine-Tuning
+
+**Why We Chose RAG (Retrieval-Augmented Generation):**
+
+We implemented a **semantic search + GPT-4o-mini** approach instead of fine-tuning custom models. Here's why:
+
+#### **Cost Analysis**
+
+| Approach | One-Time Cost | Ongoing Cost | Total (Year 1) |
+|----------|---------------|--------------|----------------|
+| **RAG (Current)** | $0.02 (embeddings) | $0.15/1K tokens | ~$50-100 |
+| **OpenAI Fine-Tune** | $200-400 (4 models) | $0.45/1K tokens (3x) | ~$600-800 |
+| **Open Source Fine-Tune** | $50-100 (GPU time) | $0 (self-host) | $50-100 + infrastructure |
+
+**Winner: RAG** - 90% cheaper upfront, 3x cheaper ongoing
+
+#### **Time Investment**
+
+| Approach | Setup Time | Maintenance | Iteration Speed |
+|----------|-----------|-------------|-----------------|
+| **RAG (Current)** | 2 hours | Minimal | Instant (update prompts) |
+| **OpenAI Fine-Tune** | 8-12 hours | Medium | 1-2 hours per change |
+| **Open Source Fine-Tune** | 20-40 hours | High | 2-4 hours per change |
+
+**Winner: RAG** - 5-10x faster to implement and iterate
+
+#### **Quality Comparison**
+
+**RAG Advantages:**
+- ✅ **Grounded in real dialogue** - Every response references actual Seinfeld lines
+- ✅ **Semantic search** - Finds contextually relevant quotes, not just keywords
+- ✅ **47,915 lines** - Massive dataset for context
+- ✅ **Supporting characters** - Can reference Newman, Leo, etc. for richer context
+- ✅ **Instant updates** - Change prompts/logic without retraining
+- ✅ **Explainable** - Can see which quotes influenced the response
+
+**Fine-Tuning Advantages:**
+- ✅ **Deeper personality** - Model "becomes" the character
+- ✅ **More creative** - Can generate novel responses beyond training data
+- ✅ **Consistent voice** - Character quirks baked into weights
+- ❌ **Risk of hallucination** - May generate non-canonical dialogue
+- ❌ **Hard to update** - Need to retrain to fix issues
+
+**Winner: RAG for this use case** - Accuracy and groundedness > creativity
+
+#### **Technical Considerations**
+
+**RAG Benefits:**
+- Works with Expo Go (no custom model hosting)
+- Firebase Cloud Functions handle everything
+- OpenAI API is reliable and fast
+- Easy to debug (see embeddings, similarities, prompts)
+- Can A/B test different retrieval strategies
+
+**Fine-Tuning Challenges:**
+- Would need custom hosting (Replicate, Modal, or own GPU)
+- More complex deployment
+- Harder to debug ("why did it say that?")
+- Requires ML expertise to maintain
+
+#### **Scalability**
+
+**Current RAG System:**
+- 47,915 embeddings stored in Firestore
+- Semantic search: ~2-3 seconds
+- GPT-4o-mini generation: ~1-2 seconds
+- **Total response time: 3-5 seconds** ✅
+
+**Fine-Tuned Model:**
+- Would be slightly faster (~2-3 seconds total)
+- But requires custom infrastructure
+- Not worth the complexity for marginal speed gain
+
+#### **The Decision**
+
+We chose **RAG + GPT-4o-mini** because:
+
+1. **Budget-Friendly** - $0.02 to set up, minimal ongoing costs
+2. **Time-Efficient** - Implemented in 2 hours vs 20-40 hours
+3. **High Quality** - Responses grounded in actual Seinfeld dialogue
+4. **Easy to Iterate** - Can tweak prompts/logic instantly
+5. **Maintainable** - No ML expertise required
+6. **Scalable** - Works great with 47k lines, could handle 100k+
+7. **Demo-Ready** - Impressive for showcasing RAG capabilities
+
+#### **When Fine-Tuning Would Make Sense**
+
+We'd consider fine-tuning if:
+- Budget was unlimited (>$1000 for AI features)
+- We had 3-6 months for development
+- We needed 100% custom personalities (not based on existing characters)
+- We wanted to deploy as a standalone product (not a demo feature)
+- We had ML engineers on the team
+
+#### **Hybrid Future (Optional Enhancement)**
+
+If we wanted to take it further:
+```
+Current: User Message → RAG (semantic search) → GPT-4o-mini → Response
+Future:  User Message → RAG (semantic search) → Fine-Tuned Model → Response
+```
+
+This would combine:
+- RAG's grounded, accurate quote retrieval
+- Fine-tuned model's deep character understanding
+
+**Cost:** ~$200-400 + 8-12 hours  
+**Benefit:** 10-15% better responses  
+**ROI:** Not worth it for a demo feature, but great for a production app
+
+---
+
 **Status:** ✅ **FULLY OPERATIONAL** - RAG Performance Test + Entertainment Feature
 
 ### Overview
