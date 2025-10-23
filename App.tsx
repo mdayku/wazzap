@@ -9,6 +9,7 @@ import { useAuth } from './src/hooks/useAuth';
 import { usePresence } from './src/hooks/usePresence';
 import { useInAppNotifications } from './src/hooks/useInAppNotifications';
 import { initializeOfflineQueue } from './src/state/offlineQueue';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import ThreadsScreen from './src/screens/ThreadsScreen';
 import NewChatScreen from './src/screens/NewChatScreen';
