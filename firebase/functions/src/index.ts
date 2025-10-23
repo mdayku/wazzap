@@ -50,3 +50,4 @@ export const analyzeImageContent = functions.https.onCall(analyzeImage);
 export const seinfeldAgent = seinfeldAgentResponse;
 export const enableSeinfeld = enableSeinfeldMode;
 export const disableSeinfeld = disableSeinfeldMode;
+export { createSeinfeldUsers } from './createSeinfeldUsers';

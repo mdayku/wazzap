@@ -19,6 +19,7 @@ import Toast from 'react-native-toast-message';
 export interface Message {
   id: string;
   senderId: string;
+  senderName?: string; // For Seinfeld agents and other special users
   text: string;
   media?: {
     type: 'image' | 'audio' | 'location' | null;

@@ -41,6 +41,7 @@ import ProactiveSuggestionPill from '../components/ProactiveSuggestionPill';
 import { generateAIImage } from '../services/imageGeneration';
 import { enableSeinfeldMode, disableSeinfeldMode } from '../services/seinfeldMode';
 import { ALL_CHARACTERS, type SeinfeldCharacter } from '../data/seinfeldCharacters';
+import { setupSeinfeldUsers } from '../services/setupSeinfeldUsers';
 
 export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const { threadId, threadName } = route.params;
@@ -82,14 +83,16 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [showAIMenu, setShowAIMenu] = useState(false); // AI menu modal
   const [aiCallsRemaining, setAiCallsRemaining] = useState(20); // Track AI rate limit
   const [streamingMessage, setStreamingMessage] = useState(''); // AI streaming simulation
-  const [proactiveSuggestion, setProactiveSuggestion] = useState<any>(null); // Proactive assistant suggestion
-  const [showSuggestionDetail, setShowSuggestionDetail] = useState(false); // Detail modal for suggestion
+  const [proactiveSuggestion, setProactiveSuggestion] = useState<ProactiveSuggestion | null>(null); // Proactive assistant suggestion
   const [showSettingsModal, setShowSettingsModal] = useState(false); // Thread settings modal
   const [proactiveEnabled, setProactiveEnabled] = useState(true); // Proactive assistant toggle
   const [showSeinfeldModal, setShowSeinfeldModal] = useState(false); // Seinfeld Mode character selection
-  const [seinfeldModeEnabled, setSeinfeldModeEnabled] = useState(false); // Seinfeld Mode status
-  const [selectedCharacters, setSelectedCharacters] = useState<SeinfeldCharacter[]>([]); // Selected Seinfeld characters
-  const [enablingSeinfeldMode, setEnablingSeinfeldMode] = useState(false); // Loading state
+  const [seinfeldModeEnabled, setSeinfeldModeEnabled] = useState(false); // Seinfeld Mode status (auto-response on/off)
+  const [charactersInChat, setCharactersInChat] = useState<SeinfeldCharacter[]>([]); // Characters already added to chat
+  const [selectedToAdd, setSelectedToAdd] = useState<SeinfeldCharacter[]>([]); // Characters selected to add
+  const [selectedToRemove, setSelectedToRemove] = useState<SeinfeldCharacter[]>([]); // Characters selected to remove
+  const [addingCharacters, setAddingCharacters] = useState(false); // Loading state for add
+  const [removingCharacters, setRemovingCharacters] = useState(false); // Loading state for remove
 
   // Load proactive assistant setting
   useEffect(() => {
@@ -118,7 +121,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         const seinfeldData = threadDoc.data()?.seinfeldMode;
         if (seinfeldData) {
           setSeinfeldModeEnabled(seinfeldData.enabled || false);
-          setSelectedCharacters(seinfeldData.activeCharacters || []);
+          setCharactersInChat(seinfeldData.activeCharacters || []);
         }
       } catch (error) {
         console.error('Error loading Seinfeld Mode:', error);
@@ -152,7 +155,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     );
 
     const unsubscribe = onSnapshot(q, async (snap) => {
-      console.log(`🔄 [SNAPSHOT] Snapshot fired, ${snap.docs.length} messages`);
+      // Snapshot fired with messages
       
       const rows = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
@@ -686,70 +689,174 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const handleSeinfeldMode = () => {
     setShowAIMenu(false);
     setShowSeinfeldModal(true);
+    // Reset selections when opening modal
+    setSelectedToAdd([]);
+    setSelectedToRemove([]);
   };
 
-  const handleToggleCharacter = (character: SeinfeldCharacter) => {
-    setSelectedCharacters(prev => 
+  const handleToggleAddCharacter = (character: SeinfeldCharacter) => {
+    setSelectedToAdd(prev => 
       prev.includes(character)
         ? prev.filter(c => c !== character)
         : [...prev, character]
     );
   };
 
-  const handleEnableSeinfeldMode = async () => {
-    if (selectedCharacters.length === 0) {
-      Alert.alert('No Characters Selected', 'Please select at least one character to add to the chat.');
+  const handleToggleRemoveCharacter = (character: SeinfeldCharacter) => {
+    setSelectedToRemove(prev => 
+      prev.includes(character)
+        ? prev.filter(c => c !== character)
+        : [...prev, character]
+    );
+  };
+
+  const handleAddCharacters = async () => {
+    if (selectedToAdd.length === 0) {
+      Alert.alert('No Characters Selected', 'Please select at least one character to add.');
       return;
     }
 
-    setEnablingSeinfeldMode(true);
+    setAddingCharacters(true);
 
     try {
-      await enableSeinfeldMode(threadId, selectedCharacters);
+      // Merge with existing characters
+      const updatedCharacters = [...new Set([...charactersInChat, ...selectedToAdd])];
       
-      setSeinfeldModeEnabled(true);
-      setShowSeinfeldModal(false);
+      await enableSeinfeldMode(threadId, updatedCharacters);
+      
+      setCharactersInChat(updatedCharacters);
+      setSelectedToAdd([]);
       
       Toast.show({
         type: 'success',
-        text1: '🎭 Seinfeld Mode Enabled!',
-        text2: `${selectedCharacters.join(', ')} ${selectedCharacters.length === 1 ? 'has' : 'have'} joined the chat`,
+        text1: '🎭 Characters Added!',
+        text2: `${selectedToAdd.join(', ')} ${selectedToAdd.length === 1 ? 'has' : 'have'} been added to the chat`,
         position: 'bottom',
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('Error enabling Seinfeld Mode:', error);
+      console.error('Error adding characters:', error);
       Toast.show({
         type: 'error',
-        text1: 'Failed to Enable Seinfeld Mode',
+        text1: 'Failed to Add Characters',
         text2: 'Please try again',
         position: 'bottom',
       });
     } finally {
-      setEnablingSeinfeldMode(false);
+      setAddingCharacters(false);
     }
   };
 
-  const handleDisableSeinfeldMode = async () => {
+  const handleRemoveCharacters = async () => {
+    if (selectedToRemove.length === 0) {
+      Alert.alert('No Characters Selected', 'Please select at least one character to remove.');
+      return;
+    }
+
+    setRemovingCharacters(true);
+
     try {
-      await disableSeinfeldMode(threadId);
+      // Remove selected characters
+      const updatedCharacters = charactersInChat.filter(c => !selectedToRemove.includes(c));
       
-      setSeinfeldModeEnabled(false);
+      if (updatedCharacters.length === 0) {
+        // If no characters left, disable Seinfeld Mode entirely
+        await disableSeinfeldMode(threadId);
+        setSeinfeldModeEnabled(false);
+      } else {
+        await enableSeinfeldMode(threadId, updatedCharacters);
+      }
+      
+      setCharactersInChat(updatedCharacters);
+      setSelectedToRemove([]);
       
       Toast.show({
-        type: 'info',
-        text1: '🎭 Seinfeld Mode Disabled',
-        text2: 'Characters will stop responding (but remain in chat)',
+        type: 'success',
+        text1: '🎭 Characters Removed',
+        text2: `${selectedToRemove.join(', ')} ${selectedToRemove.length === 1 ? 'has' : 'have'} been removed from the chat`,
         position: 'bottom',
       });
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (error) {
-      console.error('Error disabling Seinfeld Mode:', error);
+      console.error('Error removing characters:', error);
       Toast.show({
         type: 'error',
-        text1: 'Failed to Disable Seinfeld Mode',
+        text1: 'Failed to Remove Characters',
+        text2: 'Please try again',
+        position: 'bottom',
+      });
+    } finally {
+      setRemovingCharacters(false);
+    }
+  };
+
+  const handleSetupSeinfeldUsers = async () => {
+    try {
+      Toast.show({
+        type: 'info',
+        text1: 'Setting up Seinfeld characters...',
+        text2: 'Creating user accounts',
+        position: 'bottom',
+      });
+
+      await setupSeinfeldUsers();
+
+      Toast.show({
+        type: 'success',
+        text1: '✅ Characters Ready!',
+        text2: 'Jerry, George, Elaine, and Kramer are now registered users',
+        position: 'bottom',
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error setting up Seinfeld users:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Setup Failed',
+        text2: 'Please try again',
+        position: 'bottom',
+      });
+    }
+  };
+
+  const handleToggleAutoResponse = async () => {
+    if (charactersInChat.length === 0) {
+      Alert.alert('No Characters in Chat', 'Please add characters first before enabling auto-response.');
+      return;
+    }
+
+    const newValue = !seinfeldModeEnabled;
+
+    try {
+      if (newValue) {
+        await enableSeinfeldMode(threadId, charactersInChat);
+        setSeinfeldModeEnabled(true);
+        Toast.show({
+          type: 'success',
+          text1: '✅ Auto-Response Enabled',
+          text2: 'Characters will respond to messages',
+          position: 'bottom',
+        });
+      } else {
+        await disableSeinfeldMode(threadId);
+        setSeinfeldModeEnabled(false);
+        Toast.show({
+          type: 'info',
+          text1: '⏸️ Auto-Response Disabled',
+          text2: 'Characters will stop responding (but remain in chat)',
+          position: 'bottom',
+        });
+      }
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error toggling auto-response:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to Toggle Auto-Response',
         text2: 'Please try again',
         position: 'bottom',
       });
@@ -1026,7 +1133,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
 
   // Proactive Suggestion Handlers
   const handleSuggestionPress = () => {
-    setShowSuggestionDetail(true);
+    // Show suggestion detail (future: open modal with full details)
   };
 
   const handleSuggestionDismiss = async () => {
@@ -1186,9 +1293,11 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
             })
           ];
           const showSender = index === 0 || allMessages[index - 1].senderId !== item.senderId;
-          const senderName = (userCache[item.senderId]?.displayName && typeof userCache[item.senderId].displayName === 'string') 
-            ? userCache[item.senderId].displayName 
-            : 'User';
+          // Use senderName from message data (for Seinfeld agents), or look up in userCache
+          const senderName = (item as any).senderName || 
+            ((userCache[item.senderId]?.displayName && typeof userCache[item.senderId].displayName === 'string') 
+              ? userCache[item.senderId].displayName 
+              : 'User');
           
           
           return (
@@ -1864,96 +1973,187 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           <View style={[styles.membersModalContent, { backgroundColor: colors.surface }]} onStartShouldSetResponder={() => true}>
             <View style={[styles.membersModalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.membersModalTitle, { color: colors.text }]}>🎭 Seinfeld Mode</Text>
-              <TouchableOpacity onPress={() => setShowSeinfeldModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity onPress={handleSetupSeinfeldUsers}>
+                  <Ionicons name="person-add" size={24} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowSeinfeldModal(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
             </View>
             
-            <View style={{ padding: 16 }}>
-              <Text style={[styles.settingDescription, { color: colors.textSecondary, marginBottom: 16 }]}>
-                Select which Seinfeld characters to add to this chat. They'll respond to messages using AI trained on the show!
-              </Text>
-
-              {/* Character Selection Grid */}
-              <View style={{ gap: 12, marginBottom: 16 }}>
-                {ALL_CHARACTERS.map((profile) => (
-                  <TouchableOpacity
-                    key={profile.character}
-                    style={[
-                      styles.characterOption,
-                      {
-                        backgroundColor: selectedCharacters.includes(profile.character) ? '#007AFF' : colors.background,
-                        borderColor: selectedCharacters.includes(profile.character) ? '#007AFF' : colors.border,
-                      }
-                    ]}
-                    onPress={() => handleToggleCharacter(profile.character)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[
-                        styles.characterName,
-                        {
-                          color: selectedCharacters.includes(profile.character) ? '#FFFFFF' : colors.text,
-                          fontWeight: '600',
-                        }
-                      ]}>
-                        {profile.character}
-                      </Text>
-                      <Text style={[
-                        styles.characterDesc,
-                        {
-                          color: selectedCharacters.includes(profile.character) ? '#FFFFFF' : colors.textSecondary,
-                        }
-                      ]}>
-                        {profile.traits.slice(0, 3).join(', ')}
-                      </Text>
-                    </View>
-                    {selectedCharacters.includes(profile.character) && (
-                      <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Status and Actions */}
-              {seinfeldModeEnabled && (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={[styles.settingDescription, { color: '#4CAF50', marginBottom: 8 }]}>
-                    ✅ Seinfeld Mode is currently active
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.generateButton, { backgroundColor: '#FF6B6B' }]}
-                    onPress={handleDisableSeinfeldMode}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#fff" />
-                    <Text style={styles.generateButtonText}>Disable Seinfeld Mode</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={[
-                  styles.generateButton,
-                  (enablingSeinfeldMode || selectedCharacters.length === 0) && { opacity: 0.6 }
-                ]}
-                onPress={handleEnableSeinfeldMode}
-                disabled={enablingSeinfeldMode || selectedCharacters.length === 0}
-              >
-                {enablingSeinfeldMode ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="people" size={20} color="#fff" />
-                    <Text style={styles.generateButtonText}>
-                      {seinfeldModeEnabled ? 'Update Characters' : 'Enable Seinfeld Mode'}
+            <ScrollView style={{ maxHeight: 600 }}>
+              <View style={{ padding: 16 }}>
+                {/* Characters Already in Chat */}
+                {charactersInChat.length > 0 && (
+                  <View style={{ marginBottom: 20 }}>
+                    <Text style={[styles.characterName, { color: colors.text, marginBottom: 8 }]}>
+                      In Chat ({charactersInChat.length})
                     </Text>
-                  </>
+                    <View style={{ gap: 8 }}>
+                      {charactersInChat.map((character) => {
+                        const profile = ALL_CHARACTERS.find(p => p.character === character)!;
+                        return (
+                          <TouchableOpacity
+                            key={character}
+                            style={[
+                              styles.characterOption,
+                              {
+                                backgroundColor: selectedToRemove.includes(character) ? '#FF6B6B' : colors.surface,
+                                borderColor: selectedToRemove.includes(character) ? '#FF6B6B' : colors.border,
+                              }
+                            ]}
+                            onPress={() => handleToggleRemoveCharacter(character)}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={[
+                                styles.characterName,
+                                {
+                                  color: selectedToRemove.includes(character) ? '#FFFFFF' : colors.text,
+                                  fontWeight: '600',
+                                }
+                              ]}>
+                                {character} ✓
+                              </Text>
+                              <Text style={[
+                                styles.characterDesc,
+                                {
+                                  color: selectedToRemove.includes(character) ? '#FFFFFF' : colors.textSecondary,
+                                }
+                              ]}>
+                                {selectedToRemove.includes(character) ? 'Tap to keep' : 'Tap to remove'}
+                              </Text>
+                            </View>
+                            {selectedToRemove.includes(character) && (
+                              <Ionicons name="close-circle" size={24} color="#FFFFFF" />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {selectedToRemove.length > 0 && (
+                      <TouchableOpacity
+                        style={[styles.generateButton, { backgroundColor: '#FF6B6B', marginTop: 12 }]}
+                        onPress={handleRemoveCharacters}
+                        disabled={removingCharacters}
+                      >
+                        {removingCharacters ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons name="trash" size={20} color="#fff" />
+                            <Text style={styles.generateButtonText}>
+                              Remove Selected ({selectedToRemove.length})
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 )}
-              </TouchableOpacity>
 
-              <Text style={[styles.settingDescription, { color: colors.textSecondary, marginTop: 12, fontSize: 11, fontStyle: 'italic' }]}>
-                Characters will respond automatically to messages. Disable mode to stop responses (they'll stay in chat).
-              </Text>
-            </View>
+                {/* Available to Add */}
+                {ALL_CHARACTERS.filter(p => !charactersInChat.includes(p.character)).length > 0 && (
+                  <View style={{ marginBottom: 20 }}>
+                    <Text style={[styles.characterName, { color: colors.text, marginBottom: 8 }]}>
+                      Add to Chat
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      {ALL_CHARACTERS
+                        .filter(p => !charactersInChat.includes(p.character))
+                        .map((profile) => (
+                          <TouchableOpacity
+                            key={profile.character}
+                            style={[
+                              styles.characterOption,
+                              {
+                                backgroundColor: selectedToAdd.includes(profile.character) ? '#007AFF' : colors.background,
+                                borderColor: selectedToAdd.includes(profile.character) ? '#007AFF' : colors.border,
+                              }
+                            ]}
+                            onPress={() => handleToggleAddCharacter(profile.character)}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={[
+                                styles.characterName,
+                                {
+                                  color: selectedToAdd.includes(profile.character) ? '#FFFFFF' : colors.text,
+                                  fontWeight: '600',
+                                }
+                              ]}>
+                                {profile.character}
+                              </Text>
+                              <Text style={[
+                                styles.characterDesc,
+                                {
+                                  color: selectedToAdd.includes(profile.character) ? '#FFFFFF' : colors.textSecondary,
+                                }
+                              ]}>
+                                {profile.traits.slice(0, 3).join(', ')}
+                              </Text>
+                            </View>
+                            {selectedToAdd.includes(profile.character) && (
+                              <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                    {selectedToAdd.length > 0 && (
+                      <TouchableOpacity
+                        style={[styles.generateButton, { marginTop: 12 }]}
+                        onPress={handleAddCharacters}
+                        disabled={addingCharacters}
+                      >
+                        {addingCharacters ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons name="add-circle" size={20} color="#fff" />
+                            <Text style={styles.generateButtonText}>
+                              Add to Chat ({selectedToAdd.length})
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
+                {/* Auto-Response Toggle */}
+                {charactersInChat.length > 0 && (
+                  <View style={{ paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.characterName, { color: colors.text }]}>
+                          Auto-Response
+                        </Text>
+                        <Text style={[styles.characterDesc, { color: colors.textSecondary }]}>
+                          Characters respond automatically
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.toggleSwitch,
+                          { backgroundColor: seinfeldModeEnabled ? '#4CAF50' : '#E5E5EA' }
+                        ]}
+                        onPress={handleToggleAutoResponse}
+                      >
+                        <View style={[
+                          styles.toggleThumb,
+                          seinfeldModeEnabled && styles.toggleThumbActive
+                        ]} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.settingDescription, { color: colors.textSecondary, fontSize: 11, fontStyle: 'italic' }]}>
+                      {seinfeldModeEnabled 
+                        ? '✅ Characters will respond to messages' 
+                        : '⏸️ Characters are in chat but won\'t respond'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -2490,6 +2690,27 @@ const styles = StyleSheet.create({
   },
   characterDesc: {
     fontSize: 13,
+  },
+  toggleSwitch: {
+    width: 51,
+    height: 31,
+    borderRadius: 15.5,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleThumb: {
+    width: 27,
+    height: 27,
+    borderRadius: 13.5,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 20 }],
   },
 });
 

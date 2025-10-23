@@ -12,7 +12,7 @@ interface ProactiveSuggestionPillProps {
 
 export default function ProactiveSuggestionPill({
   suggestion,
-  onPress,
+  onPress: _onPress,
   onDismiss,
   onFeedback,
 }: ProactiveSuggestionPillProps) {

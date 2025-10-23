@@ -41,7 +41,7 @@ const storage = getStorage(app);
 const functions = getFunctions(app);
 console.log('Firebase services initialized');
 
-export { auth, db, storage, functions };
+export { app, auth, db, storage, functions };
 
 // Firestore persistence is automatic in React Native
 
