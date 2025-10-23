@@ -21,9 +21,9 @@ jest.mock('firebase/auth', () => ({
     mockOnAuthStateChanged(callback);
     return jest.fn(); // unsubscribe function
   },
-  signInWithEmailAndPassword: jest.fn(() => mockSignInWithEmailAndPassword()),
-  createUserWithEmailAndPassword: jest.fn(() => mockCreateUserWithEmailAndPassword()),
-  signOut: jest.fn(() => mockSignOut()),
+  signInWithEmailAndPassword: mockSignInWithEmailAndPassword,
+  createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
+  signOut: mockSignOut,
 }));
 
 jest.mock('firebase/firestore', () => ({

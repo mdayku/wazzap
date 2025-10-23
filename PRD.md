@@ -1,11 +1,19 @@
 # 🎯 MessageAI - Master Plan & Status
 
-**Last Updated:** October 22, 2025 (Post-Demo Optimization Phase)
-**Current Score:** ~72 points (C+) → **Target:** 100+ points (A+)  
-**Days Remaining:** 3-4 days to final submission  
-**Status:** MVP Complete (11/11) ✅ | AI Features Working (5/6) ✅ | 52 Todos Identified 📋
+**Last Updated:** October 23, 2025 (AI UX Enhancement Phase)
+**Current Score:** ~75 points (C+) → **Target:** 100+ points (A+)  
+**Days Remaining:** 2-3 days to final submission  
+**Status:** MVP Complete (11/11) ✅ | AI Features Working (5/6) ✅ | New AI UX Features Added 🚀
 
-**Latest Updates (October 21, 2025 - Final Demo Build):**
+**Latest Updates (October 23, 2025 - AI UX Enhancements):**
+- ✅ **Slash Commands** - Type `/summarize`, `/actions`, `/search`, `/decisions` for quick AI access
+- ✅ **Rate Limiting** - 20 AI calls per 10 minutes with visual counter (X/20 badge)
+- ✅ **AI Analytics** - Track AI feature usage by type and time
+- ✅ **Decisions Refresh/Share** - Added refresh and share buttons to Decisions screen
+- ✅ **Graceful Degradation** - Clear error messages when rate limit reached
+- ✅ **AI Streaming Simulation** - Progressive loading messages (🔍→📊→🤖→✨→📝) show AI progress
+
+**Previous Updates (October 21, 2025 - Final Demo Build):**
 - ✅ **Copy/Paste** - Long-press message input to paste, long-press message to copy
 - ✅ **Message Reactions** - 10 emoji reactions with long-press menu (👍❤️😂😮😢🙏🔥🎉👏💯)
 - ✅ **Message Forwarding** - Forward messages between threads
@@ -27,22 +35,22 @@
 |---------|------------------|------------|-----|
 | **Core Messaging** | 35 | **35** ✅ | Perfect! |
 | **Mobile App Quality** | 20 | **20** ✅ | Perfect! (dark mode + compression) |
-| **AI Features** | 30 | **27** ✅ | 5/6 features working + production-ready |
+| **AI Features** | 30 | **28** ✅ | 5/6 features + slash commands + rate limiting |
 | **Technical Implementation** | 10 | **10** ✅ | Perfect! (100% test coverage) |
-| **Documentation & Deployment** | 5 | **5** ✅ | Perfect! |
+| **Documentation & Deployment** | 5 | **5** ✅ | Perfect! (updated with new features) |
 | **Deliverables Penalty** | 0 | **-30** ❌ | MISSING ALL |
-| **Bonus Points** | +10 | **+3** 🟡 | Dark mode + error handling |
-| **TOTAL** | **100** | **70 (C)** | **-30 points** |
+| **Bonus Points** | +10 | **+4** 🟡 | Dark mode + error handling + rate limiting |
+| **TOTAL** | **100** | **72 (C+)** | **-30 points** |
 
-### Why You're At 70 Points (C)
+### Why You're At 72 Points (C+)
 1. ✅ **Messaging works perfectly** (35/35) - Tested with multiple users
 2. ✅ **App quality excellent** (20/20) - Dark mode + compression + all polish features
-3. ✅ **AI features production-ready** (27/30) - 5 of 6 features complete with error handling + retry logic
+3. ✅ **AI features production-ready** (28/30) - 5 of 6 features + slash commands + rate limiting
 4. ✅ **100% test coverage** (10/10) - 53/53 tests passing
 5. ❌ **Missing demo video** (-15 points)
 6. ❌ **Missing persona brainlift** (-10 points)
 7. ❌ **Missing social post** (-5 points)
-8. ✅ **Bonus: Dark mode + error handling** (+3 points)
+8. ✅ **Bonus: Dark mode + error handling + rate limiting** (+4 points)
 
 ### The Good News
 You're **2 focused days** away from 97 points (A+):
@@ -93,11 +101,16 @@ You're **2 focused days** away from 97 points (A+):
 - ✅ Display names instead of user IDs
 - ✅ Client-side caching for instant re-access
 - ✅ Share functionality for summaries and action items
+- ✅ **NEW:** Slash commands for quick AI access (`/summarize`, `/actions`, `/search`, `/decisions`)
+- ✅ **NEW:** Rate limiting (20 calls per 10 min) with visual counter
+- ✅ **NEW:** AI usage analytics and tracking
+- ✅ **NEW:** Streaming simulation - Progressive feedback shows AI working (0.75s per step)
 
 **What's Working:**
 - ✅ Thread Summarization with smart titles, share, caching
 - ✅ Action Item Extraction with refresh, share, display names
 - ✅ Priority Detection with red badges on urgent messages
+- ✅ Decision Tracking with refresh/share buttons on dedicated screen
 - ✅ Semantic Search with toggle, automatic embeddings
 - ✅ All features show display names (not user IDs)
 - ✅ Dark mode applied to all AI features

@@ -87,8 +87,25 @@ jest.mock('firebase/firestore', () => ({
   onSnapshot: jest.fn(() => jest.fn()),
   serverTimestamp: jest.fn(() => ({ seconds: Date.now() / 1000 })),
   Timestamp: {
-    now: jest.fn(() => ({ seconds: Date.now() / 1000, toDate: () => new Date() })),
-    fromDate: jest.fn((date) => ({ seconds: date.getTime() / 1000, toDate: () => date })),
+    now: jest.fn(() => {
+      const date = new Date();
+      return {
+        seconds: Math.floor(date.getTime() / 1000),
+        nanoseconds: 0,
+        toDate: () => date,
+        toMillis: () => date.getTime(),
+        isEqual: () => false,
+        toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0, type: 'timestamp' }),
+      };
+    }),
+    fromDate: jest.fn((date) => ({
+      seconds: Math.floor(date.getTime() / 1000),
+      nanoseconds: 0,
+      toDate: () => date,
+      toMillis: () => date.getTime(),
+      isEqual: () => false,
+      toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0, type: 'timestamp' }),
+    })),
   },
 }));
 

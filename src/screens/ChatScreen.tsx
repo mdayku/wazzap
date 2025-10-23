@@ -32,32 +32,9 @@ import { summarizeThread, extractAI } from '../services/ai';
 import { sendMessageOptimistic, subscribeToQueue, type QueuedMessage } from '../state/offlineQueue';
 import { Message } from '../components/MessageBubble';
 import NetInfo from '@react-native-community/netinfo';
-
-interface ChatScreenProps {
-  route: { params: { threadId: string; threadName: string } };
-  navigation: any; // Using any for React Navigation compatibility
-}
-
-interface ActionItem {
-  text?: string;
-  task: string;
-  completed?: boolean;
-  assignee?: string;
-  due?: string;
-}
-
-interface Decision {
-  text?: string;
-  summary: string;
-  timestamp?: number;
-  owner?: string;
-  decidedAt?: string;
-}
-
-interface UserCacheEntry {
-  displayName: string;
-  photoURL?: string;
-}
+import type { ChatScreenProps, ActionItem, Decision, UserCacheEntry } from './ChatScreen/types';
+import { checkRateLimit, recordAICall } from '../services/aiRateLimiter';
+import { simulateAIStream, SUMMARIZE_STEPS, EXTRACT_STEPS } from '../utils/aiStreamSimulator';
 
 export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const { threadId, threadName } = route.params;
@@ -93,6 +70,17 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const isInitialLoadRef = useRef(true); // Track initial load
   const previousMessageIdsRef = useRef<Set<string>>(new Set()); // Track message IDs for haptic feedback
   const [showAIMenu, setShowAIMenu] = useState(false); // AI menu modal
+  const [aiCallsRemaining, setAiCallsRemaining] = useState(20); // Track AI rate limit
+  const [streamingMessage, setStreamingMessage] = useState(''); // AI streaming simulation
+
+  // Update rate limit when AI menu opens
+  useEffect(() => {
+    if (showAIMenu) {
+      checkRateLimit().then(info => {
+        setAiCallsRemaining(info.remaining);
+      });
+    }
+  }, [showAIMenu]);
 
   // Fetch messages
   useEffect(() => {
@@ -472,11 +460,26 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   };
 
   const handleSummarize = async () => {
+    // Check rate limit
+    const rateLimitInfo = await checkRateLimit();
+    if (rateLimitInfo.isLimited) {
+      const minutesUntilReset = Math.ceil((rateLimitInfo.resetAt - Date.now()) / 60000);
+      Alert.alert(
+        'Rate Limit Reached',
+        `You've reached the limit of 20 AI calls per 10 minutes. Try again in ${minutesUntilReset} minute${minutesUntilReset === 1 ? '' : 's'}.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     // If we already have a summary, just show it
     if (summary) {
       setShowSummary(true);
       return;
     }
+    
+    // Record the AI call
+    await recordAICall('summarize');
     
     // Otherwise, generate a new one
     await generateSummary();
@@ -486,8 +489,18 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     setShowSummary(true);
     setLoadingSummary(true);
     
+    // Start streaming simulation
+    const cancelStream = simulateAIStream(
+      SUMMARIZE_STEPS,
+      (message) => setStreamingMessage(message),
+      () => setStreamingMessage('')
+    );
+    
     try {
       const result = await summarizeThread(threadId, 50);
+      
+      // Cancel streaming when we get the real result
+      cancelStream();
       
       // Fetch the summary from Firestore
       let summaryText = '';
@@ -515,6 +528,10 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       });
     } catch (error: any) {
       console.error('Error summarizing:', error);
+      
+      // Cancel streaming on error
+      cancelStream();
+      setStreamingMessage('');
       
       // Retry logic (max 2 retries)
       if (retryCount < 2) {
@@ -620,11 +637,26 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   };
 
   const handleExtractActions = async () => {
+    // Check rate limit
+    const rateLimitInfo = await checkRateLimit();
+    if (rateLimitInfo.isLimited) {
+      const minutesUntilReset = Math.ceil((rateLimitInfo.resetAt - Date.now()) / 60000);
+      Alert.alert(
+        'Rate Limit Reached',
+        `You've reached the limit of 20 AI calls per 10 minutes. Try again in ${minutesUntilReset} minute${minutesUntilReset === 1 ? '' : 's'}.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     // If we already have cached data, just show it
     if (actionItems.length > 0 || decisions.length > 0) {
       setShowActions(true);
       return;
     }
+    
+    // Record the AI call
+    await recordAICall('extract');
     
     // Otherwise, fetch new data
     await generateActions();
@@ -634,8 +666,18 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     setShowActions(true);
     setLoadingActions(true);
     
+    // Start streaming simulation
+    const cancelStream = simulateAIStream(
+      EXTRACT_STEPS,
+      (message) => setStreamingMessage(message),
+      () => setStreamingMessage('')
+    );
+    
     try {
       const result = await extractAI(threadId, 50);
+      
+      // Cancel streaming when we get the real result
+      cancelStream();
       setActionItems(result.actionItems || []);
       setDecisions(result.decisions || []);
       
@@ -652,6 +694,10 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       }
     } catch (error: any) {
       console.error('Error extracting actions:', error);
+      
+      // Cancel streaming on error
+      cancelStream();
+      setStreamingMessage('');
       
       // Retry logic (max 2 retries)
       if (retryCount < 2) {
@@ -876,7 +922,27 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <Composer threadId={threadId} uid={user?.uid || ''} onTyping={handleTyping} />
+        <Composer 
+          threadId={threadId} 
+          uid={user?.uid || ''} 
+          onTyping={handleTyping}
+          onSlashCommand={(command) => {
+            switch (command) {
+              case '/summarize':
+                handleSummarize();
+                break;
+              case '/actions':
+                handleExtractActions();
+                break;
+              case '/search':
+                navigation.navigate('Search' as never, { threadId } as never);
+                break;
+              case '/decisions':
+                navigation.navigate('Decisions' as never, { threadId } as never);
+                break;
+            }
+          }}
+        />
       </KeyboardAvoidingView>
 
       {/* AI Menu Modal */}
@@ -893,11 +959,18 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         >
           <View style={styles.aiMenuContainer} onStartShouldSetResponder={() => true}>
             <View style={styles.aiMenuHeader}>
-              <Ionicons name="sparkles" size={28} color="#007AFF" />
-              <Text style={styles.aiMenuTitle}>AI Features</Text>
-              <TouchableOpacity onPress={() => setShowAIMenu(false)}>
-                <Ionicons name="close" size={28} color="#666" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Ionicons name="sparkles" size={28} color="#007AFF" />
+                <Text style={styles.aiMenuTitle}>AI Features</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={styles.rateLimitBadge}>
+                  <Text style={styles.rateLimitText}>{aiCallsRemaining}/20</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowAIMenu(false)}>
+                  <Ionicons name="close" size={28} color="#666" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.aiMenuGrid}>
@@ -1040,7 +1113,12 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           
           <ScrollView style={styles.modalContent}>
             {loadingSummary ? (
-              <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
+              <View style={styles.streamingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
+                {streamingMessage && (
+                  <Text style={styles.streamingText}>{streamingMessage}</Text>
+                )}
+              </View>
             ) : (
               <Text style={styles.summaryText}>{summary}</Text>
             )}
@@ -1082,7 +1160,12 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           
           <ScrollView style={styles.modalContent}>
             {loadingActions ? (
-              <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
+              <View style={styles.streamingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
+                {streamingMessage && (
+                  <Text style={styles.streamingText}>{streamingMessage}</Text>
+                )}
+              </View>
             ) : (
               <>
                 {/* Action Items */}
@@ -1399,8 +1482,18 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: '#000000',
-    flex: 1,
     marginLeft: 12,
+  },
+  rateLimitBadge: {
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  rateLimitText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
   },
   aiMenuGrid: {
     flexDirection: 'row',
@@ -1495,6 +1588,19 @@ const styles = StyleSheet.create({
   },
   modalLoader: {
     marginTop: 48,
+  },
+  streamingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  streamingText: {
+    marginTop: 24,
+    fontSize: 15,
+    color: '#007AFF',
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   summaryText: {
     fontSize: 16,

@@ -20,7 +20,14 @@ MessageAI is a **fully functional** WhatsApp-like messaging application built fo
 **Status: 🎉 100% MVP COMPLETE 🎉**  
 All 11 MVP requirements tested and working!
 
-### 🎯 Latest Improvements (October 21, 2025)
+### 🎯 Latest Improvements (October 23, 2025)
+
+**New AI Features:**
+- ✅ **Slash Commands** - Type `/summarize`, `/actions`, `/search`, `/decisions` in composer for quick AI access
+- ✅ **Rate Limiting** - 20 AI calls per 10 minutes with visual indicator (X/20) in AI menu
+- ✅ **AI Analytics** - Track AI feature usage and call history
+- ✅ **Decisions Refresh/Share** - Refresh and share buttons on Decisions screen
+- ✅ **AI Streaming Simulation** - Progressive loading messages show AI progress in real-time
 
 **Final Demo-Ready Features:**
 - ✅ **Copy/Paste** - Long-press message input to paste from clipboard
@@ -82,8 +89,15 @@ All 11 MVP requirements tested and working!
 - ✅ **Action item extraction** - Full UI with refresh, share, display names, caching, error handling
 - ✅ **Priority message detection** - Red badges + manual marking (long-press), auto-detection
 - ✅ **Semantic search** - Toggle AI/simple search, automatic embeddings, error handling
-- ✅ **Decision tracking** - Full screen with display names, navigation, real-time updates
+- ✅ **Decision tracking** - Full screen with display names, navigation, real-time updates, refresh/share
 - 🔴 Proactive meeting scheduler (deployed Cloud Function, needs UI implementation)
+
+**AI UX Enhancements:**
+- ✅ **Slash commands** - Quick AI access: `/summarize`, `/actions`, `/search`, `/decisions`
+- ✅ **Rate limiting** - 20 calls per 10 minutes with visual counter (X/20 badge in AI menu)
+- ✅ **Usage analytics** - Track AI feature usage by type and time
+- ✅ **Graceful degradation** - Clear error messages when rate limit reached
+- ✅ **Streaming simulation** - Progressive feedback (🔍 Analyzing → 📊 Processing → 🤖 AI inference → ✨ Generating → 📝 Finalizing)
 
 **AI Models Used:**
 - **GPT-4o-mini** - Text generation (summarization, action items, priority detection, scheduling)
@@ -236,6 +250,36 @@ wazzap/
 | **AI** | OpenAI GPT-4o-mini | Text generation & classification |
 | **Embeddings** | OpenAI text-embedding-3-small | Semantic search vectors |
 | **Push** | Firebase Cloud Messaging | Push notifications |
+
+## Usage Guide
+
+### AI Features Access
+
+**Option 1: AI Menu (Sparkles Button)**
+- Tap the ✨ sparkles icon in the chat header
+- View rate limit counter (X/20 calls remaining)
+- Select from 6 AI features
+
+**Option 2: Slash Commands (Quick Access)**
+- Type `/` in the message composer
+- See autocomplete menu with available commands:
+  - `/summarize` - Generate thread summary
+  - `/actions` - Extract action items & decisions
+  - `/search` - Semantic search
+  - `/decisions` - View decision tracking
+
+### Rate Limiting
+- **Limit:** 20 AI calls per 10 minutes (prevents abuse)
+- **Visual Indicator:** Badge shows "X/20" in AI menu header
+- **Reset:** Automatically resets after 10 minutes from oldest call
+- **Error Handling:** Clear message when limit reached with time until reset
+
+### Offline Queue System
+- **Auto-queue:** Messages sent offline are automatically queued
+- **FIFO Processing:** Messages sent in order when back online
+- **Media Support:** Images and audio messages queue with local URIs
+- **Status Indicators:** "Sending..." → "Failed • Tap to retry" → Delivered
+- **Persistence:** Queue survives app restarts via AsyncStorage
 
 ## Quick Start
 

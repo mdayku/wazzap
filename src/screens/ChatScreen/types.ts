@@ -4,7 +4,6 @@ export interface ChatScreenProps {
 }
 
 export interface ActionItem {
-  text?: string;
   task: string;
   completed?: boolean;
   assignee?: string;
@@ -12,7 +11,6 @@ export interface ActionItem {
 }
 
 export interface Decision {
-  text?: string;
   summary: string;
   timestamp?: number;
   owner?: string;

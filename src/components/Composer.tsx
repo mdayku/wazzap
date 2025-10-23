@@ -15,9 +15,17 @@ interface ComposerProps {
   threadId: string;
   uid: string;
   onTyping?: (isTyping: boolean) => void;
+  onSlashCommand?: (command: string) => void;
 }
 
-export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
+const SLASH_COMMANDS = [
+  { command: '/summarize', description: 'Generate thread summary', icon: 'document-text-outline' },
+  { command: '/actions', description: 'Extract action items', icon: 'checkbox-outline' },
+  { command: '/search', description: 'Semantic search', icon: 'search-outline' },
+  { command: '/decisions', description: 'View decisions', icon: 'checkmark-circle-outline' },
+];
+
+export default function Composer({ threadId, uid, onTyping, onSlashCommand }: ComposerProps) {
   const [text, setText] = useState('');
   const [uploading, setUploading] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -25,6 +33,8 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const recordingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [filteredCommands, setFilteredCommands] = useState(SLASH_COMMANDS);
 
   const getDraftKey = useCallback(() => `draft_${threadId}_${uid}`, [threadId, uid]);
 
@@ -77,6 +87,15 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     }
   }, [getDraftKey]);
 
+  const handleSlashCommandSelect = (command: string) => {
+    setText('');
+    setShowSlashMenu(false);
+    if (onSlashCommand) {
+      onSlashCommand(command);
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const handlePaste = async () => {
     try {
       const clipboardText = await Clipboard.getStringAsync();
@@ -94,6 +113,18 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
 
   const handleTextChange = (newText: string) => {
     setText(newText);
+    
+    // Check for slash commands
+    if (newText.startsWith('/') && !newText.includes(' ')) {
+      const query = newText.toLowerCase();
+      const filtered = SLASH_COMMANDS.filter(cmd => 
+        cmd.command.startsWith(query)
+      );
+      setFilteredCommands(filtered);
+      setShowSlashMenu(filtered.length > 0);
+    } else {
+      setShowSlashMenu(false);
+    }
     
     const isTyping = newText.length > 0;
     
@@ -423,18 +454,38 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.iconButton} 
-        onPress={handleImagePick}
-        disabled={uploading}
-      >
-        {uploading ? (
-          <ActivityIndicator size="small" color="#007AFF" />
-        ) : (
-          <Ionicons name="image" size={24} color="#007AFF" />
-        )}
-      </TouchableOpacity>
+    <>
+      {/* Slash Command Menu */}
+      {showSlashMenu && (
+        <View style={styles.slashMenu}>
+          {filteredCommands.map((cmd) => (
+            <TouchableOpacity
+              key={cmd.command}
+              style={styles.slashMenuItem}
+              onPress={() => handleSlashCommandSelect(cmd.command)}
+            >
+              <Ionicons name={cmd.icon as any} size={20} color="#007AFF" />
+              <View style={styles.slashMenuText}>
+                <Text style={styles.slashCommand}>{cmd.command}</Text>
+                <Text style={styles.slashDescription}>{cmd.description}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <View style={styles.container}>
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          onPress={handleImagePick}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator size="small" color="#007AFF" />
+          ) : (
+            <Ionicons name="image" size={24} color="#007AFF" />
+          )}
+        </TouchableOpacity>
       
       {isRecording ? (
         <View style={styles.recordingContainer}>
@@ -503,7 +554,9 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
             </TouchableOpacity>
           )}
         </>
-      )}    </View>
+      )}
+      </View>
+    </>
   );
 }
 
@@ -582,6 +635,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FF3B30',
+  },
+  slashMenu: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+    paddingVertical: 8,
+    maxHeight: 200,
+  },
+  slashMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 8,
+  },
+  slashMenuText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  slashCommand: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  slashDescription: {
+    fontSize: 13,
+    color: '#666666',
+    marginTop: 2,
   },
 });
 

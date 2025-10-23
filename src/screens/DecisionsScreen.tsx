@@ -6,11 +6,15 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Share,
+  Alert,
 } from 'react-native';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../services/firebase';
 import { formatTimestamp } from '../utils/time';
+import { extractAI } from '../services/ai';
+import { simulateAIStream, EXTRACT_STEPS } from '../utils/aiStreamSimulator';
 
 interface Decision {
   id: string;
@@ -25,7 +29,9 @@ export default function DecisionsScreen({ route, navigation }: any) {
   const { threadId } = route.params;
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [userCache, setUserCache] = useState<Record<string, string>>({});
+  const [streamingMessage, setStreamingMessage] = useState('');
 
   useEffect(() => {
     if (!threadId) return;
@@ -72,6 +78,63 @@ export default function DecisionsScreen({ route, navigation }: any) {
 
     return () => unsubscribe();
   }, [threadId]);
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    
+    // Start streaming simulation
+    const cancelStream = simulateAIStream(
+      EXTRACT_STEPS,
+      (message) => setStreamingMessage(message),
+      () => setStreamingMessage('')
+    );
+    
+    try {
+      await extractAI(threadId, 50);
+      
+      // Cancel streaming when we get the real result
+      cancelStream();
+      setStreamingMessage('');
+    } catch (error) {
+      console.error('Error refreshing decisions:', error);
+      
+      // Cancel streaming on error
+      cancelStream();
+      setStreamingMessage('');
+      
+      Alert.alert('Error', 'Failed to refresh decisions. Please try again.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (decisions.length === 0) {
+      Alert.alert('No Decisions', 'There are no decisions to share yet.');
+      return;
+    }
+
+    try {
+      let shareText = `✅ Decisions (${decisions.length}):\n\n`;
+      
+      decisions.forEach((decision, index) => {
+        shareText += `${index + 1}. ${decision.summary}\n`;
+        if (decision.owner) {
+          const ownerName = userCache[decision.owner] || decision.owner;
+          shareText += `   👤 ${ownerName}\n`;
+        }
+        shareText += `   📅 ${formatTimestamp(decision.decidedAt)}\n\n`;
+      });
+
+      await Share.share({
+        message: shareText,
+      });
+    } catch (error) {
+      console.error('Error sharing decisions:', error);
+    }
+  };
 
   const renderDecision = ({ item }: { item: Decision }) => (
     <TouchableOpacity
@@ -121,6 +184,29 @@ export default function DecisionsScreen({ route, navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Decisions</Text>
+        <View style={styles.headerButtons}>
+          {decisions.length > 0 && (
+            <>
+              <TouchableOpacity 
+                onPress={handleRefresh} 
+                style={styles.headerButton}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Ionicons name="refresh-outline" size={24} color="#007AFF" />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleShare} 
+                style={styles.headerButton}
+              >
+                <Ionicons name="share-outline" size={24} color="#007AFF" />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {decisions.length === 0 ? (
@@ -138,6 +224,16 @@ export default function DecisionsScreen({ route, navigation }: any) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
         />
+      )}
+
+      {/* Streaming Message Overlay */}
+      {refreshing && streamingMessage && (
+        <View style={styles.streamingOverlay}>
+          <View style={styles.streamingCard}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.streamingText}>{streamingMessage}</Text>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -168,9 +264,18 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   headerTitle: {
+    flex: 1,
     fontSize: 20,
     fontWeight: '600',
     color: '#000000',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   list: {
     padding: 16,
@@ -222,6 +327,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 8,
+    textAlign: 'center',
+  },
+  streamingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  streamingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  streamingText: {
+    marginTop: 16,
+    fontSize: 15,
+    color: '#007AFF',
+    fontWeight: '500',
     textAlign: 'center',
   },
 });
