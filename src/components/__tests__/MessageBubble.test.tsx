@@ -48,6 +48,7 @@ describe('MessageBubble Component', () => {
     id: '1',
     senderId: 'user1',
     text: 'Hello, World!',
+    media: null,
     status: 'sent' as const,
     priority: 'normal' as const,
     createdAt: Timestamp.fromDate(new Date()),
@@ -128,7 +129,8 @@ describe('MessageBubble Component', () => {
 
   it('should show priority badge for high priority messages', () => {
     const highPriorityMessage = { 
-      ...mockMessage, 
+      ...mockMessage,
+      media: null,
       priority: 'high' as const 
     };
     const { getByText } = renderWithTheme(
