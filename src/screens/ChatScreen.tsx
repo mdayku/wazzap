@@ -275,34 +275,29 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
 
   // Proactive Assistant: Analyze thread context after messages change
   // DISABLED: Uncomment after deploying Firebase functions
-  // useEffect(() => {
-  //   if (!threadId || !user || messages.length === 0) return;
-  //   
-  //   // Debounce: Only trigger after 5 seconds of no new messages
-  //   const timer = setTimeout(async () => {
-  //     try {
-  //       // Check if proactive assistant is enabled for this thread (TODO: add opt-in setting)
-  //       const threadDoc = await getDoc(doc(db, 'threads', threadId));
-  //       const proactiveEnabled = threadDoc.data()?.proactiveEnabled !== false; // Default to true
-  //       
-  //       if (!proactiveEnabled) return;
-  //       
-  //       // Don't show suggestion if there's already one active
-  //       if (proactiveSuggestion && proactiveSuggestion.status === 'active') return;
-  //       
-  //       // Analyze thread context
-  //       const result = await analyzeThreadContext(threadId);
-  //       
-  //       if (result.hasSuggestion) {
-  //         setProactiveSuggestion(result);
-  //       }
-  //     } catch (error) {
-  //       console.error('Error analyzing thread context:', error);
-  //     }
-  //   }, 5000); // 5 second debounce
-  //   
-  //   return () => clearTimeout(timer);
-  // }, [messages, threadId, user, proactiveSuggestion]);
+  // Auto-trigger proactive assistant when messages change
+  useEffect(() => {
+    if (!threadId || !user || messages.length === 0 || !proactiveEnabled) return;
+    
+    // Debounce: Only trigger after 5 seconds of no new messages
+    const timer = setTimeout(async () => {
+      try {
+        // Don't show suggestion if there's already one active
+        if (proactiveSuggestion && proactiveSuggestion.status === 'active') return;
+        
+        // Analyze thread context
+        const result = await analyzeThreadContext(threadId);
+        
+        if (result.hasSuggestion) {
+          setProactiveSuggestion(result);
+        }
+      } catch (error) {
+        console.error('Error analyzing thread context:', error);
+      }
+    }, 5000); // 5 second debounce
+    
+    return () => clearTimeout(timer);
+  }, [messages, threadId, user, proactiveSuggestion, proactiveEnabled]);
 
   // Fetch user data for all threads (for forward modal)
   useEffect(() => {

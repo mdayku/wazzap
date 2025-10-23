@@ -51,6 +51,17 @@ export async function detectSchedulingIntent(
       .map(m => `${m.senderName || m.sender}: ${m.text}`)
       .join('\n');
 
+    const now = new Date();
+    const currentDateTime = now.toLocaleString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric', 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
     const prompt = `You are an AI assistant that detects scheduling intent in conversations and extracts event details.
 
 Analyze the following conversation and determine if there's a clear intent to schedule a meeting or event.
@@ -61,15 +72,25 @@ ${participantsContext}
 CONVERSATION:
 ${conversationContext}
 
-CURRENT TIME: ${new Date().toISOString()}
+CURRENT DATE/TIME: ${currentDateTime}
+CURRENT TIME (ISO): ${now.toISOString()}
+
+IMPORTANT TIME CONVERSION RULES:
+- "tomorrow at 2pm" = add 1 day to current date, set time to 14:00
+- "today at 3pm" = use current date, set time to 15:00
+- "Friday at 10am" = find next Friday, set time to 10:00
+- "next week" = add 7 days to current date
+- Always convert relative times (tomorrow, today, next week) to absolute ISO 8601 timestamps
+- Use the CURRENT TIME above as your reference point
+- Default end time to 1 hour after start time if not specified
 
 If there is scheduling intent, extract:
-1. Event title/summary
-2. Start time (convert to ISO 8601 format)
-3. End time (convert to ISO 8601 format, default to 1 hour if not specified)
+1. Event title/summary (e.g., "Team Meeting", "Standup", "Call")
+2. Start time (convert to ISO 8601 format using CURRENT TIME as reference)
+3. End time (convert to ISO 8601 format, default to 1 hour after start)
 4. Location (if mentioned, can be physical or virtual like "Zoom")
 5. Attendees (use participant emails from the conversation)
-6. Description (optional context)
+6. Description (optional context from the conversation)
 7. Confidence (0-1, how confident you are this is a scheduling request)
 
 Respond in JSON format:
@@ -79,12 +100,12 @@ Respond in JSON format:
     "summary": "string",
     "description": "string (optional)",
     "location": "string (optional)",
-    "startTime": "ISO 8601 string",
-    "endTime": "ISO 8601 string",
+    "startTime": "ISO 8601 string (e.g., 2025-10-24T14:00:00.000Z)",
+    "endTime": "ISO 8601 string (e.g., 2025-10-24T15:00:00.000Z)",
     "attendees": ["email1", "email2"],
     "confidence": 0.0-1.0
   },
-  "suggestedMessage": "A friendly message to send to the user confirming the event details"
+  "suggestedMessage": "A friendly message confirming the event details in natural language"
 }
 
 Only return hasSchedulingIntent: true if:
