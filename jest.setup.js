@@ -49,13 +49,13 @@ jest.mock('expo-image-manipulator', () => ({
 // Mock Firebase Auth functions
 jest.mock('firebase/auth', () => ({
   getAuth: jest.fn(() => ({})),
-  signInWithEmailAndPassword: jest.fn((auth, email, password) => {
+  signInWithEmailAndPassword: jest.fn((auth, email, _password) => {
     if (email === 'error@test.com') {
       return Promise.reject(new Error('Invalid credentials'));
     }
     return Promise.resolve({ user: { uid: 'test-uid', email } });
   }),
-  createUserWithEmailAndPassword: jest.fn((auth, email, password) => {
+  createUserWithEmailAndPassword: jest.fn((auth, email, _password) => {
     if (email === 'existing@test.com') {
       return Promise.reject(new Error('Email already in use'));
     }

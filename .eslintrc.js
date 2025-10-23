@@ -28,6 +28,7 @@ module.exports = {
     'build/',
     '*.config.js',
     'firebase/functions/', // Backend code with different dependencies
+    'scripts/', // Utility scripts use CommonJS and console.log
   ],
 };
 
