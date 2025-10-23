@@ -8,6 +8,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import * as Location from 'expo-location';
 import { sendMessageOptimistic } from '../state/offlineQueue';
 import { uploadImage } from '../services/storage';
 
@@ -203,6 +204,96 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
       }
     } catch (error) {
       console.error('Error picking image:', error);
+    }
+  };
+
+  const handleCameraLaunch = async () => {
+    try {
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant camera permission to take photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        await handleSendImage(asset.uri);
+      }
+    } catch (error) {
+      console.error('Error launching camera:', error);
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
+    }
+  };
+
+  const handleLocationShare = async () => {
+    try {
+      // Request location permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant location permission to share your location.');
+        return;
+      }
+
+      // Show loading indicator in chat
+      setUploading(true);
+
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+
+      // Reverse geocode to get address
+      let address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      try {
+        const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (geocode && geocode[0]) {
+          const place = geocode[0];
+          address = [
+            place.name,
+            place.street,
+            place.city,
+            place.region,
+            place.country
+          ].filter(Boolean).join(', ');
+        }
+      } catch (geocodeError) {
+        console.log('Geocoding failed, using coordinates');
+      }
+
+      // Haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Send location message
+      await sendMessageOptimistic(
+        {
+          threadId,
+          text: `📍 ${address}`,
+          media: {
+            type: 'location',
+            url: `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+            latitude,
+            longitude,
+            address,
+          },
+        },
+        uid
+      );
+    } catch (error) {
+      console.error('Error sharing location:', error);
+      Alert.alert('Error', 'Failed to get location. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -477,6 +568,14 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
       <View style={styles.container}>
         <TouchableOpacity 
           style={styles.iconButton} 
+          onPress={handleCameraLaunch}
+          disabled={uploading}
+        >
+          <Ionicons name="camera" size={24} color="#007AFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.iconButton} 
           onPress={handleImagePick}
           disabled={uploading}
         >
@@ -485,6 +584,14 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
           ) : (
             <Ionicons name="image" size={24} color="#007AFF" />
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          onPress={handleLocationShare}
+          disabled={uploading}
+        >
+          <Ionicons name="location" size={24} color="#007AFF" />
         </TouchableOpacity>
       
       {isRecording ? (

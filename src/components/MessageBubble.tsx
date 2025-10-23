@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, ScrollView, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -18,11 +18,14 @@ export interface Message {
   senderId: string;
   text: string;
   media?: {
-    type: 'image' | 'audio' | null;
+    type: 'image' | 'audio' | 'location' | null;
     url: string | null;
     width?: number;
     height?: number;
     duration?: number;
+    latitude?: number;
+    longitude?: number;
+    address?: string;
   } | null;
   transcription?: {
     text: string;
@@ -488,6 +491,57 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
             )}
           </View>
         )}
+
+        {item.media?.type === 'location' && item.media?.latitude && item.media?.longitude && (
+          <TouchableOpacity
+            style={styles.locationContainer}
+            onPress={() => {
+              const url = item.media?.url || `https://www.google.com/maps/search/?api=1&query=${item.media?.latitude},${item.media?.longitude}`;
+              Linking.openURL(url);
+            }}
+          >
+            <View style={styles.locationHeader}>
+              <Ionicons 
+                name="location" 
+                size={24} 
+                color={isMe ? colors.messageBubbleSentText : '#007AFF'} 
+              />
+              <Text style={[
+                styles.locationTitle,
+                isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
+              ]}>
+                Location
+              </Text>
+            </View>
+            {item.media.address && (
+              <Text style={[
+                styles.locationAddress,
+                isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
+              ]}>
+                {item.media.address}
+              </Text>
+            )}
+            <Text style={[
+              styles.locationCoords,
+              isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
+            ]}>
+              {item.media.latitude.toFixed(6)}, {item.media.longitude.toFixed(6)}
+            </Text>
+            <View style={styles.locationAction}>
+              <Ionicons 
+                name="open-outline" 
+                size={16} 
+                color={isMe ? colors.messageBubbleSentText : '#007AFF'} 
+              />
+              <Text style={[
+                styles.locationActionText,
+                isMe ? { color: colors.messageBubbleSentText } : { color: '#007AFF' }
+              ]}>
+                Open in Maps
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
         
         {item.text ? (
           <Text style={[styles.text, isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }]}>
@@ -804,7 +858,9 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   statusContainer: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   status: {
     fontSize: 11,
@@ -978,6 +1034,43 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontStyle: 'italic',
     opacity: 0.9,
+  },
+  locationContainer: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    minWidth: 200,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  locationAddress: {
+    fontSize: 14,
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  locationCoords: {
+    fontSize: 12,
+    opacity: 0.7,
+    marginBottom: 8,
+    fontFamily: 'monospace',
+  },
+  locationAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  locationActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });
 

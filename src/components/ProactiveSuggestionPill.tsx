@@ -149,7 +149,12 @@ export default function ProactiveSuggestionPill({
                 <Ionicons name={getIcon()} size={24} color={getPriorityColor()} />
               </View>
               <Text style={styles.modalTitle}>✨ {suggestion.title}</Text>
-              <TouchableOpacity onPress={() => setShowFullModal(false)}>
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e?.stopPropagation?.();
+                  setShowFullModal(false);
+                }}
+              >
                 <Ionicons name="close" size={24} color="#8E8E93" />
               </TouchableOpacity>
             </View>
