@@ -128,7 +128,7 @@ All 11 MVP requirements tested and working!
 - ✅ **Dark mode** - Full theme support across all screens
 - ✅ **Draft messages** - Auto-save unsent messages per thread
 
-**AI-Powered Intelligence (8/8 Features Working) 🚀:**
+**AI-Powered Intelligence (9/9 Features Working) 🚀:**
 - ✅ **Thread summarization** - Smart AI titles, share, cache, retry logic, success/error toasts
 - ✅ **Action item extraction** - Full UI with refresh, share, display names, caching, error handling
 - ✅ **Priority message detection** - Red badges + manual marking (long-press), auto-detection
@@ -137,6 +137,7 @@ All 11 MVP requirements tested and working!
 - ✅ **Proactive assistant** - Multi-modal analysis with RAG, feedback learning, opt-in toggle
 - ✅ **AI image generation** - DALL-E 3 integration via `/generate` command
 - ✅ **AI image analysis** - GPT-4 Vision with OCR, object detection, automatic RAG indexing
+- ✅ **Google Calendar integration** - AI detects scheduling requests, creates events, sends invitations
 
 **AI UX Enhancements:**
 - ✅ **Slash commands** - Quick AI access: `/summarize`, `/actions`, `/search`, `/decisions`, `/generate`
@@ -154,8 +155,16 @@ All 11 MVP requirements tested and working!
 - **DALL-E 3** - AI image generation from text prompts
 - **Whisper-1** - Voice message transcription
 
+**Google Calendar Integration:**
+- ✅ **Automatic Detection** - AI detects scheduling requests in conversations ("Let's meet tomorrow at 2pm")
+- ✅ **Smart Event Creation** - Extracts title, time, location, attendees from natural language
+- ✅ **Personal Calendars** - Events created on user's Google Calendar with invites to all participants
+- ✅ **Calendar Cards** - Beautiful in-chat UI to accept/reject event suggestions
+- ✅ **Email Integration** - Uses user emails from profiles to send calendar invitations
+- 📖 **How it works:** AI analyzes chat → detects scheduling → creates event suggestion → user clicks "Add to Calendar" → event created with invites sent to all attendees
+
 **Advanced AI Features (Scoped for Final Submission):**
-- 🔄 **n8n Workflow Automation** - Slack integration, email digests, calendar events
+- 🔄 **n8n Workflow Automation** - Slack integration, email digests
 - 🧠 **RAG Pipeline** - Context-aware AI assistant with conversation memory
 
 ## Architecture

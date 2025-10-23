@@ -7,6 +7,7 @@ import { transcribeAudio, autoTranscribeAudio } from './transcription';
 import { generateImage } from './imageGeneration';
 import { analyzeImage, autoAnalyzeImage } from './vision';
 import { seinfeldAgentResponse, enableSeinfeldMode, disableSeinfeldMode } from './seinfeldAgents';
+import { suggestCalendarEvent } from './calendar';
 
 // Firestore trigger: runs when a new message is created
 export const messageCreated = functions.firestore
@@ -52,3 +53,6 @@ export const enableSeinfeld = enableSeinfeldMode;
 export const disableSeinfeld = disableSeinfeldMode;
 export { createSeinfeldUsers } from './createSeinfeldUsers';
 export { generateSeinfeldEmbeddings } from './generateSeinfeldEmbeddings';
+
+// Google Calendar integration
+export const suggestCalendar = functions.https.onCall(suggestCalendarEvent);

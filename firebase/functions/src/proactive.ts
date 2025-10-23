@@ -2,6 +2,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import OpenAI from 'openai';
 import * as admin from 'firebase-admin';
 import { getRelevantContext } from './embeddings';
+import { detectSchedulingIntent } from './calendar';
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {
@@ -157,9 +158,60 @@ ${conversationText}`;
     );
 
     if (result.hasSuggestion) {
+      // If this is a scheduling suggestion, also detect calendar event details
+      let calendarEventId = null;
+      if (result.type === 'schedule') {
+        try {
+          // Get thread participants for calendar detection
+          const threadDoc = await db.collection('threads').doc(threadId).get();
+          const threadData = threadDoc.data();
+          
+          if (threadData) {
+            const participantIds = threadData.participants || [];
+            const participants: Array<{ id: string; email?: string; displayName?: string }> = [];
+
+            // Fetch participant details
+            for (const participantId of participantIds) {
+              const userDoc = await db.collection('users').doc(participantId).get();
+              const userData = userDoc.data();
+              if (userData) {
+                participants.push({
+                  id: participantId,
+                  email: userData.email,
+                  displayName: userData.displayName,
+                });
+              }
+            }
+
+            // Detect scheduling intent with detailed event extraction
+            const messagesWithNames = messages.map(m => ({
+              sender: m.sender,
+              text: m.text,
+              senderName: participants.find(p => p.id === m.sender)?.displayName,
+            }));
+
+            const schedulingIntent = await detectSchedulingIntent(messagesWithNames, participants);
+            
+            if (schedulingIntent.hasSchedulingIntent && schedulingIntent.eventDetails) {
+              // Store the calendar event suggestion
+              const calendarRef = await db.collection(`threads/${threadId}/calendarSuggestions`).add({
+                ...schedulingIntent.eventDetails,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'pending', // pending, accepted, rejected
+              });
+              calendarEventId = calendarRef.id;
+            }
+          }
+        } catch (error) {
+          console.error('Error detecting calendar event:', error);
+          // Continue without calendar event - don't fail the whole suggestion
+        }
+      }
+
       // Store the suggestion for display in UI
       const suggestionRef = await db.collection(`threads/${threadId}/suggestions`).add({
         ...result,
+        calendarEventId, // Link to calendar event if this is a scheduling suggestion
         status: 'active', // active, dismissed, accepted
         feedback: null, // null, 'positive', 'negative'
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -168,6 +220,7 @@ ${conversationText}`;
       return {
         ...result,
         suggestionId: suggestionRef.id,
+        calendarEventId,
       };
     }
 

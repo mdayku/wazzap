@@ -228,6 +228,7 @@ export default function LoginScreen() {
             {isSignup ? 'Already have an account? Log In' : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
+
       </View>
 
       {/* Saved Credentials Modal */}

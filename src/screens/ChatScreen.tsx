@@ -38,6 +38,7 @@ import { checkRateLimit, recordAICall } from '../services/aiRateLimiter';
 import { simulateAIStream, SUMMARIZE_STEPS, EXTRACT_STEPS } from '../utils/aiStreamSimulator';
 import { analyzeThreadContext, submitFeedback, dismissSuggestion as dismissSuggestionAPI, type ProactiveSuggestion } from '../services/proactive';
 import ProactiveSuggestionPill from '../components/ProactiveSuggestionPill';
+import CalendarEventCard from '../components/CalendarEventCard';
 import { generateAIImage } from '../services/imageGeneration';
 import { enableSeinfeldMode, disableSeinfeldMode } from '../services/seinfeldMode';
 import { ALL_CHARACTERS, type SeinfeldCharacter } from '../data/seinfeldCharacters';
@@ -83,6 +84,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [aiCallsRemaining, setAiCallsRemaining] = useState(20); // Track AI rate limit
   const [streamingMessage, setStreamingMessage] = useState(''); // AI streaming simulation
   const [proactiveSuggestion, setProactiveSuggestion] = useState<ProactiveSuggestion | null>(null); // Proactive assistant suggestion
+  const [calendarSuggestions, setCalendarSuggestions] = useState<any[]>([]); // Calendar event suggestions
   const [showSettingsModal, setShowSettingsModal] = useState(false); // Thread settings modal
   const [proactiveEnabled, setProactiveEnabled] = useState(true); // Proactive assistant toggle
   const [showSeinfeldModal, setShowSeinfeldModal] = useState(false); // Seinfeld Mode character selection
@@ -130,6 +132,27 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   useEffect(() => {
     loadSeinfeldMode();
   }, [loadSeinfeldMode]);
+
+  // Listen for calendar event suggestions
+  useEffect(() => {
+    if (!threadId) return;
+
+    const unsubscribe = onSnapshot(
+      query(
+        collection(db, `threads/${threadId}/calendarSuggestions`),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      ),
+      (snapshot) => {
+        const suggestions = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter((s: any) => s.status === 'pending'); // Only show pending suggestions
+        setCalendarSuggestions(suggestions);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [threadId]);
 
   // Update rate limit when AI menu opens
   useEffect(() => {
@@ -1149,6 +1172,42 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     }
   };
 
+  const handleCalendarEventAccept = async (eventId: string) => {
+    try {
+      await updateDoc(doc(db, `threads/${threadId}/calendarSuggestions`, eventId), {
+        status: 'accepted',
+        acceptedAt: serverTimestamp(),
+      });
+      
+      Toast.show({
+        type: 'success',
+        text1: 'Event Added to Calendar! 📅',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+    } catch (error) {
+      console.error('Error accepting calendar event:', error);
+    }
+  };
+
+  const handleCalendarEventReject = async (eventId: string) => {
+    try {
+      await updateDoc(doc(db, `threads/${threadId}/calendarSuggestions`, eventId), {
+        status: 'rejected',
+        rejectedAt: serverTimestamp(),
+      });
+      
+      Toast.show({
+        type: 'info',
+        text1: 'Calendar Suggestion Dismissed',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+    } catch (error) {
+      console.error('Error rejecting calendar event:', error);
+    }
+  };
+
   const handleSuggestionFeedback = async (feedback: 'positive' | 'negative') => {
     if (!proactiveSuggestion?.suggestionId || !user) return;
     
@@ -1354,6 +1413,23 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           <Text style={styles.typingText}>typing...</Text>
         </View>
       )}
+
+      {/* Calendar Event Suggestions */}
+      {calendarSuggestions.map((event: any) => (
+        <CalendarEventCard
+          key={event.id}
+          eventId={event.id}
+          summary={event.summary}
+          description={event.description}
+          location={event.location}
+          startTime={event.startTime}
+          endTime={event.endTime}
+          attendees={event.attendees || []}
+          confidence={event.confidence || 0.8}
+          onAccept={() => handleCalendarEventAccept(event.id)}
+          onReject={() => handleCalendarEventReject(event.id)}
+        />
+      ))}
 
       {/* Proactive Suggestion Pill */}
       {proactiveSuggestion && proactiveSuggestion.hasSuggestion && !proactiveSuggestion.feedback && (

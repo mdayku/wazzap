@@ -12,6 +12,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ...config.ios,
     bundleIdentifier: 'com.messageai.app',
   },
+  plugins: [],
   extra: {
     firebaseApiKey: process.env.EXPO_PUBLIC_FB_API_KEY,
     firebaseAuthDomain: process.env.EXPO_PUBLIC_FB_AUTH_DOMAIN,

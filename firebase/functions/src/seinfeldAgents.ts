@@ -96,42 +96,80 @@ async function getRecentMessages(threadId: string, limit: number = 10): Promise<
 }
 
 /**
- * Search for relevant Seinfeld quotes from Firestore
- * Uses simple text matching for now, will upgrade to semantic search
+ * Search for relevant Seinfeld quotes using semantic search with embeddings
  */
 async function getRelevantQuotes(messageText: string, character: SeinfeldCharacter): Promise<string[]> {
   try {
-    // Search Firestore for character's lines
+    const openai = getOpenAIClient();
+    
+    // Generate embedding for the incoming message
+    const embeddingResponse = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: messageText,
+    });
+    const queryEmbedding = embeddingResponse.data[0].embedding;
+    
+    // Fetch ALL lines with embeddings (main + supporting characters for context)
     const scriptsRef = admin.firestore()
       .collection('seinfeldScripts')
-      .where('character', '==', character)
-      .limit(100); // Get sample of character's lines
+      .where('embedding', '!=', null)
+      .limit(500); // Get a large sample for better semantic matching
     
     const snapshot = await scriptsRef.get();
     
     if (snapshot.empty) {
-      // Fallback to catchphrases if no scripts loaded yet
+      console.log('No scripts with embeddings found, using fallback');
       const profile = CHARACTER_PROFILES[character];
       return profile.catchphrases.slice(0, 2);
     }
     
-    // Get all lines
-    const allLines = snapshot.docs.map(doc => doc.data().line as string);
+    // Calculate cosine similarity for each line
+    const linesWithScores = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const lineEmbedding = data.embedding;
+      
+      // Cosine similarity
+      let dotProduct = 0;
+      let normA = 0;
+      let normB = 0;
+      
+      for (let i = 0; i < queryEmbedding.length; i++) {
+        dotProduct += queryEmbedding[i] * lineEmbedding[i];
+        normA += queryEmbedding[i] * queryEmbedding[i];
+        normB += lineEmbedding[i] * lineEmbedding[i];
+      }
+      
+      const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+      
+      return {
+        line: data.line,
+        character: data.character,
+        isMainCharacter: data.isMainCharacter,
+        similarity,
+      };
+    });
     
-    // Simple keyword matching (will upgrade to semantic search)
-    const keywords = messageText.toLowerCase().split(' ').filter(w => w.length > 3);
-    const relevantLines = allLines.filter(line => 
-      keywords.some(keyword => line.toLowerCase().includes(keyword))
-    );
+    // Sort by similarity (highest first)
+    linesWithScores.sort((a, b) => b.similarity - a.similarity);
     
-    // Return relevant lines or random sample
-    if (relevantLines.length > 0) {
-      return relevantLines.slice(0, 3);
-    } else {
-      // Return random sample
-      const shuffled = allLines.sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, 2);
-    }
+    // Prioritize lines from the responding character, but include supporting characters for context
+    const characterLines = linesWithScores
+      .filter(item => item.character === character)
+      .slice(0, 3);
+    
+    const supportingLines = linesWithScores
+      .filter(item => item.character !== character && item.similarity > 0.7) // High similarity threshold
+      .slice(0, 2);
+    
+    // Combine: prioritize character's own lines, add context from others
+    const relevantLines = [
+      ...characterLines.map(item => `${item.character}: ${item.line}`),
+      ...supportingLines.map(item => `${item.character}: ${item.line}`),
+    ];
+    
+    console.log(`Found ${relevantLines.length} relevant quotes for ${character} (${characterLines.length} own, ${supportingLines.length} context)`);
+    
+    return relevantLines.length > 0 ? relevantLines : CHARACTER_PROFILES[character].catchphrases.slice(0, 2);
   } catch (error) {
     console.error('Error fetching relevant quotes:', error);
     const profile = CHARACTER_PROFILES[character];
