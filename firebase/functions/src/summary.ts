@@ -1,6 +1,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import OpenAI from 'openai';
 import * as admin from 'firebase-admin';
+import { getRelevantContext } from './embeddings';
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {
@@ -75,6 +76,24 @@ export const summarizeThread = async (data: any, context: any) => {
       timestamp: m.timestamp,
     }));
 
+    // RAG: Get relevant historical context
+    let contextSection = '';
+    try {
+      const relevantMessages = await getRelevantContext(
+        'conversation summary key topics decisions',
+        threadId,
+        5
+      );
+      
+      if (relevantMessages.length > 0) {
+        contextSection = '\n\nRelevant historical context:\n' + 
+          relevantMessages.map(m => `- ${m.text}`).join('\n');
+      }
+    } catch (error) {
+      console.error('Error fetching RAG context:', error);
+      // Continue without context if it fails
+    }
+
     // Create prompt for summarization (using messages with display names)
     const messagesText = JSON.stringify(msgsWithNames).slice(0, 6000);
     const prompt = `Summarize the following conversation for a remote team. Include:
@@ -83,7 +102,7 @@ export const summarizeThread = async (data: any, context: any) => {
 - Action items with assignees if mentioned
 - Any blockers or concerns raised
 
-Keep the summary concise but informative.
+Keep the summary concise but informative.${contextSection}
 
 Messages:
 ${messagesText}`;
@@ -93,7 +112,7 @@ ${messagesText}`;
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      max_tokens: 500,
+      max_tokens: 2000, // Increased for comprehensive summaries
     });
 
     const text = res.choices[0].message?.content ?? 'Unable to generate summary';
@@ -179,6 +198,24 @@ export const extractAI = async (data: any, context: any) => {
       timestamp: m.timestamp,
     }));
 
+    // RAG: Get relevant historical context for actions/decisions
+    let contextSection = '';
+    try {
+      const relevantMessages = await getRelevantContext(
+        'action items decisions tasks assignments commitments',
+        threadId,
+        5
+      );
+      
+      if (relevantMessages.length > 0) {
+        contextSection = '\n\nRelevant historical context (for reference):\n' + 
+          relevantMessages.map(m => `- ${m.text}`).join('\n');
+      }
+    } catch (error) {
+      console.error('Error fetching RAG context:', error);
+      // Continue without context if it fails
+    }
+
     // Create prompt for extraction (using messages with display names)
     const messagesText = JSON.stringify(msgsWithNames).slice(0, 6000);
     const prompt = `Extract action items and decisions from this conversation.
@@ -197,7 +234,7 @@ Return JSON with this structure:
 {
   "actionItems": [{"task": "...", "assignee": "...", "due": "..."}],
   "decisions": [{"summary": "...", "owner": "..."}]
-}
+}${contextSection}
 
 Messages:
 ${messagesText}`;

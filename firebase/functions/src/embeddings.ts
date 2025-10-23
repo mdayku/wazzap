@@ -137,6 +137,55 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 }
 
 /**
+ * Get relevant context messages for a query
+ * Helper function for RAG - used by AI features to augment prompts
+ */
+export const getRelevantContext = async (
+  query: string,
+  threadId: string,
+  limit: number = 5
+): Promise<Array<{ messageId: string; text: string; similarity: number }>> => {
+  const openai = getOpenAI();
+  
+  try {
+    // Generate embedding for the query
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: query,
+    });
+
+    const queryVector = response.data[0].embedding;
+
+    // Fetch embeddings for the thread
+    const embeddingsSnap = await db
+      .collection('embeddings')
+      .where('threadId', '==', threadId)
+      .limit(1000)
+      .get();
+
+    // Calculate cosine similarity for each embedding
+    const results = embeddingsSnap.docs.map(doc => {
+      const data = doc.data();
+      const similarity = cosineSimilarity(queryVector, data.vector);
+      
+      return {
+        messageId: data.messageId,
+        text: data.text,
+        similarity,
+      };
+    });
+
+    // Sort by similarity and return top K results
+    results.sort((a, b) => b.similarity - a.similarity);
+    
+    return results.slice(0, limit);
+  } catch (error) {
+    console.error('Error getting relevant context:', error);
+    return []; // Return empty array on error - don't fail the AI call
+  }
+};
+
+/**
  * Batch generate embeddings for existing messages
  * Can be called manually to backfill
  */

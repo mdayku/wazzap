@@ -281,6 +281,15 @@ wazzap/
 - **Status Indicators:** "Sending..." → "Failed • Tap to retry" → Delivered
 - **Persistence:** Queue survives app restarts via AsyncStorage
 
+### Conflict Resolution
+- **Strategy:** Last-write-wins (Firestore default)
+- **Message Edits:** Not supported - messages are immutable after sending
+- **Deletions:** Stored per-user in `deletedFor` field, no conflicts possible
+- **Reactions:** Last reaction overwrites previous (no merge conflicts)
+- **Read Receipts:** `lastRead` timestamp per user, always takes most recent
+- **Offline Writes:** Queued locally, applied in FIFO order when online
+- **Why It Works:** Most conflicts are rare in chat apps; when they occur, last-write-wins is intuitive and matches user expectations
+
 ## Quick Start
 
 ### Prerequisites

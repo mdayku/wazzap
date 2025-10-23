@@ -1111,7 +1111,10 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
             </View>
           </View>
           
-          <ScrollView style={styles.modalContent}>
+          <ScrollView 
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalScrollContent}
+          >
             {loadingSummary ? (
               <View style={styles.streamingContainer}>
                 <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
@@ -1158,7 +1161,10 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
             </View>
           </View>
           
-          <ScrollView style={styles.modalContent}>
+          <ScrollView 
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalScrollContent}
+          >
             {loadingActions ? (
               <View style={styles.streamingContainer}>
                 <ActivityIndicator size="large" color="#007AFF" style={styles.modalLoader} />
@@ -1584,7 +1590,10 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
+  },
+  modalScrollContent: {
     padding: 16,
+    paddingBottom: 32,
   },
   modalLoader: {
     marginTop: 48,

@@ -1,6 +1,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import OpenAI from 'openai';
 import * as admin from 'firebase-admin';
+import { getRelevantContext } from './embeddings';
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {
@@ -50,6 +51,24 @@ export const detectSchedulingIntent = async (data: any, context: any) => {
       return { hasIntent: false };
     }
 
+    // RAG: Get relevant historical context for scheduling
+    let contextSection = '';
+    try {
+      const relevantMessages = await getRelevantContext(
+        'schedule meeting availability calendar time',
+        threadId,
+        3
+      );
+      
+      if (relevantMessages.length > 0) {
+        contextSection = '\n\nRelevant historical context:\n' + 
+          relevantMessages.map(m => `- ${m.text}`).join('\n');
+      }
+    } catch (error) {
+      console.error('Error fetching RAG context:', error);
+      // Continue without context if it fails
+    }
+
     const conversationText = JSON.stringify(messages).slice(0, 4000);
 
     // Prompt to detect scheduling intent
@@ -74,7 +93,7 @@ Return JSON:
   "urgency": "high/medium/low",
   "suggestedTimes": ["Tuesday at 2pm EST", "Wednesday at 10am EST", "Thursday at 3pm EST"],
   "reasoning": "brief explanation"
-}
+}${contextSection}
 
 Conversation:
 ${conversationText}`;
