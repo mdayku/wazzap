@@ -92,7 +92,7 @@ export default function SearchScreen({ route, navigation }: any) {
 
   const renderResult = ({ item }: { item: SearchResult }) => (
     <TouchableOpacity
-      style={[styles.resultItem, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+      style={[styles.resultItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={() => {
         navigation.navigate('Chat', {
           threadId: item.threadId,

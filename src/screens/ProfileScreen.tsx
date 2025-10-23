@@ -191,7 +191,7 @@ export default function ProfileScreen() {
 
   const handleSelectThread = (threadId: string) => {
     setShowThreadPicker(false);
-    navigation.navigate('LoadTest' as never, { threadId, userId: user?.uid } as never);
+    (navigation as any).navigate('LoadTest', { threadId, userId: user?.uid });
   };
 
   const handleCancelPhoto = () => {

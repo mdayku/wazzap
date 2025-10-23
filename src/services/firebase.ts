@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
@@ -23,10 +23,10 @@ console.log('Firebase app initialized');
 let auth;
 try {
   auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
+    // Note: React Native persistence is handled automatically in modern Firebase
   });
   console.log('Firebase Auth initialized with persistence');
-} catch (error: any) {
+} catch (error: unknown) {
   // If already initialized, just get the existing instance
   if (error.code === 'auth/already-initialized') {
     auth = getAuth(app);

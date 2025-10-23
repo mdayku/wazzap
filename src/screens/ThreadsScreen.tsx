@@ -155,7 +155,7 @@ export default function ThreadsScreen() {
     return (
       <TouchableOpacity
         style={[styles.threadItem, { borderBottomColor: colors.border }]}
-        onPress={() => navigation.navigate('Chat' as never, { threadId: item.id, threadName: getThreadName(item) } as never)}
+        onPress={() => (navigation as any).navigate('Chat', { threadId: item.id, threadName: getThreadName(item) })}
       >
         {isGroupChat ? renderGroupAvatars(item) : (
           <>
@@ -217,7 +217,7 @@ export default function ThreadsScreen() {
       <View style={[styles.header, { backgroundColor: colors.headerBackground, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Messages</Text>
         <TouchableOpacity 
-          onPress={() => navigation.navigate('Profile' as never)} 
+          onPress={() => (navigation as any).navigate('Profile')} 
           style={styles.profileButton}
         >
           <View style={styles.profileAvatar}>
@@ -249,7 +249,7 @@ export default function ThreadsScreen() {
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('NewChat' as never)}
+        onPress={() => (navigation as any).navigate('NewChat')}
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>

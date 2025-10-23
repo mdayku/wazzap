@@ -39,7 +39,7 @@ export function useThreads(uid: string | null) {
     // Set up listeners for each thread's unread count
     const threadUnreadCounts = new Map<string, number>();
     const unsubscribers = new Map<string, () => void>();
-    const lastReadCache = new Map<string, { seconds: number; nanoseconds: number }>();
+    const lastReadCache = new Map<string, { seconds: number; nanoseconds: number; toMillis?: () => number }>();
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const threadsData = snapshot.docs.map((doc) => {
@@ -54,7 +54,7 @@ export function useThreads(uid: string | null) {
           (cachedLastRead === undefined && currentLastRead !== undefined) ||
           (cachedLastRead !== undefined && currentLastRead === undefined) ||
           (cachedLastRead && currentLastRead && 
-           cachedLastRead.toMillis() !== currentLastRead.toMillis());
+           cachedLastRead.toMillis?.() !== currentLastRead.toMillis?.());
         
         // Set up or refresh unread count listener if needed
         if (!unsubscribers.has(threadId) || lastReadChanged) {
@@ -65,7 +65,9 @@ export function useThreads(uid: string | null) {
           }
           
           // Update cache
-          lastReadCache.set(threadId, currentLastRead);
+          if (currentLastRead) {
+            lastReadCache.set(threadId, currentLastRead);
+          }
           
           // Optimistically reset count when lastRead changes (will be updated by listener)
           if (lastReadChanged) {
@@ -129,8 +131,8 @@ export function useThreads(uid: string | null) {
         }
         
         return {
-          id: threadId,
           ...threadData,
+          id: threadId,
           unreadCount: threadUnreadCounts.get(threadId) || 0,
         } as Thread;
       });

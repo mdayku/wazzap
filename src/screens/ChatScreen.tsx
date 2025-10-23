@@ -35,17 +35,23 @@ import NetInfo from '@react-native-community/netinfo';
 
 interface ChatScreenProps {
   route: { params: { threadId: string; threadName: string } };
-  navigation: { goBack: () => void; navigate: (screen: string, params?: unknown) => void; setOptions: (options: unknown) => void };
+  navigation: any; // Using any for React Navigation compatibility
 }
 
 interface ActionItem {
   text: string;
+  task: string;
   completed?: boolean;
+  assignee?: string;
+  due?: string;
 }
 
 interface Decision {
   text: string;
+  summary: string;
   timestamp?: number;
+  owner?: string;
+  decidedAt?: string;
 }
 
 interface UserCacheEntry {
@@ -111,12 +117,12 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         .reverse(); // Reverse to show oldest first
       
       // Debug: Log message statuses for sender's messages
-      const myMessages = rows.filter((msg: any) => msg.senderId === user.uid);
+      const myMessages = rows.filter((msg: Message) => msg.senderId === user.uid);
       if (myMessages.length > 0) {
-        console.log(`📨 [STATUS_DEBUG] My messages:`, myMessages.map((m: any) => ({ id: m.id.slice(0, 8), status: m.status })));
+        console.log(`📨 [STATUS_DEBUG] My messages:`, myMessages.map((m: Message) => ({ id: m.id.slice(0, 8), status: m.status })));
       }
       
-      setMessages(rows);
+      setMessages(rows as Message[]);
       setLoading(false);
       setLoadingMore(false);
       

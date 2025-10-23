@@ -16,22 +16,22 @@ describe('Time Utilities', () => {
       expect(formatTimestamp(undefined)).toBe('');
     });
 
-    it('should return "Just now" for very recent timestamps', () => {
-      const now = new Date();
-      const timestamp = Timestamp.fromDate(now);
-      expect(formatTimestamp(timestamp)).toBe('Just now');
-    });
+  it('should return "Just now" for very recent timestamps', () => {
+    const now = new Date();
+    const timestamp = Timestamp.fromDate(now) as any; // Mock doesn't have all Timestamp methods
+    expect(formatTimestamp(timestamp)).toBe('Just now');
+  });
 
     it('should return relative time for recent timestamps', () => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const timestamp = Timestamp.fromDate(fiveMinutesAgo);
+      const timestamp = Timestamp.fromDate(fiveMinutesAgo) as any;
       const result = formatTimestamp(timestamp);
       expect(result).toContain('minute');
     });
 
     it('should return time format for same day', () => {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-      const timestamp = Timestamp.fromDate(twoHoursAgo);
+      const timestamp = Timestamp.fromDate(twoHoursAgo) as any;
       const result = formatTimestamp(timestamp);
       // Should contain time like "10:30 AM"
       expect(result).toMatch(/\d{1,2}:\d{2}\s[AP]M/);
@@ -39,7 +39,7 @@ describe('Time Utilities', () => {
 
     it('should return date and time for older timestamps', () => {
       const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const timestamp = Timestamp.fromDate(lastWeek);
+      const timestamp = Timestamp.fromDate(lastWeek) as any;
       const result = formatTimestamp(timestamp);
       // Should contain month abbreviation
       expect(result).toMatch(/[A-Z][a-z]{2}\s\d+/);
@@ -54,13 +54,13 @@ describe('Time Utilities', () => {
 
     it('should return "online" for very recent timestamps', () => {
       const now = new Date();
-      const timestamp = Timestamp.fromDate(now);
+      const timestamp = Timestamp.fromDate(now) as any;
       expect(formatLastSeen(timestamp)).toBe('online');
     });
 
     it('should return "last seen X ago" for older timestamps', () => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const timestamp = Timestamp.fromDate(fiveMinutesAgo);
+      const timestamp = Timestamp.fromDate(fiveMinutesAgo) as any;
       const result = formatLastSeen(timestamp);
       expect(result).toContain('last seen');
       expect(result).toContain('ago');

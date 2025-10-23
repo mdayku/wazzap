@@ -36,6 +36,8 @@ const Timestamp = {
     toMillis: () => date.getTime(),
     seconds: Math.floor(date.getTime() / 1000),
     nanoseconds: 0,
+    isEqual: () => false,
+    toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0 }),
   }),
 };
 

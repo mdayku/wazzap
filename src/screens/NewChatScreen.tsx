@@ -139,10 +139,10 @@ export default function NewChatScreen() {
           threadName = otherUser?.displayName || 'Chat';
         }
         
-        navigation.navigate('Chat' as never, { 
+        (navigation as any).navigate('Chat', { 
           threadId: existingThread.id,
           threadName
-        } as never);
+        });
         setCreating(false);
         return;
       }
@@ -215,10 +215,10 @@ export default function NewChatScreen() {
         threadName = otherUser?.displayName || 'Chat';
       }
       
-      navigation.navigate('Chat' as never, { 
+      (navigation as any).navigate('Chat', { 
         threadId: threadRef.id,
         threadName
-      } as never);
+      });
     } catch (error) {
       console.error('Error creating new thread:', error);
       Alert.alert('Error', 'Failed to create thread');
