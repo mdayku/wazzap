@@ -102,6 +102,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme(newTheme);
     try {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
+      // eslint-disable-next-line no-console
       console.log('🎨 [THEME] Switched to', newTheme);
     } catch (error) {
       console.error('Error saving theme:', error);

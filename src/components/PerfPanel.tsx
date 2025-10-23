@@ -9,14 +9,12 @@ interface PerfPanelProps {
 
 export default function PerfPanel({ visible = true, onClose }: PerfPanelProps) {
   const [summary, setSummary] = useState(perf.getSummary());
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
 
     const interval = setInterval(() => {
       setSummary(perf.getSummary());
-      setRefreshKey(prev => prev + 1);
     }, 1000);
 
     return () => clearInterval(interval);

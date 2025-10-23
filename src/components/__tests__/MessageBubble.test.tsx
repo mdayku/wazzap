@@ -33,6 +33,7 @@ jest.mock('expo-clipboard', () => ({
 const Timestamp = {
   fromDate: (date: Date) => ({
     toDate: () => date,
+    toMillis: () => date.getTime(),
     seconds: Math.floor(date.getTime() / 1000),
     nanoseconds: 0,
   }),

@@ -41,7 +41,7 @@ interface MessageBubbleProps {
   threadId?: string;
   onForward?: (message: Message) => void;
   threadMembers?: string[];
-  threadLastRead?: { [userId: string]: any };
+  threadLastRead?: { [userId: string]: { seconds: number; nanoseconds: number } };
 }
 
 export default function MessageBubble({ item, me, showSender, senderName, threadId, onForward, threadMembers = [], threadLastRead = {} }: MessageBubbleProps) {

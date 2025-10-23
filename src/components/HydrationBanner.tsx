@@ -22,6 +22,7 @@ export default function HydrationBanner({ userId: _userId }: HydrationBannerProp
       
       if (!connected && isOnline) {
         // Just went offline
+        // eslint-disable-next-line no-console
         console.log('🔄 [HYDRATION] Network offline');
         setIsOnline(false);
         setShowBanner(true);
@@ -35,6 +36,7 @@ export default function HydrationBanner({ userId: _userId }: HydrationBannerProp
         
       } else if (connected && !isOnline) {
         // Just came back online
+        // eslint-disable-next-line no-console
         console.log('✅ [HYDRATION] Network online');
         setIsOnline(true);
         
