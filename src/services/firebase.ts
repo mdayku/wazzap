@@ -20,7 +20,7 @@ console.log('Firebase app initialized');
 
 // Initialize Auth with AsyncStorage for React Native
 // Check if auth is already initialized to avoid errors
-let auth;
+let auth: any;
 try {
   auth = initializeAuth(app, {
     // Note: React Native persistence is handled automatically in modern Firebase

@@ -2,10 +2,8 @@ import { useEffect } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import type { User, Auth } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth as firebaseAuth, db } from '../services/firebase';
+import { auth, db } from '../services/firebase';
 import { useStore } from '../state/store';
-
-const auth = firebaseAuth as Auth;
 
 export function useAuth() {
   const { user, setUser, setIsLoading } = useStore();
