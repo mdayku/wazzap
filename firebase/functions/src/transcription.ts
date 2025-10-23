@@ -105,6 +105,12 @@ export const transcribeAudio = async (data: any, context: any) => {
     
     console.log(`Transcription stored for message ${messageId}`);
     
+    // Generate embedding for transcription text (for RAG/search)
+    const { generateEmbedding } = await import('./embeddings');
+    await generateEmbedding(messageId, threadId, transcription.text, messageData.senderId);
+    
+    console.log(`Embedding generated for manual transcription of ${messageId}`);
+    
     // Return transcription
     return { transcription };
     
