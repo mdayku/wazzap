@@ -34,13 +34,13 @@ export interface Message {
     text: string;
     language?: string;
     duration?: number;
-    words?: Array<{ word: string; start: number; end: number }>;
-    transcribedAt?: any;
+    words?: { word: string; start: number; end: number }[];
+    transcribedAt?: unknown;
   };
   imageAnalysis?: {
     description: string;
     model?: string;
-    analyzedAt?: any;
+    analyzedAt?: unknown;
   };
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   priority?: 'high' | 'normal';

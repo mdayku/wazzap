@@ -83,7 +83,7 @@ export default function ImagePreviewModal({
     }
   };
 
-  const handleRemoveImage = (index: number) => {
+  const handleRemoveImage = (_index: number) => {
     if (images.length === 1) {
       onClose();
       return;

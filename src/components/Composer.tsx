@@ -288,7 +288,7 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
           ].filter(Boolean).join(', ');
         }
       } catch (geocodeError) {
-        console.log('Geocoding failed, using coordinates');
+        // Geocoding failed, using coordinates only
       }
 
       // Haptic feedback
@@ -319,7 +319,7 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
     }
   };
 
-  const handleSendImage = async (imageUri: string) => {
+  const _handleSendImage = async (imageUri: string) => {
     setUploading(true);
     try {
       // Compress image before uploading
@@ -654,7 +654,7 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
               style={styles.slashMenuItem}
               onPress={() => handleSlashCommandSelect(cmd.command)}
             >
-              <Ionicons name={cmd.icon as any} size={20} color="#007AFF" />
+              <Ionicons name={cmd.icon as keyof typeof Ionicons.glyphMap} size={20} color="#007AFF" />
               <View style={styles.slashMenuText}>
                 <Text style={styles.slashCommand}>{cmd.command}</Text>
                 <Text style={styles.slashDescription}>{cmd.description}</Text>
