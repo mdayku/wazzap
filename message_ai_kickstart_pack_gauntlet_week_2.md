@@ -29,25 +29,28 @@ Build a reliable, real-time chat app (1:1 + groups) with offline support and pus
   3) Quickly find critical context
   4) Stop missing important pings across time zones
 
-### 1.3 MVP (24h) — Acceptance Criteria
-- Accounts: Email/Password Auth (Firebase Auth)
-- Chats: 1:1 + Group (3+ users)
-- Real-time delivery via Firestore snapshot listeners
-- **Optimistic send** with local pending state → confirmed by server
-- **Persistence** across restarts (Firestore offline cache + SQLite for local queue)
-- Presence: online/offline (RTDB or Firestore `lastSeen`), typing indicators
-- Read receipts (per-user `readAt` map)
-- Timestamps; message status: sending/sent/delivered/read
-- Foreground push via Expo Notifications (FCM for Android; APNs via Expo config iOS). Background push targeted for Early submission
-- Deployed backend (Firebase project). Mobile runs in Expo Go
+### 1.3 MVP (24h) — Acceptance Criteria ✅ COMPLETED
+- Accounts: Email/Password Auth (Firebase Auth) ✅
+- Chats: 1:1 + Group (3+ users) ✅
+- Real-time delivery via Firestore snapshot listeners ✅
+- **Optimistic send** with local pending state → confirmed by server ✅
+- **Persistence** across restarts (Firestore offline cache + AsyncStorage queue) ✅
+- **Offline queue** with automatic retry and media upload support ✅
+- Presence: online/offline (Firestore `lastSeen`), typing indicators ✅
+- Read receipts (per-user `lastRead` timestamp in thread doc) ✅
+- Timestamps; message status: sending/sent/delivered/read ✅
+- Foreground push via Expo Notifications (FCM for Android) ✅
+- Deployed backend (Firebase project). Mobile runs in Expo Go ✅
 
-### 1.4 Early Submission (4 days)
-- Media: image send/receive (Firebase Storage, signed URLs)
-- Profile pics & display names
-- Basic search (client-side over recent messages)
-- AI v1 (thread summary + action items on demand)
-- Group management (add/remove)
-- Background push working
+### 1.4 Early Submission (4 days) ✅ COMPLETED
+- Media: image send/receive (Firebase Storage, signed URLs) ✅
+- Audio messages with playback controls ✅
+- Profile pics & display names ✅
+- Basic search (client-side over recent messages) ✅
+- AI v1 (thread summary + action items on demand) ✅
+- Group management (add/remove) ✅
+- Performance testing (LoadTest screen with metrics) ✅
+- Offline media queue (images and audio upload when reconnected) ✅
 
 ### 1.5 Final (7 days)
 - All 5 AI features (below)

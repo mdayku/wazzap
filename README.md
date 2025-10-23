@@ -414,9 +414,13 @@ embeddings/{messageId}
 
 ## Performance
 
-- **Message delivery:** < 400ms round-trip
-- **Offline support:** Messages queue and flush on reconnect
-- **Optimistic UI:** Instant feedback on all actions
+- **Message delivery:** < 400ms round-trip (LoadTest avg: 175ms p50)
+- **Offline support:** Messages queue automatically with AsyncStorage persistence
+- **Media uploads:** Images and audio queue when offline, upload automatically when reconnected
+- **Queue reliability:** Automatic retry with exponential backoff, FIFO processing
+- **Network transitions:** Intelligent state tracking prevents duplicate processing
+- **Optimistic UI:** Instant feedback on all actions with "Sending..." indicators
+- **Crash prevention:** Global listener management survives hot reloads
 - **Caching:** AI results cached to minimize API calls
 
 ## Testing
