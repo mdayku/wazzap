@@ -6,6 +6,7 @@ import { analyzeThreadContext, submitSuggestionFeedback, dismissSuggestion as di
 import { transcribeAudio, autoTranscribeAudio } from './transcription';
 import { generateImage } from './imageGeneration';
 import { analyzeImage, autoAnalyzeImage } from './vision';
+import { seinfeldAgentResponse, enableSeinfeldMode, disableSeinfeldMode } from './seinfeldAgents';
 
 // Firestore trigger: runs when a new message is created
 export const messageCreated = functions.firestore
@@ -44,3 +45,8 @@ export const generate = generateImage;
 
 // GPT-4 Vision image analysis
 export const analyzeImageContent = functions.https.onCall(analyzeImage);
+
+// Seinfeld Mode - AI agent system
+export const seinfeldAgent = seinfeldAgentResponse;
+export const enableSeinfeld = enableSeinfeldMode;
+export const disableSeinfeld = disableSeinfeldMode;
