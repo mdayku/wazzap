@@ -80,7 +80,7 @@ export default function LoginScreen() {
     }
   };
 
-  const clearAllCredentials = async () => {
+    const _clearAllCredentials = async () => {
     try {
       await AsyncStorage.removeItem(CREDENTIALS_KEY);
       setSavedCredentials([]);
