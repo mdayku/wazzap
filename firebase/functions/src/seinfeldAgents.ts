@@ -153,8 +153,21 @@ async function generateSeinfeldResponse(
   // Get conversation history
   const conversationHistory = await getRecentMessages(threadId);
   
-  // Get relevant quotes from Firestore
-  const relevantQuotes = await getRelevantQuotes(incomingMessage.text || '', character);
+  // Get relevant quotes from Firestore using vector search
+  const { searchSeinfeldQuotes } = await import('./generateSeinfeldEmbeddings');
+  let relevantQuotes: string[] = [];
+  
+  try {
+    relevantQuotes = await searchSeinfeldQuotes(incomingMessage.text || '', character, 3);
+  } catch (error) {
+    console.log('[SEINFELD] Vector search failed, falling back to keyword search');
+    relevantQuotes = await getRelevantQuotes(incomingMessage.text || '', character);
+  }
+  
+  // Fallback to catchphrases if no quotes found
+  if (relevantQuotes.length === 0) {
+    relevantQuotes = CHARACTER_PROFILES[character].catchphrases.slice(0, 2);
+  }
   
   const prompt = `You are ${character} from Seinfeld. Respond naturally and conversationally.
 

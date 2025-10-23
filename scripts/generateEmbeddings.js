@@ -1,139 +1,71 @@
 /**
- * Generate embeddings for messages in a thread
- * This enables semantic search functionality
+ * Generate embeddings for Seinfeld scripts via Cloud Function
+ * Run with: node scripts/generateEmbeddings.js
  */
 
 const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
 
 // Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-
-const db = admin.firestore();
-
-async function generateEmbeddings(threadId, limit = 100) {
-  try {
-    console.log(`\n🔄 Generating embeddings for thread: ${threadId}`);
-    
-    // Fetch messages
-    const messagesSnap = await db
-      .collection(`threads/${threadId}/messages`)
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
-      .get();
-
-    console.log(`📨 Found ${messagesSnap.docs.length} messages`);
-    
-    let generated = 0;
-    let skipped = 0;
-    let errors = 0;
-
-    for (const messageDoc of messagesSnap.docs) {
-      const messageData = messageDoc.data();
-      
-      // Skip messages without text
-      if (!messageData.text || messageData.text.trim().length === 0) {
-        skipped++;
-        continue;
-      }
-
-      // Check if embedding already exists
-      const existingEmbedding = await db.collection('embeddings').doc(messageDoc.id).get();
-      
-      if (existingEmbedding.exists) {
-        console.log(`  ⏭️  Skipping (already exists): ${messageData.text.slice(0, 50)}...`);
-        skipped++;
-        continue;
-      }
-
-      // Generate embedding using OpenAI
-      try {
-        console.log(`  🤖 Generating embedding: ${messageData.text.slice(0, 50)}...`);
-        
-        // Call the OpenAI API directly (you could also use the Cloud Function)
-        const OpenAI = require('openai');
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY || 'your-api-key-here'
-        });
-
-        const response = await openai.embeddings.create({
-          model: 'text-embedding-3-small',
-          input: messageData.text.slice(0, 8000),
-        });
-
-        const vector = response.data[0].embedding;
-
-        // Store in Firestore
-        await db.collection('embeddings').doc(messageDoc.id).set({
-          messageId: messageDoc.id,
-          threadId: threadId,
-          vector: vector,
-          text: messageData.text.slice(0, 500),
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        console.log(`  ✅ Generated embedding for message: ${messageDoc.id}`);
-        generated++;
-        
-        // Small delay to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        console.error(`  ❌ Error generating embedding for message ${messageDoc.id}:`, error.message);
-        errors++;
-      }
-    }
-
-    console.log(`\n✅ Complete!`);
-    console.log(`   Generated: ${generated}`);
-    console.log(`   Skipped: ${skipped}`);
-    console.log(`   Errors: ${errors}`);
-    
-    return { generated, skipped, errors };
-  } catch (error) {
-    console.error('❌ Error:', error);
-    throw error;
-  }
+try {
+  const serviceAccount = require('../firebase-service-account.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+  console.log('✅ Firebase Admin initialized\n');
+} catch (error) {
+  console.error('❌ Error loading service account:', error.message);
+  process.exit(1);
 }
 
-async function main() {
+async function generateEmbeddings() {
   try {
-    // Get all threads
-    console.log('🔍 Fetching all threads...');
-    const threadsSnap = await db.collection('threads').get();
-    
-    console.log(`📋 Found ${threadsSnap.docs.length} threads\n`);
-    
-    let totalGenerated = 0;
-    let totalSkipped = 0;
-    let totalErrors = 0;
+    console.log('🎭 Generating embeddings for Seinfeld scripts...\n');
+    console.log('This will use OpenAI API to create vector embeddings.');
+    console.log('Cost: ~$0.0001 per 1000 tokens (very cheap!)\n');
 
-    for (const threadDoc of threadsSnap.docs) {
-      const threadData = threadDoc.data();
-      const threadName = threadData.name || 'Chat';
-      
-      console.log(`\n📁 Thread: ${threadName} (${threadDoc.id})`);
-      
-      const result = await generateEmbeddings(threadDoc.id, 50);
-      
-      totalGenerated += result.generated;
-      totalSkipped += result.skipped;
-      totalErrors += result.errors;
+    const db = admin.firestore();
+
+    // Count scripts without embeddings
+    const scriptsSnapshot = await db
+      .collection('seinfeldScripts')
+      .get();
+
+    const withoutEmbeddings = scriptsSnapshot.docs.filter(
+      (doc) => !doc.data().embedding
+    );
+
+    console.log(`📊 Status:`);
+    console.log(`  Total scripts: ${scriptsSnapshot.size}`);
+    console.log(`  Without embeddings: ${withoutEmbeddings.length}`);
+    console.log(`  With embeddings: ${scriptsSnapshot.size - withoutEmbeddings.length}\n`);
+
+    if (withoutEmbeddings.length === 0) {
+      console.log('✅ All scripts already have embeddings!');
+      console.log('\n🎯 Next step: Test the agents - they should now use semantic search!');
+      return;
     }
 
-    console.log(`\n\n🎉 All done!`);
-    console.log(`   Total generated: ${totalGenerated}`);
-    console.log(`   Total skipped: ${totalSkipped}`);
-    console.log(`   Total errors: ${totalErrors}`);
+    console.log('📞 Calling Cloud Function to generate embeddings...\n');
     
-    process.exit(0);
+    // Call the Cloud Function
+    // You can trigger this from Firebase Console or from the app
+    console.log('To generate embeddings, run this command:');
+    console.log('\n  firebase functions:shell');
+    console.log('  > generateSeinfeldEmbeddings()');
+    console.log('\nOr call it from your app using the generateSeinfeldEmbeddings service.\n');
+    
+    console.log('For now, the agents will use keyword search as fallback.');
+    console.log('Once embeddings are generated, they will automatically use semantic search!');
+
   } catch (error) {
-    console.error('❌ Fatal error:', error);
+    console.error('❌ Error:', error.message);
     process.exit(1);
   }
 }
 
-// Run the script
-main();
-
+generateEmbeddings()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

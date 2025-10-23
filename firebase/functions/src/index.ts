@@ -51,3 +51,4 @@ export const seinfeldAgent = seinfeldAgentResponse;
 export const enableSeinfeld = enableSeinfeldMode;
 export const disableSeinfeld = disableSeinfeldMode;
 export { createSeinfeldUsers } from './createSeinfeldUsers';
+export { generateSeinfeldEmbeddings } from './generateSeinfeldEmbeddings';
