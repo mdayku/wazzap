@@ -39,7 +39,7 @@ const Timestamp = {
     nanoseconds: 0,
     isEqual: () => false,
     toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0, type: 'timestamp' }),
-  }) as unknown as Timestamp,
+  }) as unknown as typeof Timestamp,
 };
 
 // Helper to render with ThemeProvider

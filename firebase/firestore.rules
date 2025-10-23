@@ -21,6 +21,10 @@ service cloud.firestore {
       allow update: if request.auth != null && 
         request.auth.uid in resource.data.members;
       
+      // Allow deleting if user is a member
+      allow delete: if request.auth != null && 
+        request.auth.uid in resource.data.members;
+      
       // Messages subcollection
       match /messages/{messageId} {
         allow read: if request.auth != null && 

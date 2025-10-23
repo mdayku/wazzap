@@ -200,7 +200,9 @@ export const seinfeldAgentResponse = functions.firestore
     const message = snap.data();
     const threadId = context.params.threadId;
     
-    console.log(`[SEINFELD] New message in thread ${threadId}`);
+    console.log(`[SEINFELD] 🎬 New message in thread ${threadId}`);
+    console.log(`[SEINFELD] Message from: ${message.senderId}`);
+    console.log(`[SEINFELD] Message text: ${message.text?.substring(0, 50)}...`);
     
     // Get thread data
     const threadDoc = await admin.firestore()
@@ -208,21 +210,34 @@ export const seinfeldAgentResponse = functions.firestore
       .doc(threadId)
       .get();
     
+    if (!threadDoc.exists) {
+      console.log(`[SEINFELD] ❌ Thread ${threadId} not found`);
+      return null;
+    }
+    
     const threadData = threadDoc.data();
+    console.log(`[SEINFELD] Thread data:`, {
+      hasSeinfeldMode: !!threadData?.seinfeldMode,
+      enabled: threadData?.seinfeldMode?.enabled,
+      activeCharacters: threadData?.seinfeldMode?.activeCharacters,
+      members: threadData?.members,
+      type: threadData?.type,
+    });
     
     // Check if Seinfeld Mode is enabled
     if (!threadData?.seinfeldMode?.enabled) {
+      console.log(`[SEINFELD] ⏸️  Seinfeld Mode not enabled for thread ${threadId}`);
       return null;
     }
     
     // Don't respond to Seinfeld agents' own messages
     const senderUid = message.senderId;
     if (senderUid.startsWith('seinfeld_')) {
-      console.log(`[SEINFELD] Skipping - message from agent ${senderUid}`);
+      console.log(`[SEINFELD] ⏭️  Skipping - message from agent ${senderUid}`);
       return null;
     }
     
-    console.log(`[SEINFELD] Generating response for thread ${threadId}`);
+    console.log(`[SEINFELD] ✅ Generating response for thread ${threadId}`);
     
     // Get last responder to avoid same character twice
     const recentMessages = await admin.firestore()
@@ -303,19 +318,47 @@ export const enableSeinfeldMode = functions.https.onCall(async (data, context) =
   const characters = activeCharacters || ['Jerry', 'George', 'Elaine', 'Kramer'];
   
   try {
-    await admin.firestore()
-      .collection('threads')
-      .doc(threadId)
-      .update({
-        seinfeldMode: {
-          enabled: true,
-          activeCharacters: characters,
-          enabledAt: admin.firestore.FieldValue.serverTimestamp(),
-          enabledBy: context.auth.uid,
-        },
-      });
+    const threadRef = admin.firestore().collection('threads').doc(threadId);
+    const threadDoc = await threadRef.get();
     
-    console.log(`[SEINFELD] Mode enabled for thread ${threadId}`);
+    if (!threadDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Thread not found');
+    }
+    
+    const threadData = threadDoc.data();
+    const currentMembers = threadData?.members || [];
+    
+    // Add character UIDs to members array (if not already present)
+    const characterUids = characters.map((char: SeinfeldCharacter) => `seinfeld_${char.toLowerCase()}`);
+    const updatedMembers = [...new Set([...currentMembers, ...characterUids])];
+    
+    // If adding characters increases member count beyond 2, convert to group
+    const shouldBeGroup = updatedMembers.length > 2;
+    
+    const updateData: any = {
+      members: updatedMembers,
+      seinfeldMode: {
+        enabled: true,
+        activeCharacters: characters,
+        enabledAt: admin.firestore.FieldValue.serverTimestamp(),
+        enabledBy: context.auth.uid,
+      },
+    };
+    
+    // Convert to group if needed
+    if (shouldBeGroup && threadData?.type !== 'group') {
+      updateData.type = 'group';
+      // Add a default group name if none exists
+      if (!threadData?.name) {
+        updateData.name = `Chat with ${characters.join(', ')}`;
+      }
+    }
+    
+    await threadRef.update(updateData);
+    
+    console.log(`[SEINFELD] Mode enabled for thread ${threadId} with ${characters.length} characters`);
+    console.log(`[SEINFELD] Updated members: ${updatedMembers.join(', ')}`);
+    console.log(`[SEINFELD] Thread type: ${updateData.type || threadData?.type || 'direct'}`);
     
     // Send welcome message from Jerry
     const welcomeRef = admin.firestore()

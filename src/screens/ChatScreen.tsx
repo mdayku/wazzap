@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,7 +41,6 @@ import ProactiveSuggestionPill from '../components/ProactiveSuggestionPill';
 import { generateAIImage } from '../services/imageGeneration';
 import { enableSeinfeldMode, disableSeinfeldMode } from '../services/seinfeldMode';
 import { ALL_CHARACTERS, type SeinfeldCharacter } from '../data/seinfeldCharacters';
-import { setupSeinfeldUsers } from '../services/setupSeinfeldUsers';
 
 export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const { threadId, threadName } = route.params;
@@ -112,24 +111,25 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   }, [threadId]);
 
   // Load Seinfeld Mode status
-  useEffect(() => {
+  // Function to load Seinfeld Mode status
+  const loadSeinfeldMode = useCallback(async () => {
     if (!threadId) return;
     
-    const loadSeinfeldMode = async () => {
-      try {
-        const threadDoc = await getDoc(doc(db, 'threads', threadId));
-        const seinfeldData = threadDoc.data()?.seinfeldMode;
-        if (seinfeldData) {
-          setSeinfeldModeEnabled(seinfeldData.enabled || false);
-          setCharactersInChat(seinfeldData.activeCharacters || []);
-        }
-      } catch (error) {
-        console.error('Error loading Seinfeld Mode:', error);
+    try {
+      const threadDoc = await getDoc(doc(db, 'threads', threadId));
+      const seinfeldData = threadDoc.data()?.seinfeldMode;
+      if (seinfeldData) {
+        setSeinfeldModeEnabled(seinfeldData.enabled || false);
+        setCharactersInChat(seinfeldData.activeCharacters || []);
       }
-    };
-    
-    loadSeinfeldMode();
+    } catch (error) {
+      console.error('Error loading Seinfeld Mode:', error);
+    }
   }, [threadId]);
+
+  useEffect(() => {
+    loadSeinfeldMode();
+  }, [loadSeinfeldMode]);
 
   // Update rate limit when AI menu opens
   useEffect(() => {
@@ -158,18 +158,12 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       // Snapshot fired with messages
       
       const rows = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter((msg: any) => !msg.deletedFor?.[user.uid]) // Filter out messages deleted by this user
+        .map(d => ({ id: d.id, ...d.data() } as Message))
+        .filter((msg: Message) => !msg.deletedFor?.[user.uid]) // Filter out messages deleted by this user
         .reverse(); // Reverse to show oldest first
       
       // Type assertion for messages
-      const typedRows = rows as Message[];
-      
-      // Debug: Log message statuses for sender's messages
-      const myMessages = typedRows.filter((msg: Message) => msg.senderId === user.uid);
-      if (myMessages.length > 0) {
-        console.log(`📨 [STATUS_DEBUG] My messages:`, myMessages.map((m: Message) => ({ id: m.id.slice(0, 8), status: m.status })));
-      }
+      const typedRows = rows;
       
       setMessages(typedRows);
       setLoading(false);
@@ -180,9 +174,9 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       
       // Haptic feedback for new messages from others (not on initial load)
       if (!isInitialLoadRef.current) {
-        const currentMessageIds = new Set(rows.map((m: any) => m.id));
+        const currentMessageIds = new Set(rows.map((m: Message) => m.id));
         const newMessages = rows.filter(
-          (msg: any) => 
+          (msg: Message) => 
             !previousMessageIdsRef.current.has(msg.id) && 
             msg.senderId !== user.uid
         );
@@ -198,11 +192,14 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       if (isInitialLoadRef.current) {
         isInitialLoadRef.current = false;
         // Initialize previousMessageIds on first load
-        previousMessageIdsRef.current = new Set(rows.map((m: any) => m.id));
-        // Use longer timeout and no animation for reliable initial scroll
-        setTimeout(() => {
-          listRef.current?.scrollToEnd({ animated: false });
-        }, 300);
+        previousMessageIdsRef.current = new Set(rows.map((m: Message) => m.id));
+        // Force scroll to bottom on initial load
+        // Use requestAnimationFrame to ensure FlatList has rendered
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            listRef.current?.scrollToEnd({ animated: false });
+          }, 100);
+        });
       }
       
       // Update read receipt tracking (updates lastRead timestamp)
@@ -373,8 +370,15 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                 if (snap.exists()) {
                   const userData = snap.data();
                   setUserCache((prev: any) => ({ ...prev, [otherMember]: userData }));
-                  setPresenceInfo(formatLastSeen(userData.lastSeen));
-                  setIsOnline(isUserOnline(userData.lastSeen));
+                  
+                  // Seinfeld agents are always "online"
+                  if (userData.isSeinfeldAgent) {
+                    setPresenceInfo('online');
+                    setIsOnline(true);
+                  } else {
+                    setPresenceInfo(formatLastSeen(userData.lastSeen));
+                    setIsOnline(isUserOnline(userData.lastSeen));
+                  }
                 }
               });
             }
@@ -716,15 +720,34 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       return;
     }
 
+    console.log('[SEINFELD] Adding characters:', selectedToAdd);
+    console.log('[SEINFELD] Thread ID:', threadId);
+    console.log('[SEINFELD] Current characters in chat:', charactersInChat);
+
     setAddingCharacters(true);
 
     try {
       // Merge with existing characters
       const updatedCharacters = [...new Set([...charactersInChat, ...selectedToAdd])];
+      console.log('[SEINFELD] Updated characters:', updatedCharacters);
       
-      await enableSeinfeldMode(threadId, updatedCharacters);
+      const result = await enableSeinfeldMode(threadId, updatedCharacters);
+      console.log('[SEINFELD] enableSeinfeldMode result:', result);
       
-      setCharactersInChat(updatedCharacters);
+      // Reload thread data to get updated members
+      await loadSeinfeldMode();
+      console.log('[SEINFELD] Reloaded Seinfeld Mode data');
+      
+      // DEBUG: Check what the thread looks like in Firestore
+      const threadDoc = await getDoc(doc(db, 'threads', threadId));
+      const threadData = threadDoc.data();
+      console.log('[SEINFELD] Thread data after update:', {
+        type: threadData?.type,
+        members: threadData?.members,
+        seinfeldMode: threadData?.seinfeldMode,
+        name: threadData?.name,
+      });
+      
       setSelectedToAdd([]);
       
       Toast.show({
@@ -735,12 +758,14 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Error adding characters:', error);
+    } catch (error: any) {
+      console.error('[SEINFELD] Error adding characters:', error);
+      console.error('[SEINFELD] Error details:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', error?.message || 'Failed to add characters. Please try again.');
       Toast.show({
         type: 'error',
         text1: 'Failed to Add Characters',
-        text2: 'Please try again',
+        text2: error?.message || 'Please try again',
         position: 'bottom',
       });
     } finally {
@@ -789,36 +814,6 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       });
     } finally {
       setRemovingCharacters(false);
-    }
-  };
-
-  const handleSetupSeinfeldUsers = async () => {
-    try {
-      Toast.show({
-        type: 'info',
-        text1: 'Setting up Seinfeld characters...',
-        text2: 'Creating user accounts',
-        position: 'bottom',
-      });
-
-      await setupSeinfeldUsers();
-
-      Toast.show({
-        type: 'success',
-        text1: '✅ Characters Ready!',
-        text2: 'Jerry, George, Elaine, and Kramer are now registered users',
-        position: 'bottom',
-      });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Error setting up Seinfeld users:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Setup Failed',
-        text2: 'Please try again',
-        position: 'bottom',
-      });
     }
   };
 
@@ -1245,6 +1240,10 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       {/* Messages */}
       <FlatList
         ref={listRef}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10,
+        }}
         data={[
           ...messages,
           // Add queued messages as optimistic UI
@@ -1973,14 +1972,9 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           <View style={[styles.membersModalContent, { backgroundColor: colors.surface }]} onStartShouldSetResponder={() => true}>
             <View style={[styles.membersModalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.membersModalTitle, { color: colors.text }]}>🎭 Seinfeld Mode</Text>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity onPress={handleSetupSeinfeldUsers}>
-                  <Ionicons name="person-add" size={24} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowSeinfeldModal(false)}>
-                  <Ionicons name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={() => setShowSeinfeldModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
             </View>
             
             <ScrollView style={{ maxHeight: 600 }}>

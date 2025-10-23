@@ -10,13 +10,15 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { useThreads } from '../hooks/useThread';
 import { useAuth } from '../hooks/useAuth';
 import ErrorBoundary from '../components/ErrorBoundary';
 import HydrationBanner from '../components/HydrationBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { db } from '../services/firebase';
+import Toast from 'react-native-toast-message';
+import { Alert } from 'react-native';
 import { formatTimestamp, isUserOnline } from '../utils/time';
 import { registerForPush } from '../services/notifications';
 import { Timestamp } from 'firebase/firestore';
@@ -62,12 +64,17 @@ export default function ThreadsScreen() {
       const unsubscribe = onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists()) {
           const userData = snapshot.data();
+          // Seinfeld agents are always "online"
+          const presence = userData.isSeinfeldAgent 
+            ? { toDate: () => new Date() } // Mock recent timestamp for agents
+            : userData.lastSeen;
+          
           setUserCache(prev => ({
             ...prev,
             [uid]: {
               displayName: userData.displayName || 'User',
               photoURL: userData.photoURL,
-              presence: userData.lastSeen, // Use lastSeen for presence
+              presence, // Use lastSeen for presence (or mocked for agents)
             }
           }));
         }
@@ -146,6 +153,39 @@ export default function ThreadsScreen() {
     );
   };
 
+  const handleDeleteThread = (threadId: string, threadName: string) => {
+    Alert.alert(
+      'Delete Chat',
+      `Are you sure you want to delete "${threadName}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'threads', threadId));
+              Toast.show({
+                type: 'success',
+                text1: 'Chat Deleted',
+                text2: `"${threadName}" has been deleted`,
+                position: 'bottom',
+              });
+            } catch (error) {
+              console.error('Error deleting thread:', error);
+              Toast.show({
+                type: 'error',
+                text1: 'Delete Failed',
+                text2: 'Could not delete chat',
+                position: 'bottom',
+              });
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderThread = ({ item }: any) => {
     const unreadCount = item.unreadCount || 0;
     const hasUnread = unreadCount > 0;
@@ -156,6 +196,7 @@ export default function ThreadsScreen() {
       <TouchableOpacity
         style={[styles.threadItem, { borderBottomColor: colors.border }]}
         onPress={() => (navigation as any).navigate('Chat', { threadId: item.id, threadName: getThreadName(item) })}
+        onLongPress={() => handleDeleteThread(item.id, getThreadName(item))}
       >
         {isGroupChat ? renderGroupAvatars(item) : (
           <>

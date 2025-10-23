@@ -155,7 +155,12 @@ export default function NewChatScreen() {
         setShowGroupNameModal(true);
       } else {
         // 1:1 chat - create immediately
-        await createNewThread(memberIds, undefined, 'direct');
+        // Check if the other user is a Seinfeld agent
+        const otherUserId = memberIds.find(id => id !== user!.uid);
+        const otherUser = users.find(u => u.uid === otherUserId);
+        const isSeinfeldAgent = otherUser?.uid?.startsWith('seinfeld_');
+        
+        await createNewThread(memberIds, undefined, 'direct', isSeinfeldAgent);
       }
     } catch (error) {
       console.error('Error creating chat:', error);
@@ -183,7 +188,7 @@ export default function NewChatScreen() {
     }
   };
 
-  const createNewThread = async (memberIds: string[], groupName?: string, type: 'direct' | 'group' = 'direct') => {
+  const createNewThread = async (memberIds: string[], groupName?: string, type: 'direct' | 'group' = 'direct', isSeinfeldAgent: boolean = false) => {
     try {
       // Initialize lastRead for all members to current time (so they don't see old messages as unread)
       const lastRead: { [key: string]: any } = {};
@@ -203,6 +208,21 @@ export default function NewChatScreen() {
 
       if (groupName) {
         threadData.name = groupName;
+      }
+      
+      // If creating a 1-on-1 chat with a Seinfeld agent, enable Seinfeld Mode
+      if (isSeinfeldAgent) {
+        const agentUid = memberIds.find(id => id.startsWith('seinfeld_'));
+        const characterName = agentUid?.replace('seinfeld_', '').charAt(0).toUpperCase() + agentUid?.replace('seinfeld_', '').slice(1);
+        
+        threadData.seinfeldMode = {
+          enabled: true,
+          activeCharacters: [characterName],
+          enabledAt: serverTimestamp(),
+          enabledBy: user!.uid,
+        };
+        
+        console.log('[SEINFELD] Creating 1-on-1 chat with agent:', characterName);
       }
 
       const threadRef = await addDoc(collection(db, 'threads'), threadData);
