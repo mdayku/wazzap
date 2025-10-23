@@ -35,6 +35,8 @@ import NetInfo from '@react-native-community/netinfo';
 import type { ChatScreenProps, ActionItem, Decision, UserCacheEntry } from './ChatScreen/types';
 import { checkRateLimit, recordAICall } from '../services/aiRateLimiter';
 import { simulateAIStream, SUMMARIZE_STEPS, EXTRACT_STEPS } from '../utils/aiStreamSimulator';
+import { analyzeThreadContext, submitFeedback, dismissSuggestion as dismissSuggestionAPI, type ProactiveSuggestion } from '../services/proactive';
+import ProactiveSuggestionPill from '../components/ProactiveSuggestionPill';
 
 export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const { threadId, threadName } = route.params;
@@ -72,6 +74,8 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [showAIMenu, setShowAIMenu] = useState(false); // AI menu modal
   const [aiCallsRemaining, setAiCallsRemaining] = useState(20); // Track AI rate limit
   const [streamingMessage, setStreamingMessage] = useState(''); // AI streaming simulation
+  const [proactiveSuggestion, setProactiveSuggestion] = useState<any>(null); // Proactive assistant suggestion
+  const [showSuggestionDetail, setShowSuggestionDetail] = useState(false); // Detail modal for suggestion
 
   // Update rate limit when AI menu opens
   useEffect(() => {
@@ -169,6 +173,37 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     
     return unsubscribe;
   }, [threadId]);
+
+  // Proactive Assistant: Analyze thread context after messages change
+  // DISABLED: Uncomment after deploying Firebase functions
+  // useEffect(() => {
+  //   if (!threadId || !user || messages.length === 0) return;
+  //   
+  //   // Debounce: Only trigger after 5 seconds of no new messages
+  //   const timer = setTimeout(async () => {
+  //     try {
+  //       // Check if proactive assistant is enabled for this thread (TODO: add opt-in setting)
+  //       const threadDoc = await getDoc(doc(db, 'threads', threadId));
+  //       const proactiveEnabled = threadDoc.data()?.proactiveEnabled !== false; // Default to true
+  //       
+  //       if (!proactiveEnabled) return;
+  //       
+  //       // Don't show suggestion if there's already one active
+  //       if (proactiveSuggestion && proactiveSuggestion.status === 'active') return;
+  //       
+  //       // Analyze thread context
+  //       const result = await analyzeThreadContext(threadId);
+  //       
+  //       if (result.hasSuggestion) {
+  //         setProactiveSuggestion(result);
+  //       }
+  //     } catch (error) {
+  //       console.error('Error analyzing thread context:', error);
+  //     }
+  //   }, 5000); // 5 second debounce
+  //   
+  //   return () => clearTimeout(timer);
+  // }, [messages, threadId, user, proactiveSuggestion]);
 
   // Fetch user data for all threads (for forward modal)
   useEffect(() => {
@@ -497,7 +532,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     );
     
     try {
-      const result = await summarizeThread(threadId, 50);
+      const result = await summarizeThread(threadId); // Use default limit (30) for speed
       
       // Cancel streaming when we get the real result
       cancelStream();
@@ -764,6 +799,58 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     }
   };
 
+  // Proactive Suggestion Handlers
+  const handleSuggestionPress = () => {
+    setShowSuggestionDetail(true);
+  };
+
+  const handleSuggestionDismiss = async () => {
+    if (!proactiveSuggestion?.suggestionId) return;
+    
+    try {
+      await dismissSuggestionAPI(threadId, proactiveSuggestion.suggestionId);
+      setProactiveSuggestion(null);
+      
+      Toast.show({
+        type: 'info',
+        text1: 'Suggestion Dismissed',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+    } catch (error) {
+      console.error('Error dismissing suggestion:', error);
+    }
+  };
+
+  const handleSuggestionFeedback = async (feedback: 'positive' | 'negative') => {
+    if (!proactiveSuggestion?.suggestionId || !user) return;
+    
+    try {
+      await submitFeedback(threadId, proactiveSuggestion.suggestionId, feedback, user.uid);
+      
+      // Update local state
+      setProactiveSuggestion({
+        ...proactiveSuggestion,
+        feedback,
+      });
+      
+      Toast.show({
+        type: 'success',
+        text1: feedback === 'positive' ? 'Thanks for the feedback!' : 'We\'ll improve',
+        text2: feedback === 'positive' ? 'Glad this was helpful' : 'Your feedback helps us learn',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+      
+      // Dismiss after feedback
+      setTimeout(() => {
+        setProactiveSuggestion(null);
+      }, 2000);
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -917,6 +1004,16 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         </View>
       )}
 
+      {/* Proactive Suggestion Pill */}
+      {proactiveSuggestion && proactiveSuggestion.hasSuggestion && !proactiveSuggestion.feedback && (
+        <ProactiveSuggestionPill
+          suggestion={proactiveSuggestion}
+          onPress={handleSuggestionPress}
+          onDismiss={handleSuggestionDismiss}
+          onFeedback={handleSuggestionFeedback}
+        />
+      )}
+
       {/* Composer */}
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -1053,22 +1150,48 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                 <Text style={styles.aiMenuItemDesc}>Auto-detect urgent messages</Text>
               </TouchableOpacity>
 
-              {/* Proactive Assistant (Coming Soon) */}
+              {/* Proactive Assistant */}
               <TouchableOpacity 
-                style={[styles.aiMenuItem, styles.aiMenuItemDisabled]}
-                onPress={() => {
-                  Alert.alert(
-                    'Coming Soon',
-                    'Proactive Assistant will monitor conversations and suggest actions automatically.',
-                    [{ text: 'OK', style: 'default' }]
-                  );
+                style={styles.aiMenuItem}
+                onPress={async () => {
+                  setShowAIMenu(false);
+                  try {
+                    Toast.show({
+                      type: 'info',
+                      text1: 'Analyzing conversation...',
+                      position: 'bottom',
+                      visibilityTime: 2000,
+                    });
+                    
+                    const result = await analyzeThreadContext(threadId);
+                    
+                    if (result.hasSuggestion) {
+                      setProactiveSuggestion(result);
+                      Toast.show({
+                        type: 'success',
+                        text1: 'Suggestion generated!',
+                        text2: 'Check above the composer',
+                        position: 'bottom',
+                        visibilityTime: 3000,
+                      });
+                    } else {
+                      Alert.alert(
+                        'No Suggestions',
+                        'The AI didn\'t find anything actionable right now. Try having a conversation about scheduling a meeting or asking questions!',
+                        [{ text: 'OK' }]
+                      );
+                    }
+                  } catch (error) {
+                    console.error('Error analyzing context:', error);
+                    Alert.alert('Error', 'Failed to analyze conversation. Make sure Firebase functions are deployed.');
+                  }
                 }}
               >
-                <View style={[styles.aiMenuIcon, { backgroundColor: '#ECEFF1' }]}>
-                  <Ionicons name="bulb-outline" size={32} color="#607D8B" />
+                <View style={[styles.aiMenuIcon, { backgroundColor: '#FFF9C4' }]}>
+                  <Ionicons name="bulb-outline" size={32} color="#FBC02D" />
                 </View>
                 <Text style={styles.aiMenuItemTitle}>Proactive AI</Text>
-                <Text style={styles.aiMenuItemDesc}>Coming soon...</Text>
+                <Text style={styles.aiMenuItemDesc}>Get smart suggestions</Text>
               </TouchableOpacity>
             </View>
 

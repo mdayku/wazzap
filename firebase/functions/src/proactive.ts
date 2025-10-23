@@ -18,10 +18,11 @@ function getOpenAI() {
 }
 
 /**
- * Proactive Assistant: Detects scheduling intent and suggests times
- * Can be triggered on message create or called manually
+ * Proactive Assistant: Analyzes conversation and generates contextual suggestions
+ * Supports multi-modal input (text, audio transcripts, image analysis)
+ * Uses RAG for historical context and learns from user feedback
  */
-export const detectSchedulingIntent = async (data: any, context: any) => {
+export const analyzeThreadContext = async (data: any, context: any) => {
   const openai = getOpenAI();
   const { threadId, limit = 20 } = data || {};
 
@@ -51,72 +52,98 @@ export const detectSchedulingIntent = async (data: any, context: any) => {
       return { hasIntent: false };
     }
 
-    // RAG: Get relevant historical context for scheduling
+    // RAG: Get relevant historical context
     let contextSection = '';
     try {
       const relevantMessages = await getRelevantContext(
-        'schedule meeting availability calendar time',
+        'important context decisions actions questions',
         threadId,
-        3
+        5
       );
       
       if (relevantMessages.length > 0) {
-        contextSection = '\n\nRelevant historical context:\n' + 
+        contextSection = '\n\nHistorical Context:\n' + 
           relevantMessages.map(m => `- ${m.text}`).join('\n');
       }
     } catch (error) {
       console.error('Error fetching RAG context:', error);
-      // Continue without context if it fails
+    }
+
+    // Fetch user feedback history to learn preferences
+    let feedbackContext = '';
+    try {
+      const feedbackSnap = await db
+        .collection(`threads/${threadId}/suggestions`)
+        .where('feedback', '!=', null)
+        .orderBy('feedback', 'desc')
+        .limit(10)
+        .get();
+      
+      if (!feedbackSnap.empty) {
+        const positiveSuggestions = feedbackSnap.docs
+          .filter(d => d.data().feedback === 'positive')
+          .map(d => d.data().type);
+        
+        if (positiveSuggestions.length > 0) {
+          feedbackContext = `\n\nUser Preferences (based on past feedback): Users in this thread liked suggestions about: ${[...new Set(positiveSuggestions)].join(', ')}`;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
     }
 
     const conversationText = JSON.stringify(messages).slice(0, 4000);
 
-    // Prompt to detect scheduling intent
-    const prompt = `Analyze this conversation to detect if there's a scheduling or meeting intent.
+    // Enhanced prompt for multi-purpose proactive suggestions
+    const prompt = `You are a proactive AI assistant analyzing a team conversation. Generate helpful, contextual suggestions.
 
-Look for:
-- Explicit requests to schedule, meet, sync, have a call
-- Date/time mentions or questions about availability
-- Need for coordination between people
+Analyze for:
+1. **Scheduling needs** - meetings, calls, syncs
+2. **Unanswered questions** - questions that need follow-up
+3. **Action items** - tasks that need assignment or tracking
+4. **Draft messages** - helpful replies based on context
+5. **Information gaps** - missing context that could help the discussion
+6. **Decision points** - moments where a decision is needed
 
-If scheduling intent is detected, extract:
-- participants: who needs to meet
-- constraints: any time constraints, preferences, or blockers mentioned
-- urgency: is this urgent or flexible
-- suggestedTimes: based on context, suggest 2-3 specific time options (with day of week and time)
-
-Return JSON:
+Return JSON with the MOST helpful suggestion:
 {
-  "hasIntent": true/false,
-  "participants": ["person1", "person2"],
-  "constraints": ["constraint1", "constraint2"],
-  "urgency": "high/medium/low",
-  "suggestedTimes": ["Tuesday at 2pm EST", "Wednesday at 10am EST", "Thursday at 3pm EST"],
-  "reasoning": "brief explanation"
-}${contextSection}
+  "hasSuggestion": true/false,
+  "type": "schedule|question_followup|action_reminder|draft_message|info_gap|decision_prompt",
+  "priority": "high|medium|low",
+  "title": "Short title for the suggestion",
+  "description": "What the assistant noticed",
+  "action": "Specific suggested action or draft text",
+  "reasoning": "Why this suggestion is helpful"
+}${contextSection}${feedbackContext}
 
-Conversation:
+Recent Conversation:
 ${conversationText}`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
-      temperature: 0.3,
-      max_tokens: 300,
+      temperature: 0.4,
+      max_tokens: 400,
     });
 
     const result = JSON.parse(
-      response.choices[0].message?.content ?? '{"hasIntent":false}'
+      response.choices[0].message?.content ?? '{"hasSuggestion":false}'
     );
 
-    if (result.hasIntent) {
-      // Store the suggestion
-      await db.collection(`threads/${threadId}/suggestions`).add({
-        type: 'meeting_scheduler',
+    if (result.hasSuggestion) {
+      // Store the suggestion for display in UI
+      const suggestionRef = await db.collection(`threads/${threadId}/suggestions`).add({
         ...result,
+        status: 'active', // active, dismissed, accepted
+        feedback: null, // null, 'positive', 'negative'
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+      
+      return {
+        ...result,
+        suggestionId: suggestionRef.id,
+      };
     }
 
     return result;
@@ -127,7 +154,56 @@ ${conversationText}`;
 };
 
 /**
+ * Submit feedback on a proactive suggestion
+ * Helps the AI learn what suggestions are helpful
+ */
+export const submitSuggestionFeedback = async (data: any, context: any) => {
+  const { threadId, suggestionId, feedback, userId } = data || {};
+
+  if (!threadId || !suggestionId || !feedback) {
+    throw new Error('threadId, suggestionId, and feedback are required');
+  }
+
+  try {
+    await db.collection(`threads/${threadId}/suggestions`).doc(suggestionId).update({
+      feedback, // 'positive' or 'negative'
+      feedbackBy: userId,
+      feedbackAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    throw new Error('Failed to submit feedback');
+  }
+};
+
+/**
+ * Dismiss a proactive suggestion
+ */
+export const dismissSuggestion = async (data: any, context: any) => {
+  const { threadId, suggestionId } = data || {};
+
+  if (!threadId || !suggestionId) {
+    throw new Error('threadId and suggestionId are required');
+  }
+
+  try {
+    await db.collection(`threads/${threadId}/suggestions`).doc(suggestionId).update({
+      status: 'dismissed',
+      dismissedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error dismissing suggestion:', error);
+    throw new Error('Failed to dismiss suggestion');
+  }
+};
+
+/**
  * Generate meeting time suggestions based on constraints
+ * (Legacy function - kept for backwards compatibility)
  */
 export const suggestMeetingTimes = async (data: any, context: any) => {
   const openai = getOpenAI();

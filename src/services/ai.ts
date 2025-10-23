@@ -19,7 +19,7 @@ export interface ExtractResult {
   }>;
 }
 
-export async function summarizeThread(threadId: string, limit: number = 50): Promise<SummaryResult> {
+export async function summarizeThread(threadId: string, limit: number = 30): Promise<SummaryResult> {
   try {
     const summarize = httpsCallable(functions, 'summarize');
     const result = await summarize({ threadId, limit });
@@ -30,7 +30,7 @@ export async function summarizeThread(threadId: string, limit: number = 50): Pro
   }
 }
 
-export async function extractAI(threadId: string, limit: number = 50): Promise<ExtractResult> {
+export async function extractAI(threadId: string, limit: number = 30): Promise<ExtractResult> {
   try {
     const extract = httpsCallable(functions, 'extract');
     const result = await extract({ threadId, limit });

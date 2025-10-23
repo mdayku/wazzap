@@ -19,7 +19,7 @@ function getOpenAI() {
 
 export const summarizeThread = async (data: any, context: any) => {
   const openai = getOpenAI();
-  const { threadId, limit = 50 } = data || {};
+  const { threadId, limit = 30, useRAG = false } = data || {}; // Reduced from 50 for faster processing
   
   if (!threadId) {
     throw new Error('threadId is required');
@@ -76,33 +76,29 @@ export const summarizeThread = async (data: any, context: any) => {
       timestamp: m.timestamp,
     }));
 
-    // RAG: Get relevant historical context
+    // RAG: Get relevant historical context (optional for speed)
     let contextSection = '';
-    try {
-      const relevantMessages = await getRelevantContext(
-        'conversation summary key topics decisions',
-        threadId,
-        5
-      );
-      
-      if (relevantMessages.length > 0) {
-        contextSection = '\n\nRelevant historical context:\n' + 
-          relevantMessages.map(m => `- ${m.text}`).join('\n');
+    if (useRAG) {
+      try {
+        const relevantMessages = await getRelevantContext(
+          'conversation summary key topics decisions',
+          threadId,
+          5
+        );
+        
+        if (relevantMessages.length > 0) {
+          contextSection = '\n\nRelevant historical context:\n' + 
+            relevantMessages.map(m => `- ${m.text}`).join('\n');
+        }
+      } catch (error) {
+        console.error('Error fetching RAG context:', error);
+        // Continue without context if it fails
       }
-    } catch (error) {
-      console.error('Error fetching RAG context:', error);
-      // Continue without context if it fails
     }
 
     // Create prompt for summarization (using messages with display names)
-    const messagesText = JSON.stringify(msgsWithNames).slice(0, 6000);
-    const prompt = `Summarize the following conversation for a remote team. Include:
-- Key discussion points
-- Important decisions made
-- Action items with assignees if mentioned
-- Any blockers or concerns raised
-
-Keep the summary concise but informative.${contextSection}
+    const messagesText = JSON.stringify(msgsWithNames).slice(0, 4000); // Reduced for speed
+    const prompt = `Summarize this team conversation. Include key points, decisions, action items, and blockers.${contextSection}
 
 Messages:
 ${messagesText}`;
@@ -141,7 +137,7 @@ ${messagesText}`;
 
 export const extractAI = async (data: any, context: any) => {
   const openai = getOpenAI();
-  const { threadId, limit = 50 } = data || {};
+  const { threadId, limit = 30, useRAG = false } = data || {}; // Reduced from 50 for faster processing
   
   if (!threadId) {
     throw new Error('threadId is required');
@@ -198,43 +194,29 @@ export const extractAI = async (data: any, context: any) => {
       timestamp: m.timestamp,
     }));
 
-    // RAG: Get relevant historical context for actions/decisions
+    // RAG: Get relevant historical context for actions/decisions (optional for speed)
     let contextSection = '';
-    try {
-      const relevantMessages = await getRelevantContext(
-        'action items decisions tasks assignments commitments',
-        threadId,
-        5
-      );
-      
-      if (relevantMessages.length > 0) {
-        contextSection = '\n\nRelevant historical context (for reference):\n' + 
-          relevantMessages.map(m => `- ${m.text}`).join('\n');
+    if (useRAG) {
+      try {
+        const relevantMessages = await getRelevantContext(
+          'action items decisions tasks assignments commitments',
+          threadId,
+          5
+        );
+        
+        if (relevantMessages.length > 0) {
+          contextSection = '\n\nRelevant historical context (for reference):\n' + 
+            relevantMessages.map(m => `- ${m.text}`).join('\n');
+        }
+      } catch (error) {
+        console.error('Error fetching RAG context:', error);
+        // Continue without context if it fails
       }
-    } catch (error) {
-      console.error('Error fetching RAG context:', error);
-      // Continue without context if it fails
     }
 
     // Create prompt for extraction (using messages with display names)
-    const messagesText = JSON.stringify(msgsWithNames).slice(0, 6000);
-    const prompt = `Extract action items and decisions from this conversation.
-
-For action items, identify:
-- task: what needs to be done
-- assignee: who is responsible (if mentioned)
-- due: when it's due (if mentioned)
-
-For decisions, identify:
-- summary: what was decided
-- owner: who made or owns the decision (if clear)
-- decidedAt: approximate context
-
-Return JSON with this structure:
-{
-  "actionItems": [{"task": "...", "assignee": "...", "due": "..."}],
-  "decisions": [{"summary": "...", "owner": "..."}]
-}${contextSection}
+    const messagesText = JSON.stringify(msgsWithNames).slice(0, 4000); // Reduced for speed
+    const prompt = `Extract action items (task, assignee, due) and decisions (summary, owner) from this conversation. Return JSON: {"actionItems": [...], "decisions": [...]}${contextSection}
 
 Messages:
 ${messagesText}`;

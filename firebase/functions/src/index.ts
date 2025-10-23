@@ -2,7 +2,7 @@ import * as functions from 'firebase-functions';
 import { onMessageCreate } from './priority';
 import { summarizeThread, extractAI } from './summary';
 import { semanticSearch, batchGenerateEmbeddings } from './embeddings';
-import { detectSchedulingIntent, suggestMeetingTimes } from './proactive';
+import { analyzeThreadContext, submitSuggestionFeedback, dismissSuggestion as dismissSuggestionHandler, suggestMeetingTimes } from './proactive';
 
 // Firestore trigger: runs when a new message is created
 export const messageCreated = functions.firestore
@@ -18,6 +18,8 @@ export const search = functions.https.onCall(semanticSearch);
 export const generateEmbeddings = functions.https.onCall(batchGenerateEmbeddings);
 
 // Proactive assistant
-export const detectScheduling = functions.https.onCall(detectSchedulingIntent);
-export const suggestTimes = functions.https.onCall(suggestMeetingTimes);
+export const analyzeContext = functions.https.onCall(analyzeThreadContext);
+export const suggestionFeedback = functions.https.onCall(submitSuggestionFeedback);
+export const dismissSuggestion = functions.https.onCall(dismissSuggestionHandler);
+export const suggestTimes = functions.https.onCall(suggestMeetingTimes); // Legacy
 
