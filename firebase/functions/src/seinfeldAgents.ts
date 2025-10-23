@@ -347,8 +347,11 @@ export const seinfeldAgentResponse = functions.firestore
       .collection('threads')
       .doc(threadId)
       .update({
-        lastMessage: responseText,
-        lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
+        lastMessage: {
+          text: responseText,
+          senderId: responderProfile.uid,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     
