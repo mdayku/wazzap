@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import * as functions from 'firebase-functions';
 
 // Lazy-load OpenAI client to avoid initialization errors during deployment
@@ -69,10 +69,12 @@ export const transcribeAudio = async (data: any, context: any) => {
     }
     
     const audioBuffer = await response.arrayBuffer();
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/m4a' });
     
-    // Create a File object for OpenAI API
-    const audioFile = new File([audioBlob], `audio_${messageId}.m4a`, { type: 'audio/m4a' });
+    // Convert ArrayBuffer to Buffer for Node.js
+    const buffer = Buffer.from(audioBuffer);
+    
+    // Use OpenAI's toFile helper to create a proper file object
+    const audioFile = await toFile(buffer, `audio_${messageId}.m4a`, { type: 'audio/m4a' });
     
     // Call Whisper API
     const transcriptionStart = Date.now();
@@ -153,8 +155,12 @@ export const autoTranscribeAudio = async (
     }
     
     const audioBuffer = await response.arrayBuffer();
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/m4a' });
-    const audioFile = new File([audioBlob], `audio_${messageId}.m4a`, { type: 'audio/m4a' });
+    
+    // Convert ArrayBuffer to Buffer for Node.js
+    const buffer = Buffer.from(audioBuffer);
+    
+    // Use OpenAI's toFile helper to create a proper file object
+    const audioFile = await toFile(buffer, `audio_${messageId}.m4a`, { type: 'audio/m4a' });
     
     // Call Whisper API
     const openai = getOpenAIClient();
