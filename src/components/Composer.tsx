@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Text, Alert, Pressable } from 'react-native';
-import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,15 +26,39 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const recordingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const loadDraft = useCallback(async () => {
+    try {
+      const draft = await AsyncStorage.getItem(getDraftKey());
+      if (draft) {
+        setText(draft);
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+    }
+  }, [threadId, uid]);
+
+  const saveDraft = useCallback(async (draftText: string) => {
+    try {
+      if (draftText.trim()) {
+        await AsyncStorage.setItem(getDraftKey(), draftText);
+      } else {
+        // Clear draft if text is empty
+        await AsyncStorage.removeItem(getDraftKey());
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    }
+  }, [threadId, uid]);
+
   // Load draft message when component mounts
   useEffect(() => {
     loadDraft();
-  }, [threadId]);
+  }, [loadDraft]);
 
   // Save draft whenever text changes
   useEffect(() => {
     saveDraft(text);
-  }, [text, threadId]);
+  }, [text, saveDraft]);
 
   useEffect(() => {
     // Cleanup timeout on unmount
@@ -193,6 +216,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       
       if (!isOnline) {
         // Offline - queue immediately with local URI
+        // eslint-disable-next-line no-console
         console.log('📴 [COMPOSER] Offline, queueing image with local URI');
         await sendMessageOptimistic(
           { 
@@ -224,8 +248,9 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
             }, 
             uid
           );
-        } catch (uploadError: any) {
+        } catch (uploadError: unknown) {
           // Upload failed - queue with local URI for later upload
+          // eslint-disable-next-line no-console
           console.log('📴 [COMPOSER] Image upload failed, queueing with local URI');
           await sendMessageOptimistic(
             { 
@@ -356,6 +381,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
       
       if (!isOnline) {
         // Offline - queue immediately with local URI
+        // eslint-disable-next-line no-console
         console.log('📴 [COMPOSER] Offline, queueing audio with local URI');
         await sendMessageOptimistic(
           {
@@ -388,8 +414,9 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
             },
             uid
           );
-        } catch (uploadError: any) {
+        } catch (uploadError: unknown) {
           // Upload failed - queue with local URI for later upload
+          // eslint-disable-next-line no-console
           console.log('📴 [COMPOSER] Audio upload failed, queueing with local URI');
           await sendMessageOptimistic(
             {

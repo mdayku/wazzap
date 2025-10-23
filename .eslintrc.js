@@ -21,6 +21,16 @@ module.exports = {
     'no-debugger': 'error',
     'prefer-const': 'warn',
   },
+  overrides: [
+    {
+      // Test files can use require() for dynamic imports
+      files: ['**/__tests__/**/*', '**/*.test.ts', '**/*.test.tsx'],
+      rules: {
+        '@typescript-eslint/no-var-requires': 'off',
+        'no-console': 'off',
+      },
+    },
+  ],
   ignorePatterns: [
     'node_modules/',
     '.expo/',
