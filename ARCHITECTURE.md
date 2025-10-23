@@ -1,8 +1,8 @@
 # 🏗️ MessageAI - Complete Technical Architecture
 
 **Last Updated:** October 23, 2025  
-**System Complexity:** Advanced Multi-Layer RAG with Cross-Chat Context  
-**Status:** Production-Ready MVP with 6/6 AI Features
+**System Complexity:** Advanced Multi-Layer RAG with Cross-Chat Context + Multi-Modal AI  
+**Status:** Production-Ready MVP with 7/7 AI Features + Voice Transcription + Image Generation
 
 ---
 
@@ -17,6 +17,8 @@ flowchart TD
     A -->|AI Features| F[Cloud Functions]
     F -->|LLM Calls| G[(OpenAI GPT-4o-mini)]
     F -->|Embeddings| H[(OpenAI text-embedding-3-small)]
+    F -->|Image Generation| I[(OpenAI DALL-E 3)]
+    F -->|Voice Transcription| J[(OpenAI Whisper-1)]
     C -->|Triggers on create| F
     
     subgraph "Advanced AI Features"
@@ -24,6 +26,8 @@ flowchart TD
         K -->|Cross-Chat Context| C
         F -->|Proactive AI| L[Multi-Layer Context Analysis]
         L -->|Feedback Learning| C
+        F -->|Multi-Modal| M[Voice + Image + Text]
+        M -->|Transcriptions| C
     end
 ```
 
@@ -349,6 +353,115 @@ User sees animated pill above composer:
 - ✅ Dismiss button (X)
 - ✅ Opt-in toggle in thread settings (iOS-style switch)
 - ✅ Manual trigger in AI menu
+- ✅ Expandable modal for long suggestions with scrollable content
+
+---
+
+### Feature 7: AI Image Generation
+
+```
+User types /generate or clicks "Generate Image" in AI menu
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ Function: generate (firebase/functions/src/imageGeneration.ts)   │
+└──────────────────────────────────────────────────────────────────┘
+       │
+       ├─► Validate prompt (non-empty)
+       │
+       ├─► Call OpenAI DALL-E 3 API
+       │   ├─► Model: dall-e-3
+       │   ├─► Size: 1024x1024 (default)
+       │   ├─► Quality: standard
+       │   └─► Returns: {imageUrl, revisedPrompt}
+       │
+       ├─► Return image URL to client
+       │
+       └─► Client downloads and uploads to Firebase Storage
+           └─► Sends as regular message with media type "image"
+```
+
+**Client-Side UX:**
+- ✅ Slash command: `/generate <prompt>`
+- ✅ Modal with prompt input and loading state
+- ✅ Toast notifications (Generating → Uploading → Complete)
+- ✅ Rate limiting (counts toward 20 calls/10 min)
+- ✅ Generated images preserve aspect ratio with max 300x300 dimensions
+- ✅ Full-screen viewer with zoom/pan/save/share
+
+---
+
+### Bonus Feature: Voice Message Transcription
+
+```
+User sends voice message → Firestore trigger
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│ Trigger: audioMessageCreated (firebase/functions/src/transcription.ts) │
+└──────────────────────────────────────────────────────────────────┘
+       │
+       ├─► Download audio file from Firebase Storage
+       │
+       ├─► Call OpenAI Whisper API
+       │   ├─► Model: whisper-1
+       │   ├─► Language: auto-detect
+       │   └─► Returns: {text: "transcription"}
+       │
+       ├─► Update message document
+       │   └─► Add transcription field: {text, createdAt}
+       │
+       └─► Generate embedding for transcription
+           └─► Makes voice messages searchable via semantic search!
+
+Manual transcription also available:
+   └─► User taps text icon on audio message
+       └─► Calls transcribe() Cloud Function
+           └─► Same flow as automatic
+```
+
+**Client-Side UX:**
+- ✅ Automatic transcription for all NEW voice messages
+- ✅ Manual transcription button (text icon) for existing messages
+- ✅ Inline transcription display below audio player
+- ✅ Loading spinner during transcription
+- ✅ Transcriptions indexed in RAG for semantic search
+- ✅ Transcriptions included in summaries and action items
+
+---
+
+### Bonus Feature: Advanced Image Handling
+
+**Full-Screen Image Viewer:**
+- ✅ Tap any image to open full-screen viewer
+- ✅ Pinch-to-zoom and pan gestures
+- ✅ Save to device gallery (with permissions)
+- ✅ Share via native share sheet
+- ✅ Close button to return to chat
+
+**Image Preview Modal:**
+- ✅ Review images before sending
+- ✅ Add caption for all images
+- ✅ User-controlled compression (High/Medium/Low)
+- ✅ File size display for each quality level
+- ✅ Cancel or Send actions
+
+**Multi-Image Selection:**
+- ✅ Select up to 10 images at once
+- ✅ Horizontal gallery preview
+- ✅ Single caption for all images
+- ✅ Batch upload with progress tracking
+
+**Camera Integration:**
+- ✅ Take photos directly in-app
+- ✅ Instant preview before sending
+- ✅ Same compression options as gallery
+
+**Location Sharing:**
+- ✅ Send current location with one tap
+- ✅ Reverse geocoding for address
+- ✅ Google/Apple Maps integration
+- ✅ Display: map link + address + coordinates
 
 ---
 
@@ -435,7 +548,8 @@ erDiagram
         string id PK
         string senderId FK
         string text
-        object media "imageUrl, audioUrl, etc"
+        object media "type, url, width, height, duration, latitude, longitude, address"
+        object transcription "text, createdAt (for audio messages)"
         string status "sending/sent/delivered/read"
         string priority "normal/high"
         object reactions "userId: emoji"
@@ -762,9 +876,13 @@ flowchart TD
 | **Database** | Firestore | Real-time NoSQL database |
 | **Storage** | Firebase Storage | Media file storage |
 | **Functions** | Firebase Cloud Functions (Node 20) | Serverless backend |
-| **AI/ML** | OpenAI GPT-4o-mini | Text generation |
+| **AI Text** | OpenAI GPT-4o-mini | Text generation & classification |
+| **AI Images** | OpenAI DALL-E 3 | Image generation from prompts |
+| **AI Voice** | OpenAI Whisper-1 | Voice message transcription |
 | **Embeddings** | OpenAI text-embedding-3-small | Vector search (1536-dim) |
 | **Push** | Expo Push Notifications | Foreground notifications |
+| **Media** | expo-image-picker, expo-av, expo-location | Camera, audio, location |
+| **Image Viewing** | react-native-image-viewing, expo-media-library | Full-screen viewer, save/share |
 | **Testing** | Jest + React Native Testing Library | Unit tests |
 | **CI/CD** | GitHub Actions | Lint, typecheck, build |
 | **Linting** | ESLint + TypeScript | Code quality |
@@ -801,15 +919,31 @@ flowchart TD
 **Approach:** Progressive loading messages (🔍→📊→🤖→✨→📝).  
 **Benefit:** Makes 2-4 second waits feel faster.
 
-### 8. **Offline Queue with Media**
+### 8. **Voice Transcription Strategy**
+**Approach:** Automatic transcription via Firestore trigger + manual on-demand.  
+**Benefit:** All new voice messages searchable, old messages transcribable on request.
+
+### 9. **Multi-Modal AI Integration**
+**Approach:** Voice transcriptions indexed in RAG, included in summaries/actions.  
+**Benefit:** AI features work across text, voice, and image content.
+
+### 10. **Image Handling Philosophy**
+**Approach:** User-controlled compression, multi-select, preview before send.  
+**Benefit:** Balance between quality and performance, user has full control.
+
+### 11. **Location Sharing**
+**Approach:** Reverse geocoding for human-readable addresses + map links.  
+**Benefit:** Users get context (address) not just coordinates.
+
+### 12. **Offline Queue with Media**
 **Approach:** AsyncStorage queue with retry logic, supports images/audio.  
 **Benefit:** Messages never lost, even with force-quit.
 
-### 9. **Slash Commands**
+### 13. **Slash Commands**
 **Approach:** Text input parsing with autocomplete menu.  
 **Benefit:** Power users can trigger AI features instantly.
 
-### 10. **Feedback Learning**
+### 14. **Feedback Learning**
 **Approach:** Thumbs up/down on suggestions, stored in Firestore.  
 **Benefit:** AI improves over time based on user preferences.
 
