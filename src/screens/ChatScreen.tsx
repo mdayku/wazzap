@@ -157,9 +157,22 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       ),
       (snapshot) => {
         const suggestions = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .map(doc => {
+            const data = doc.data();
+            return { 
+              id: doc.id, 
+              summary: data.summary || '',
+              description: data.description,
+              location: data.location,
+              startTime: data.startTime || '',
+              endTime: data.endTime || '',
+              attendees: data.attendees,
+              confidence: data.confidence,
+              status: data.status || 'pending'
+            } as CalendarSuggestion;
+          })
           .filter((s) => s.status === 'pending'); // Only show pending suggestions
-        setCalendarSuggestions(suggestions as CalendarSuggestion[]);
+        setCalendarSuggestions(suggestions);
       }
     );
 
