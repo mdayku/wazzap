@@ -557,12 +557,16 @@ wazzap/
 - 🔴 Semantic search (deployed, partial UI)
 - 🔴 Proactive scheduler (deployed, minimal UI)
 
-### Bonus Features (Not Started)
-- ❌ Voice messages
-- ❌ Message reactions
-- ❌ Dark mode
-- ❌ Accessibility features
-- ❌ Rich media previews
+### Bonus Features (Completed)
+- ✅ Voice messages (with transcription)
+- ✅ Message reactions (10 emoji reactions)
+- ✅ Dark mode (with theme toggle)
+- ✅ Rich media previews (images, audio, location)
+
+### Future Features (Planned)
+- 🌍 **Multilingual Translation** (see detailed plan below)
+- ❌ Accessibility features (screen reader support)
+- ❌ Advanced rich media (video, documents)
 
 ---
 
@@ -751,6 +755,246 @@ You're missing:
 **Don't do them and you'll have an F.**
 
 **It's that simple.** 🎯
+
+---
+
+## 🌍 MULTILINGUAL TRANSLATION FEATURE (PLANNED)
+
+### Overview
+
+Add a "Preferred Language" setting that translates the entire app and all messages in real-time, including voice transcriptions. This feature enables global teams to communicate seamlessly across language barriers.
+
+### User Experience
+
+**User Flow:**
+1. User opens Profile → Settings
+2. Selects "Preferred Language" from 100+ languages
+3. App immediately:
+   - Translates all UI text to selected language
+   - Translates all message bubbles in real-time
+   - Shows original language on tap/long-press
+   - Translates voice transcriptions
+   - Translates AI responses
+
+**Example:**
+```
+Original (English): "Let's meet tomorrow at 2pm"
+Translated (Spanish): "Nos vemos mañana a las 2pm"
+[Tap to see original]
+```
+
+### Technical Architecture
+
+#### 1. User Profile Enhancement
+
+**Firestore: `users/{userId}`**
+```typescript
+{
+  uid: string;
+  email: string;
+  displayName: string;
+  preferredLanguage: string; // ISO 639-1 code (e.g., 'es', 'fr', 'ja')
+  // ... existing fields
+}
+```
+
+#### 2. Message Schema Enhancement
+
+**Firestore: `threads/{threadId}/messages/{messageId}`**
+```typescript
+{
+  id: string;
+  text: string; // Original text
+  translations?: {
+    [languageCode: string]: string; // Cached translations
+  };
+  detectedLanguage?: string; // Auto-detected source language
+  media?: {
+    transcription?: string; // Original transcription
+    transcriptionTranslations?: {
+      [languageCode: string]: string; // Translated transcriptions
+    };
+  };
+}
+```
+
+#### 3. Translation Service
+
+**Client-Side: `src/services/translation.ts`**
+- `translateText()` - Translate single message using GPT-4o-mini
+- `batchTranslate()` - Translate multiple messages efficiently
+- `detectLanguage()` - Auto-detect source language
+
+**Server-Side: `firebase/functions/src/translation.ts`**
+- Cloud Function triggered on message creation
+- Automatically translates to all participant languages
+- Caches translations in Firestore for instant retrieval
+
+#### 4. UI Components
+
+**Language Selector:**
+- Modal with 100+ languages
+- Search/filter by language name
+- Shows native name (e.g., "Español" for Spanish)
+
+**Translated Message Bubble:**
+- Shows translated text by default
+- "🌍 Translated" badge when viewing translation
+- Long-press to toggle original/translated
+- Smooth animation between states
+
+**UI Localization:**
+- All app strings translated (buttons, labels, placeholders)
+- RTL support for Arabic, Hebrew, etc.
+- Number/date formatting per locale
+
+### Supported Languages
+
+**100+ languages including:**
+- European: English, Spanish, French, German, Italian, Portuguese, Russian
+- Asian: Chinese, Japanese, Korean, Hindi, Arabic, Thai, Vietnamese
+- Others: Turkish, Polish, Dutch, Swedish, Norwegian, Finnish, Greek
+- And 80+ more via ISO 639-1 standard
+
+### Implementation Phases
+
+**Phase 1: Basic Infrastructure (2-3 hours)**
+- Add `preferredLanguage` field to user schema
+- Create `LanguageSelector` component
+- Add language setting to Profile screen
+- Store selection in Firestore
+
+**Phase 2: Message Translation (3-4 hours)**
+- Create `translation.ts` service
+- Implement `translateText()` function
+- Add `translations` field to message schema
+- Create Cloud Function for auto-translation
+- Update `MessageBubble` to show translations
+
+**Phase 3: Voice Translation (2-3 hours)**
+- Extend translation to voice transcriptions
+- Update `transcription.ts` Cloud Function
+- Translate transcriptions on creation
+- Show translated transcriptions in UI
+
+**Phase 4: UI Localization (4-6 hours)**
+- Create translation dictionary for 100+ languages
+- Implement `i18n` system
+- Translate all UI strings
+- Test RTL languages (Arabic, Hebrew)
+
+**Phase 5: Performance Optimization (2-3 hours)**
+- Cache translations in Firestore
+- Batch translation requests
+- Add loading states
+- Implement translation toggle (show original)
+
+**Total Estimated Time: 15-20 hours**
+
+### Cost Analysis
+
+**Translation Costs (GPT-4o-mini):**
+
+| Usage | Cost per 1K Messages | Monthly (1K users) |
+|-------|---------------------|-------------------|
+| Message Translation | $0.15 | ~$150 |
+| Voice Transcription Translation | $0.10 | ~$100 |
+| UI Localization | $0 (static) | $0 |
+| **Total** | ~$0.25/1K | ~$250/month |
+
+**Optimization Strategies:**
+- Cache translations in Firestore (translate once, serve many)
+- Only translate when recipient's language differs from sender
+- Batch translate old messages on language change
+- Use Google Translate API as cheaper alternative ($20/1M characters)
+
+### Performance Metrics
+
+**Target Performance:**
+- Translation accuracy: >95%
+- Translation speed: <2 seconds per message
+- UI language switch: Instant (pre-loaded)
+- Cost per user: <$0.25/month
+
+### Alternative: Google Translate API
+
+**Pros:**
+- Cheaper ($20/1M characters vs $150/1M tokens)
+- Faster (specialized for translation)
+- 100+ languages built-in
+
+**Cons:**
+- Less natural translations
+- Requires separate API setup
+- Less context-aware
+
+**Recommendation:** Start with GPT-4o-mini for better quality, switch to Google Translate if costs become an issue.
+
+### User Privacy & Security
+
+- Translations happen server-side (Cloud Functions)
+- Original messages always preserved
+- Users can always see original text
+- No third-party translation services (all OpenAI)
+- Compliant with GDPR and data privacy laws
+
+### Future Enhancements
+
+- Auto-detect user's language from device settings
+- Translate AI responses (summaries, actions, etc.)
+- Translate image text (OCR + translation)
+- Real-time voice translation (translate while speaking)
+- Language learning mode (show both languages side-by-side)
+- Translation confidence scores
+- Offline translation for common phrases
+
+### Success Metrics
+
+- User adoption: >30% of users set a non-English language
+- Translation accuracy: >95% (measured by user feedback)
+- Performance: <2s translation time
+- Cost efficiency: <$0.25/user/month
+- User satisfaction: >4.5/5 stars for translation feature
+
+### Demo Value
+
+**High Impact for Presentations:**
+- Shows global reach and inclusivity
+- Demonstrates AI integration beyond basic features
+- Addresses real pain point for distributed teams
+- Differentiates from competitors
+- Easy to demonstrate live (switch language, see instant translation)
+
+**Competitive Advantage:**
+- Most messaging apps don't have built-in translation
+- WhatsApp requires manual copy-paste to Google Translate
+- Slack's translation is enterprise-only and limited
+- MessageAI makes it seamless and automatic
+
+### Technical Challenges & Solutions
+
+**Challenge 1: Translation Latency**
+- Solution: Cache translations, batch requests, show loading states
+
+**Challenge 2: Translation Accuracy**
+- Solution: Use GPT-4o-mini for context-aware translations, allow user feedback
+
+**Challenge 3: Cost at Scale**
+- Solution: Cache aggressively, only translate when needed, consider Google Translate API
+
+**Challenge 4: RTL Languages**
+- Solution: Use React Native's RTL support, test thoroughly with Arabic/Hebrew
+
+**Challenge 5: Emoji & Special Characters**
+- Solution: Preserve emojis in translation, handle special characters gracefully
+
+---
+
+**Status:** 📋 **PLANNED** - Ready for implementation  
+**Priority:** Medium-High (great for international demo)  
+**Estimated Time:** 15-20 hours  
+**Estimated Cost:** ~$250/month for 1K users  
+**ROI:** High (enables global user base, strong demo feature)
 
 ---
 
