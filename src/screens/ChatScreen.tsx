@@ -72,6 +72,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState<Message | null>(null);
   const isInitialLoadRef = useRef(true);
+  const isNearBottomRef = useRef(true); // Track if user is near bottom of chat
   const [showImagePrompt, setShowImagePrompt] = useState(false);
   const [imagePrompt, setImagePrompt] = useState('');
   const [generatingImage, setGeneratingImage] = useState(false); // Track initial load
@@ -1123,7 +1124,19 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           </TouchableOpacity>
         ) : null}
         contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+        onContentSizeChange={() => {
+          // Only auto-scroll if user is near the bottom
+          if (isNearBottomRef.current) {
+            listRef.current?.scrollToEnd({ animated: false });
+          }
+        }}
+        onScroll={(event) => {
+          // Track if user is near bottom (within 100px)
+          const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+          const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+          isNearBottomRef.current = distanceFromBottom < 100;
+        }}
+        scrollEventThrottle={400}
         style={styles.chatContent}
       />
 

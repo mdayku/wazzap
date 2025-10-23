@@ -5,6 +5,7 @@ import { semanticSearch, batchGenerateEmbeddings } from './embeddings';
 import { analyzeThreadContext, submitSuggestionFeedback, dismissSuggestion as dismissSuggestionHandler, suggestMeetingTimes } from './proactive';
 import { transcribeAudio, autoTranscribeAudio } from './transcription';
 import { generateImage } from './imageGeneration';
+import { analyzeImage, autoAnalyzeImage } from './vision';
 
 // Firestore trigger: runs when a new message is created
 export const messageCreated = functions.firestore
@@ -15,6 +16,11 @@ export const messageCreated = functions.firestore
 export const audioMessageCreated = functions.firestore
   .document('threads/{threadId}/messages/{messageId}')
   .onCreate(autoTranscribeAudio);
+
+// Firestore trigger: auto-analyze image messages
+export const imageMessageCreated = functions.firestore
+  .document('threads/{threadId}/messages/{messageId}')
+  .onCreate(autoAnalyzeImage);
 
 // Callable functions for AI features
 export const summarize = functions.https.onCall(summarizeThread);
@@ -35,3 +41,6 @@ export const transcribe = functions.https.onCall(transcribeAudio);
 
 // AI image generation
 export const generate = generateImage;
+
+// GPT-4 Vision image analysis
+export const analyzeImageContent = functions.https.onCall(analyzeImage);

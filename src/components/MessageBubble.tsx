@@ -13,6 +13,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { formatTimestamp } from '../utils/time';
 import { retryMessage, type QueuedMessage } from '../state/offlineQueue';
 import ImageViewer from './ImageViewer';
+import { analyzeImageContent } from '../services/vision';
+import Toast from 'react-native-toast-message';
 
 export interface Message {
   id: string;
@@ -34,6 +36,11 @@ export interface Message {
     duration?: number;
     words?: Array<{ word: string; start: number; end: number }>;
     transcribedAt?: any;
+  };
+  imageAnalysis?: {
+    description: string;
+    model?: string;
+    analyzedAt?: any;
   };
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   priority?: 'high' | 'normal';
@@ -63,6 +70,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMessageOptions, setShowMessageOptions] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
@@ -341,6 +349,39 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     }
   };
 
+  const handleAnalyzeImage = async () => {
+    if (!threadId || isAnalyzingImage) return;
+    
+    setIsAnalyzingImage(true);
+    Toast.show({
+      type: 'info',
+      text1: '🔍 Analyzing Image',
+      text2: 'GPT-4 Vision is analyzing the image...',
+      position: 'top',
+    });
+    
+    try {
+      await analyzeImageContent(item.id, threadId);
+      
+      Toast.show({
+        type: 'success',
+        text1: '✅ Image Analyzed',
+        text2: 'Image analysis complete and indexed for search',
+        position: 'top',
+      });
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      Toast.show({
+        type: 'error',
+        text1: '❌ Analysis Failed',
+        text2: 'Could not analyze the image. Please try again.',
+        position: 'top',
+      });
+    } finally {
+      setIsAnalyzingImage(false);
+    }
+  };
+
   return (
     <View style={[styles.container, isMe ? styles.myMessage : styles.theirMessage]}>
       {showSender && !isMe && (
@@ -372,6 +413,29 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                 contentFit="contain"
               />
               <View style={styles.imageActions}>
+                {!item.imageAnalysis && (
+                  <TouchableOpacity
+                    style={styles.imageActionButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleAnalyzeImage();
+                    }}
+                    disabled={isAnalyzingImage}
+                  >
+                    {isAnalyzingImage ? (
+                      <ActivityIndicator 
+                        size="small" 
+                        color={isMe ? colors.messageBubbleSentText : colors.text}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="eye-outline"
+                        size={20}
+                        color={isMe ? colors.messageBubbleSentText : colors.text}
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={styles.imageActionButton}
                   onPress={(e) => {
@@ -400,6 +464,16 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                 </TouchableOpacity>
               </View>
             </View>
+            {item.imageAnalysis && isMe && (
+              <View style={styles.imageAnalysisContainer}>
+                <Text style={[styles.imageAnalysisLabel, { color: colors.messageBubbleSentText }]}>
+                  🔍 AI Analysis:
+                </Text>
+                <Text style={[styles.imageAnalysisText, { color: colors.messageBubbleSentText }]}>
+                  {item.imageAnalysis.description}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         )}
 
@@ -1057,6 +1131,24 @@ const styles = StyleSheet.create({
   transcriptionText: {
     fontSize: 14,
     lineHeight: 20,
+    fontStyle: 'italic',
+    opacity: 0.9,
+  },
+  imageAnalysisContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  imageAnalysisLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.8,
+    marginBottom: 4,
+  },
+  imageAnalysisText: {
+    fontSize: 13,
+    lineHeight: 18,
     fontStyle: 'italic',
     opacity: 0.9,
   },
