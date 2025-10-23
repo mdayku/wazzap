@@ -697,7 +697,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         {
           threadId,
           tempId,
-          text: `🎨 Generated: "${imagePrompt.trim()}"`,
+          text: '',
           media: {
             type: 'image',
             url: result.imageUrl,

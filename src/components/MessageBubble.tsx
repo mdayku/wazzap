@@ -362,8 +362,14 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
             <View style={styles.imageWrapper}>
               <Image
                 source={{ uri: item.media.url }}
-                style={styles.image}
-                resizeMode="cover"
+                style={[
+                  styles.image,
+                  item.media.width && item.media.height && {
+                    width: Math.min(item.media.width, 300),
+                    height: Math.min(item.media.height, 300),
+                  }
+                ]}
+                contentFit="contain"
               />
               <View style={styles.imageActions}>
                 <TouchableOpacity
@@ -809,8 +815,8 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   image: {
-    width: 200,
-    height: 200,
+    maxWidth: 300,
+    maxHeight: 300,
     borderRadius: 8,
     marginBottom: 4,
   },
