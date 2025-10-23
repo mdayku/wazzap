@@ -24,6 +24,13 @@ export interface Message {
     height?: number;
     duration?: number;
   } | null;
+  transcription?: {
+    text: string;
+    language?: string;
+    duration?: number;
+    words?: Array<{ word: string; start: number; end: number }>;
+    transcribedAt?: any;
+  };
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   priority?: 'high' | 'normal';
   createdAt: Timestamp;
@@ -51,6 +58,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMessageOptions, setShowMessageOptions] = useState(false);
   
@@ -308,6 +316,26 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
     }
   };
 
+  const handleTranscribe = async () => {
+    if (!threadId || isTranscribing) return;
+    
+    setIsTranscribing(true);
+    
+    try {
+      // Dynamic import to avoid circular dependency
+      const { transcribeAudioMessage } = await import('../services/transcription');
+      
+      await transcribeAudioMessage(item.id, threadId);
+      
+      Alert.alert('Success', 'Voice message transcribed successfully!');
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      Alert.alert('Transcription Failed', 'Could not transcribe the voice message. Please try again.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
   return (
     <View style={[styles.container, isMe ? styles.myMessage : styles.theirMessage]}>
       {showSender && !isMe && (
@@ -393,6 +421,26 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
               </View>
             </TouchableOpacity>
             <View style={styles.audioActions}>
+              {!item.transcription && (
+                <TouchableOpacity
+                  style={styles.audioActionButton}
+                  onPress={handleTranscribe}
+                  disabled={isTranscribing}
+                >
+                  {isTranscribing ? (
+                    <ActivityIndicator 
+                      size="small" 
+                      color={isMe ? colors.messageBubbleSentText : colors.messageBubbleReceivedText} 
+                    />
+                  ) : (
+                    <Ionicons 
+                      name="text-outline" 
+                      size={20} 
+                      color={isMe ? colors.messageBubbleSentText : colors.messageBubbleReceivedText} 
+                    />
+                  )}
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.audioActionButton}
                 onPress={() => handleShareAudio(item.media?.url || '')}
@@ -414,6 +462,30 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                 />
               </TouchableOpacity>
             </View>
+            {item.transcription && (
+              <View style={styles.transcriptionContainer}>
+                <View style={styles.transcriptionHeader}>
+                  <Ionicons 
+                    name="text-outline" 
+                    size={14} 
+                    color={isMe ? colors.messageBubbleSentText : colors.messageBubbleReceivedText} 
+                    style={styles.transcriptionIcon}
+                  />
+                  <Text style={[
+                    styles.transcriptionLabel,
+                    isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
+                  ]}>
+                    Transcription:
+                  </Text>
+                </View>
+                <Text style={[
+                  styles.transcriptionText,
+                  isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
+                ]}>
+                  {item.transcription.text}
+                </Text>
+              </View>
+            )}
           </View>
         )}
         
@@ -881,6 +953,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
     color: '#000000',
+  },
+  transcriptionContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  transcriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  transcriptionIcon: {
+    marginRight: 4,
+  },
+  transcriptionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  transcriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
+    opacity: 0.9,
   },
 });
 
