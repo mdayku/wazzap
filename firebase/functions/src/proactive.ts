@@ -32,6 +32,25 @@ export const analyzeThreadContext = async (data: any, context: any) => {
   }
 
   try {
+    // Check for recent dismissed or active suggestions (within last 10 minutes)
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const recentSuggestionsSnap = await db
+      .collection(`threads/${threadId}/suggestions`)
+      .where('createdAt', '>=', tenMinutesAgo)
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get();
+
+    // If there's an active suggestion or recently dismissed one, don't create a new one
+    const hasRecentSuggestion = recentSuggestionsSnap.docs.some(doc => {
+      const data = doc.data();
+      return data.status === 'active' || data.status === 'dismissed';
+    });
+
+    if (hasRecentSuggestion) {
+      return { hasIntent: false, reason: 'Recent suggestion exists' };
+    }
+
     // Fetch recent messages for context
     const messagesSnap = await db
       .collection(`threads/${threadId}/messages`)
