@@ -9,7 +9,6 @@ import { db } from './firebase';
  */
 
 let isFirestoreEnabled = true;
-let reconnectTimer: NodeJS.Timeout | null = null;
 let lastDisconnectTime: number | null = null;
 
 export function initializeReconnectService() {

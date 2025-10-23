@@ -1,12 +1,9 @@
 import { 
   sendMessageOptimistic, 
   initializeOfflineQueue, 
-  processQueue, 
-  retryMessage,
   clearFailedMessages,
   getQueue,
   subscribeToQueue,
-  type QueuedMessage
 } from '../../state/offlineQueue';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';

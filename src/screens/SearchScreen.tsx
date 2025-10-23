@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { httpsCallable } from 'firebase/functions';
 import { functions, db } from '../services/firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, limit } from 'firebase/firestore';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SearchResult {
