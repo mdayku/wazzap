@@ -213,16 +213,18 @@ export default function NewChatScreen() {
       // If creating a 1-on-1 chat with a Seinfeld agent, enable Seinfeld Mode
       if (isSeinfeldAgent) {
         const agentUid = memberIds.find(id => id.startsWith('seinfeld_'));
-        const characterName = agentUid?.replace('seinfeld_', '').charAt(0).toUpperCase() + agentUid?.replace('seinfeld_', '').slice(1);
+        if (agentUid) {
+          const characterName = agentUid.replace('seinfeld_', '').charAt(0).toUpperCase() + agentUid.replace('seinfeld_', '').slice(1);
         
-        threadData.seinfeldMode = {
-          enabled: true,
-          activeCharacters: [characterName],
-          enabledAt: serverTimestamp(),
-          enabledBy: user!.uid,
-        };
+          threadData.seinfeldMode = {
+            enabled: true,
+            activeCharacters: [characterName],
+            enabledAt: serverTimestamp(),
+            enabledBy: user!.uid,
+          };
         
-        console.log('[SEINFELD] Creating 1-on-1 chat with agent:', characterName);
+          console.log('[SEINFELD] Creating 1-on-1 chat with agent:', characterName);
+        }
       }
 
       const threadRef = await addDoc(collection(db, 'threads'), threadData);
