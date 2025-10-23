@@ -55,7 +55,7 @@ describe('MessageBubble Component', () => {
     media: null,
     status: 'sent' as const,
     priority: 'normal' as const,
-    createdAt: Timestamp.fromDate(new Date()) as any,
+    createdAt: Timestamp.fromDate(new Date()),
   };
 
   it('should render message text', () => {
@@ -105,7 +105,7 @@ describe('MessageBubble Component', () => {
     const readMessage: Message = { 
       ...mockMessage, 
       status: 'read' as const,
-      createdAt: Timestamp.fromDate(new Date(messageTime)) as any
+      createdAt: Timestamp.fromDate(new Date(messageTime))
     };
     
     // Mock thread members and lastRead for read receipt calculation

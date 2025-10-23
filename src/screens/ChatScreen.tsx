@@ -43,6 +43,18 @@ import { generateAIImage } from '../services/imageGeneration';
 import { enableSeinfeldMode, disableSeinfeldMode } from '../services/seinfeldMode';
 import { ALL_CHARACTERS, type SeinfeldCharacter } from '../data/seinfeldCharacters';
 
+interface CalendarSuggestion {
+  id: string;
+  summary: string;
+  description?: string;
+  location?: string;
+  startTime: string;
+  endTime: string;
+  attendees?: string[];
+  confidence?: number;
+  status: string;
+}
+
 export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const { threadId, threadName } = route.params;
   const { user } = useAuth();
@@ -84,7 +96,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [aiCallsRemaining, setAiCallsRemaining] = useState(20); // Track AI rate limit
   const [streamingMessage, setStreamingMessage] = useState(''); // AI streaming simulation
   const [proactiveSuggestion, setProactiveSuggestion] = useState<ProactiveSuggestion | null>(null); // Proactive assistant suggestion
-  const [calendarSuggestions, setCalendarSuggestions] = useState<any[]>([]); // Calendar event suggestions
+  const [calendarSuggestions, setCalendarSuggestions] = useState<CalendarSuggestion[]>([]); // Calendar event suggestions
   const [showSettingsModal, setShowSettingsModal] = useState(false); // Thread settings modal
   const [proactiveEnabled, setProactiveEnabled] = useState(true); // Proactive assistant toggle
   const [showSeinfeldModal, setShowSeinfeldModal] = useState(false); // Seinfeld Mode character selection
@@ -146,8 +158,8 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       (snapshot) => {
         const suggestions = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter((s: any) => s.status === 'pending'); // Only show pending suggestions
-        setCalendarSuggestions(suggestions);
+          .filter((s) => s.status === 'pending'); // Only show pending suggestions
+        setCalendarSuggestions(suggestions as CalendarSuggestion[]);
       }
     );
 
@@ -1415,7 +1427,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       )}
 
       {/* Calendar Event Suggestions */}
-      {calendarSuggestions.map((event: any) => (
+      {calendarSuggestions.map((event) => (
         <CalendarEventCard
           key={event.id}
           eventId={event.id}

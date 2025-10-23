@@ -6,7 +6,7 @@ import { createCalendarEvent, parseSchedulingRequest } from '../services/googleC
 import * as Haptics from 'expo-haptics';
 
 interface CalendarEventCardProps {
-  eventId: string;
+  eventId: string; // eslint-disable-line @typescript-eslint/no-unused-vars
   summary: string;
   description?: string;
   location?: string;
@@ -72,10 +72,11 @@ export default function CalendarEventCard({
         );
         onAccept?.();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating calendar event:', error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', error.message || 'Failed to create calendar event');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create calendar event';
+      Alert.alert('Error', errorMessage);
     } finally {
       setCreating(false);
     }
