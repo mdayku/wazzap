@@ -1,3 +1,4 @@
+/* eslint-env jest */
 // Jest matchers are now built into @testing-library/react-native v12.4+
 // No need to import extend-expect separately
 

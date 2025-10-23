@@ -27,6 +27,7 @@ module.exports = {
     'dist/',
     'build/',
     '*.config.js',
+    'firebase/functions/', // Backend code with different dependencies
   ],
 };
 
