@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, AppState, TouchableOpacity } from 'react-native';
-import { onSnapshot, doc } from 'firebase/firestore';
+import { Text, StyleSheet, Animated } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { db } from '../services/firebase';
 import { useTheme } from '../contexts/ThemeContext';
 import { subscribeToQueue, getQueue, type QueuedMessage } from '../state/offlineQueue';
 

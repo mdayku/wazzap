@@ -6,6 +6,10 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "jsx": "react-native"
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "firebase/functions"
+  ]
 }
 

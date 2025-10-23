@@ -35,7 +35,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     } catch (error) {
       console.error('Error loading draft:', error);
     }
-  }, [threadId, uid]);
+  }, [getDraftKey]);
 
   const saveDraft = useCallback(async (draftText: string) => {
     try {
@@ -48,7 +48,7 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     } catch (error) {
       console.error('Error saving draft:', error);
     }
-  }, [threadId, uid]);
+  }, [getDraftKey]);
 
   // Load draft message when component mounts
   useEffect(() => {
@@ -67,39 +67,15 @@ export default function Composer({ threadId, uid, onTyping }: ComposerProps) {
     };
   }, [typingTimeout]);
 
-  const getDraftKey = () => `draft_${threadId}_${uid}`;
+  const getDraftKey = useCallback(() => `draft_${threadId}_${uid}`, [threadId, uid]);
 
-  const loadDraft = async () => {
-    try {
-      const draft = await AsyncStorage.getItem(getDraftKey());
-      if (draft) {
-        setText(draft);
-      }
-    } catch (error) {
-      console.error('Error loading draft:', error);
-    }
-  };
-
-  const saveDraft = async (draftText: string) => {
-    try {
-      if (draftText.trim()) {
-        await AsyncStorage.setItem(getDraftKey(), draftText);
-      } else {
-        // Clear draft if text is empty
-        await AsyncStorage.removeItem(getDraftKey());
-      }
-    } catch (error) {
-      console.error('Error saving draft:', error);
-    }
-  };
-
-  const clearDraft = async () => {
+  const clearDraft = useCallback(async () => {
     try {
       await AsyncStorage.removeItem(getDraftKey());
     } catch (error) {
       console.error('Error clearing draft:', error);
     }
-  };
+  }, [getDraftKey]);
 
   const handlePaste = async () => {
     try {

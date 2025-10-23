@@ -334,7 +334,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
             <View style={styles.imageActions}>
               <TouchableOpacity
                 style={styles.imageActionButton}
-                onPress={() => handleShareImage(item.media!.url)}
+                onPress={() => item.media?.url && handleShareImage(item.media.url)}
               >
                 <Ionicons
                   name="share-outline"
