@@ -22,6 +22,14 @@ All 11 MVP requirements tested and working!
 
 ### 🎯 Latest Improvements (October 23, 2025)
 
+**Voice Transcription + Multi-Modal AI:**
+- ✅ **Voice Message Transcription** - Automatic transcription with OpenAI Whisper API (+3 bonus points!)
+- ✅ **Manual Transcription** - Tap text icon on any voice message to transcribe on demand
+- ✅ **Transcription Display** - Beautiful inline transcription below audio player with italic styling
+- ✅ **Transcription in RAG** - Voice transcriptions automatically indexed for semantic search
+- ✅ **Transcription in AI** - Summarization, actions, decisions now include voice message content
+- ✅ **Expandable Suggestions** - Tap proactive AI pill to see full details in scrollable modal
+
 **Proactive AI + Advanced RAG:**
 - ✅ **Proactive AI Assistant** - Monitors conversations and suggests actions automatically
 - ✅ **Cross-Chat RAG** - AI learns from user behavior across ALL chats (not just current thread)
@@ -60,9 +68,12 @@ All 11 MVP requirements tested and working!
 
 **Voice Messaging & Media:**
 - ✅ Voice messaging - Record with mic button, play/pause, share audio files
+- ✅ **Voice transcription** - Automatic transcription with OpenAI Whisper API
+- ✅ **Manual transcription** - Tap text icon to transcribe existing voice messages
+- ✅ **Transcription display** - Inline text below audio player with "Transcription:" header
 - ✅ Message deletion - Delete for everyone (within 10 mins) or delete for yourself
 - ✅ Audio previews - Show "🎤 Audio" in chat list for voice messages
-- ✅ Compact audio bubbles - Tight design with share and delete buttons
+- ✅ Compact audio bubbles - Tight design with share, transcribe, and delete buttons
 - ✅ Image sharing with share/delete buttons
 
 ### ✅ Working Features

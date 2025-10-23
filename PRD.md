@@ -1,16 +1,19 @@
 # 🎯 MessageAI - Master Plan & Status
 
-**Last Updated:** October 23, 2025 (Voice Transcription + Multi-Modal AI Phase)
-**Current Score:** ~78 points (C+) → **Target:** 100+ points (A+)  
+**Last Updated:** October 23, 2025 (Voice Transcription + Multi-Modal AI Complete)
+**Current Score:** ~81 points (B-) → **Target:** 100+ points (A+)  
 **Days Remaining:** 2-3 days to final submission  
-**Status:** MVP Complete (11/11) ✅ | AI Features Working (6/6) ✅ | Advanced RAG System 🚀 | Voice Transcription In Progress 🎙️
+**Status:** MVP Complete (11/11) ✅ | AI Features Working (6/6) ✅ | Advanced RAG System 🚀 | Voice Transcription DEPLOYED ✅
 
 **Latest Updates (October 23, 2025 - Voice Transcription + Multi-Modal AI):**
 - ✅ **Voice Message Transcription** - Automatic transcription with OpenAI Whisper (+3 bonus points!)
+- ✅ **Manual Transcription** - Tap text icon on any voice message to transcribe on demand
 - ✅ **Transcription Display** - Beautiful inline transcription below audio player
 - ✅ **Transcription in RAG** - Voice transcriptions automatically indexed for semantic search
 - ✅ **Transcription in AI** - Summarization, actions, decisions now include voice message content
-- ✅ **Auto-Transcription** - Firestore trigger automatically transcribes all audio messages
+- ✅ **Auto-Transcription** - Firestore trigger automatically transcribes all NEW audio messages
+- ✅ **Expandable Suggestions** - Tap proactive AI pill to see full details in modal
+- ✅ **Scrollable Content** - Long suggestions now fully readable with action/reasoning sections
 
 **Previous Updates (October 23, 2025 - Proactive AI + Cross-Chat RAG):**
 - ✅ **Proactive AI Assistant** - Monitors conversations and suggests actions automatically
