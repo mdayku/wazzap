@@ -56,7 +56,7 @@ function AppContent() {
   }
 
   return (
-    <>
+    <ErrorBoundary name="App">
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={{
@@ -106,7 +106,7 @@ function AppContent() {
         </Stack.Navigator>
       </NavigationContainer>
       <Toast />
-    </>
+    </ErrorBoundary>
   );
 }
 
