@@ -2,13 +2,6 @@
   "indexes": [
     {
       "collectionGroup": "messages",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "messages",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "senderId", "order": "ASCENDING" },
@@ -21,13 +14,6 @@
       "fields": [
         { "fieldPath": "members", "arrayConfig": "CONTAINS" },
         { "fieldPath": "updatedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "suggestions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],
