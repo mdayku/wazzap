@@ -34,11 +34,12 @@ const Timestamp = {
   fromDate: (date: Date) => ({
     toDate: () => date,
     toMillis: () => date.getTime(),
+    valueOf: () => date.getTime().toString(),
     seconds: Math.floor(date.getTime() / 1000),
     nanoseconds: 0,
     isEqual: () => false,
     toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0, type: 'timestamp' }),
-  }),
+  }) as any,
 };
 
 // Helper to render with ThemeProvider
