@@ -23,6 +23,7 @@ import { testLocalNotification } from '../services/notifications';
 import { useNavigation } from '@react-navigation/native';
 import { useThreads } from '../hooks/useThread';
 import { Ionicons } from '@expo/vector-icons';
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -31,6 +32,7 @@ export default function ProfileScreen() {
   const { threads } = useThreads(user?.uid || '');
   const [displayName, setDisplayName] = useState('');
   const [photoURL, setPhotoURL] = useState('');
+  const [preferredLanguage, setPreferredLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export default function ProfileScreen() {
         const data = userDoc.data();
         setDisplayName(data.displayName || '');
         setPhotoURL(data.photoURL || '');
+        setPreferredLanguage(data.preferredLanguage || 'en');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -104,6 +107,7 @@ export default function ProfileScreen() {
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         displayName: displayName.trim(),
+        preferredLanguage,
       });
       Alert.alert('Success', 'Profile updated');
     } catch (error) {
@@ -252,6 +256,15 @@ export default function ProfileScreen() {
               thumbColor="#FFFFFF"
             />
           </View>
+
+          <Text style={[styles.label, { color: colors.text, marginTop: 16 }]}>Preferred Language</Text>
+          <Text style={[styles.settingDescription, { color: colors.textSecondary, marginBottom: 8 }]}>
+            Messages will be translated to your preferred language
+          </Text>
+          <LanguageSelector
+            selectedLanguage={preferredLanguage}
+            onSelect={setPreferredLanguage}
+          />
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
