@@ -37,7 +37,7 @@ const Timestamp = {
     seconds: Math.floor(date.getTime() / 1000),
     nanoseconds: 0,
     isEqual: () => false,
-    toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0 }),
+    toJSON: () => ({ seconds: Math.floor(date.getTime() / 1000), nanoseconds: 0, type: 'timestamp' }),
   }),
 };
 

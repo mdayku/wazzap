@@ -39,7 +39,7 @@ interface ChatScreenProps {
 }
 
 interface ActionItem {
-  text: string;
+  text?: string;
   task: string;
   completed?: boolean;
   assignee?: string;
@@ -47,7 +47,7 @@ interface ActionItem {
 }
 
 interface Decision {
-  text: string;
+  text?: string;
   summary: string;
   timestamp?: number;
   owner?: string;
@@ -116,13 +116,16 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         .filter((msg: any) => !msg.deletedFor?.[user.uid]) // Filter out messages deleted by this user
         .reverse(); // Reverse to show oldest first
       
+      // Type assertion for messages
+      const typedRows = rows as Message[];
+      
       // Debug: Log message statuses for sender's messages
-      const myMessages = rows.filter((msg: Message) => msg.senderId === user.uid);
+      const myMessages = typedRows.filter((msg: Message) => msg.senderId === user.uid);
       if (myMessages.length > 0) {
         console.log(`📨 [STATUS_DEBUG] My messages:`, myMessages.map((m: Message) => ({ id: m.id.slice(0, 8), status: m.status })));
       }
       
-      setMessages(rows as Message[]);
+      setMessages(typedRows);
       setLoading(false);
       setLoadingMore(false);
       

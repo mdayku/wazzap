@@ -28,7 +28,7 @@ try {
   console.log('Firebase Auth initialized with persistence');
 } catch (error: unknown) {
   // If already initialized, just get the existing instance
-  if (error.code === 'auth/already-initialized') {
+  if ((error as any)?.code === 'auth/already-initialized') {
     auth = getAuth(app);
     console.log('Firebase Auth already initialized, using existing instance');
   } else {

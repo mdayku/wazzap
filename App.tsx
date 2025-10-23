@@ -79,7 +79,7 @@ function AppContent() {
             />
             <Stack.Screen 
               name="Chat" 
-              component={ChatScreen}
+              component={ChatScreen as any}
               options={{
                 headerShown: true,
                 headerBackTitle: 'Back',
