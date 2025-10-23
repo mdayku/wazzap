@@ -31,11 +31,11 @@ function AppContent() {
   const { user } = useAuth();
   const { isLoading } = useStore();
   
-  // Initialize fast reconnect service
-  useEffect(() => {
-    const unsubscribe = initializeReconnectService();
-    return () => unsubscribe();
-  }, []);
+  // Reconnect service disabled - causes conflicts with offline queue
+  // useEffect(() => {
+  //   const unsubscribe = initializeReconnectService();
+  //   return () => unsubscribe();
+  // }, []);
   
   // Initialize offline queue system
   useEffect(() => {

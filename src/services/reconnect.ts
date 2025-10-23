@@ -27,61 +27,27 @@ export function initializeReconnectService() {
     });
     
     if (!isConnected && isFirestoreEnabled) {
-      // Network lost - record time and disable Firestore
+      // Network lost - record time
       lastDisconnectTime = Date.now();
-      console.log('🔌 [RECONNECT] ❌ Network lost, disabling Firestore...');
+      console.log('🔌 [RECONNECT] ❌ Network lost');
       
-      disableNetwork(db).then(() => {
-        isFirestoreEnabled = false;
-        console.log('🔌 [RECONNECT] ✅ Firestore disabled');
-      }).catch(err => {
-        console.error('🔌 [RECONNECT] Error disabling Firestore:', err);
-      });
+      // Don't disable Firestore network - let it handle offline gracefully
+      // This prevents "Target ID already exists" errors
+      isFirestoreEnabled = false;
       
     } else if (isConnected && !isFirestoreEnabled) {
-      // Network restored - reconnect immediately
+      // Network restored
       const disconnectDuration = lastDisconnectTime 
         ? Date.now() - lastDisconnectTime 
         : 0;
       
       console.log('🔌 [RECONNECT] ✅ Network restored after', disconnectDuration, 'ms');
-      console.log('🔌 [RECONNECT] 🚀 Initiating fast reconnect...');
       
-      // Clear any pending reconnect timer
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
+      isFirestoreEnabled = true;
+      lastDisconnectTime = null;
       
-      // Reconnect immediately with aggressive retry
-      const reconnectStart = Date.now();
-      
-      enableNetwork(db).then(() => {
-        const reconnectTime = Date.now() - reconnectStart;
-        isFirestoreEnabled = true;
-        lastDisconnectTime = null;
-        
-        console.log('🔌 [RECONNECT] ✅✅✅ RECONNECTED in', reconnectTime, 'ms');
-        console.log('🔌 [RECONNECT] 📊 Total offline duration:', disconnectDuration, 'ms');
-        
-        // If reconnect took longer than expected, log a warning
-        if (reconnectTime > 1000) {
-          console.warn('🔌 [RECONNECT] ⚠️ Slow reconnect:', reconnectTime, 'ms (target: <1000ms)');
-        }
-      }).catch(err => {
-        console.error('🔌 [RECONNECT] ❌ Error enabling Firestore:', err);
-        
-        // Retry after 500ms if failed
-        reconnectTimer = setTimeout(() => {
-          console.log('🔌 [RECONNECT] 🔄 Retrying reconnect...');
-          enableNetwork(db).then(() => {
-            isFirestoreEnabled = true;
-            console.log('🔌 [RECONNECT] ✅ Reconnected on retry');
-          }).catch(retryErr => {
-            console.error('🔌 [RECONNECT] ❌ Retry failed:', retryErr);
-          });
-        }, 500);
-      });
+      console.log('🔌 [RECONNECT] ✅✅✅ RECONNECTED');
+      console.log('🔌 [RECONNECT] 📊 Total offline duration:', disconnectDuration, 'ms');
     }
   });
   

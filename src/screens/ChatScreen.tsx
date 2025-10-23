@@ -140,9 +140,13 @@ export default function ChatScreen({ route, navigation }: any) {
   // Subscribe to offline queue for this thread
   useEffect(() => {
     const unsubscribe = subscribeToQueue((queue: QueuedMessage[]) => {
-      // Filter queued messages for this thread
-      const thisThreadQueue = queue.filter(msg => msg.threadId === threadId);
-      setQueuedMessages(thisThreadQueue);
+      try {
+        // Filter queued messages for this thread
+        const thisThreadQueue = queue.filter(msg => msg.threadId === threadId);
+        setQueuedMessages(thisThreadQueue);
+      } catch (error) {
+        console.error('Error updating queued messages:', error);
+      }
     });
     
     return unsubscribe;
@@ -211,6 +215,8 @@ export default function ChatScreen({ route, navigation }: any) {
   useEffect(() => {
     if (!threadId || !user) return;
 
+    let presenceUnsubscribe: (() => void) | null = null;
+
     const fetchThread = async () => {
       try {
         const threadDoc = await getDoc(doc(db, 'threads', threadId));
@@ -256,7 +262,7 @@ export default function ChatScreen({ route, navigation }: any) {
             // Subscribe to other user's presence (for 1:1 chats only)
             if (!isGroup) {
               const userDoc = doc(db, 'users', otherMember);
-              const unsubscribe = onSnapshot(userDoc, (snap) => {
+              presenceUnsubscribe = onSnapshot(userDoc, (snap) => {
                 if (snap.exists()) {
                   const userData = snap.data();
                   setUserCache((prev: any) => ({ ...prev, [otherMember]: userData }));
@@ -264,16 +270,36 @@ export default function ChatScreen({ route, navigation }: any) {
                   setIsOnline(isUserOnline(userData.lastSeen));
                 }
               });
-              return unsubscribe;
             }
           }
         }
-      } catch (error) {
-        console.error('Error fetching presence:', error);
+      } catch (error: any) {
+        // Handle offline errors gracefully
+        if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+          console.log('📴 [CHAT] Offline - using cached thread data');
+          // Try to get thread data from the threads list (already loaded)
+          const cachedThread = threads?.find((t: any) => t.id === threadId);
+          if (cachedThread) {
+            const members = cachedThread.members || [];
+            setThreadMembers(members);
+            setThreadLastRead(cachedThread.lastRead || {});
+            const isGroup = members.length > 2 || !!cachedThread.name;
+            setIsGroupChat(isGroup);
+          }
+        } else {
+          console.error('Error fetching presence:', error);
+        }
       }
     };
 
     fetchThread();
+    
+    // Cleanup function
+    return () => {
+      if (presenceUnsubscribe) {
+        presenceUnsubscribe();
+      }
+    };
   }, [threadId, user]);
 
   // Initialize member docs for ALL participants and listen for typing indicators
@@ -721,31 +747,49 @@ export default function ChatScreen({ route, navigation }: any) {
         data={[
           ...messages,
           // Add queued messages as optimistic UI
-          ...queuedMessages.map((qMsg) => ({
-            id: qMsg.id,
-            senderId: qMsg.uid,
-            text: qMsg.text || '',
-            media: qMsg.media || null,
-            status: qMsg.status === 'failed' ? 'failed' : 'sending',
-            createdAt: { toMillis: () => qMsg.timestamp },
-            isQueued: true,
-            queuedMessage: qMsg,
-          }))
+          ...queuedMessages.map((qMsg) => {
+            // For queued media messages, show a placeholder until uploaded
+            let displayMedia = qMsg.media;
+            if (!displayMedia && qMsg.localMediaUri && qMsg.mediaType) {
+              // Media is queued but not uploaded yet - show loading state
+              displayMedia = null;
+            }
+            
+            return {
+              id: qMsg.id,
+              senderId: qMsg.uid,
+              text: qMsg.text || '',
+              media: displayMedia,
+              status: qMsg.status === 'failed' ? 'failed' : 'sending',
+              createdAt: { toMillis: () => qMsg.timestamp },
+              isQueued: true,
+              queuedMessage: qMsg,
+            };
+          })
         ]}
         keyExtractor={(i) => String(i.id)}
         renderItem={({ item, index }) => {
           const allMessages = [
             ...messages,
-            ...queuedMessages.map((qMsg) => ({
-              id: qMsg.id,
-              senderId: qMsg.uid,
-              text: qMsg.text || '',
-              media: qMsg.media || null,
-              status: qMsg.status === 'failed' ? 'failed' : 'sending',
-              createdAt: { toMillis: () => qMsg.timestamp },
-              isQueued: true,
-              queuedMessage: qMsg,
-            }))
+            ...queuedMessages.map((qMsg) => {
+              // For queued media messages, show a placeholder until uploaded
+              let displayMedia = qMsg.media;
+              if (!displayMedia && qMsg.localMediaUri && qMsg.mediaType) {
+                // Media is queued but not uploaded yet - show loading state
+                displayMedia = null;
+              }
+              
+              return {
+                id: qMsg.id,
+                senderId: qMsg.uid,
+                text: qMsg.text || '',
+                media: displayMedia,
+                status: qMsg.status === 'failed' ? 'failed' : 'sending',
+                createdAt: { toMillis: () => qMsg.timestamp },
+                isQueued: true,
+                queuedMessage: qMsg,
+              };
+            })
           ];
           const showSender = index === 0 || allMessages[index - 1].senderId !== item.senderId;
           const senderName = (userCache[item.senderId]?.displayName && typeof userCache[item.senderId].displayName === 'string') 

@@ -39,11 +39,29 @@ let memoryQueue: QueuedMessage[] = [];
 let isProcessing = false;
 let queueListeners: Array<(queue: QueuedMessage[]) => void> = [];
 
+// Use a global flag that survives hot reloads
+if (!(global as any).__offlineQueueInitialized) {
+  (global as any).__offlineQueueInitialized = false;
+}
+if (!(global as any).__networkUnsubscribe) {
+  (global as any).__networkUnsubscribe = null;
+}
+if (!(global as any).__lastNetworkState) {
+  (global as any).__lastNetworkState = null;
+}
+
 /**
  * Initialize the offline queue system
  * Call this once on app startup
  */
 export async function initializeOfflineQueue() {
+  if ((global as any).__offlineQueueInitialized) {
+    console.log('⚠️ [OFFLINE_QUEUE] Already initialized, skipping...');
+    return;
+  }
+  
+  (global as any).__offlineQueueInitialized = true;
+  
   try {
     const stored = await AsyncStorage.getItem(QUEUE_KEY);
     if (stored) {
@@ -52,18 +70,40 @@ export async function initializeOfflineQueue() {
       notifyListeners();
     }
     
-    // Listen for network changes and auto-process queue
-    NetInfo.addEventListener(state => {
+    // Remove old listener if exists
+    if ((global as any).__networkUnsubscribe) {
+      (global as any).__networkUnsubscribe();
+    }
+    
+    // Listen for network changes and auto-process queue (only once)
+    (global as any).__networkUnsubscribe = NetInfo.addEventListener(state => {
       const isOnline = state.isConnected && state.isInternetReachable !== false;
-      if (isOnline) {
+      const wasOnline = (global as any).__lastNetworkState;
+      
+      console.log(`📡 [OFFLINE_QUEUE] Network change: ${wasOnline} → ${isOnline}`);
+      
+      // Update state
+      (global as any).__lastNetworkState = isOnline;
+      
+      // Process queue when:
+      // 1. Transitioning from offline to online (wasOnline === false)
+      // 2. OR first network check and we're online with queued messages (wasOnline === null)
+      if (isOnline && (wasOnline === false || (wasOnline === null && memoryQueue.length > 0))) {
         if (memoryQueue.length > 0 && !isProcessing) {
           console.log('🔄 [OFFLINE_QUEUE] Network restored, processing queue...');
-          processQueue();
+          // Add a small delay to ensure Firestore is ready
+          setTimeout(() => {
+            processQueue();
+          }, 500);
         }
         // Also sync pending read receipts
-        syncPendingReadReceipts();
+        if (wasOnline === false) {
+          syncPendingReadReceipts();
+        }
       }
     });
+    
+    console.log('✅ [OFFLINE_QUEUE] Initialized successfully');
   } catch (error) {
     console.error('❌ [OFFLINE_QUEUE] Failed to initialize:', error);
   }
@@ -129,7 +169,10 @@ async function enqueueMessage(message: Omit<QueuedMessage, 'id' | 'timestamp' | 
 async function dequeueMessage(id: string) {
   memoryQueue = memoryQueue.filter(msg => msg.id !== id);
   await persistQueue();
-  notifyListeners();
+  // Small delay before notifying to prevent race condition with Firestore listener
+  setTimeout(() => {
+    notifyListeners();
+  }, 100);
 }
 
 /**
@@ -162,25 +205,26 @@ export async function processQueue() {
   isProcessing = true;
   console.log(`🔄 [OFFLINE_QUEUE] Processing ${memoryQueue.length} queued messages...`);
   
-  // Process messages in order
-  const messagesToProcess = [...memoryQueue];
-  
-  for (const message of messagesToProcess) {
-    try {
-      // Update status to sending
-      await updateMessageStatus(message.id, { status: 'sending' });
-      
-      // Attempt to send (pass queued message for media upload handling)
-      await sendMessageToFirestore({
-        threadId: message.threadId,
-        text: message.text,
-        media: message.media,
-        tempId: message.tempId,
-      }, message.uid, message);
-      
-      // Success - remove from queue
-      console.log(`✅ [OFFLINE_QUEUE] Successfully sent message ${message.id}`);
-      await dequeueMessage(message.id);
+  try {
+    // Process messages in order
+    const messagesToProcess = [...memoryQueue];
+    
+    for (const message of messagesToProcess) {
+      try {
+        // Update status to sending
+        await updateMessageStatus(message.id, { status: 'sending' });
+        
+        // Attempt to send (pass queued message for media upload handling)
+        await sendMessageToFirestore({
+          threadId: message.threadId,
+          text: message.text,
+          media: message.media,
+          tempId: message.tempId,
+        }, message.uid, message);
+        
+        // Success - remove from queue
+        console.log(`✅ [OFFLINE_QUEUE] Successfully sent message ${message.id}`);
+        await dequeueMessage(message.id);
       
     } catch (error: any) {
       console.error(`❌ [OFFLINE_QUEUE] Failed to send message ${message.id}:`, error);
@@ -205,11 +249,16 @@ export async function processQueue() {
         });
         console.log(`🔄 [OFFLINE_QUEUE] Message ${message.id} will retry (attempt ${newRetryCount}/${MAX_RETRY_ATTEMPTS})`);
       }
+      }
     }
+    
+    isProcessing = false;
+    console.log(`✅ [OFFLINE_QUEUE] Queue processing complete. Remaining: ${memoryQueue.length}`);
+  } catch (error) {
+    console.error('❌ [OFFLINE_QUEUE] Fatal error during queue processing:', error);
+    isProcessing = false;
+    throw error;
   }
-  
-  isProcessing = false;
-  console.log(`✅ [OFFLINE_QUEUE] Queue processing complete. Remaining: ${memoryQueue.length}`);
 }
 
 /**
@@ -255,23 +304,28 @@ async function sendMessageToFirestore(p: Pending, uid: string, queuedMsg?: Queue
   // If there's a local media URI, upload it first
   if (queuedMsg?.localMediaUri && queuedMsg?.mediaType) {
     try {
+      console.log(`📤 [OFFLINE_QUEUE] Starting ${queuedMsg.mediaType} upload from local URI...`);
+      
       // Dynamic import to avoid circular dependency
       const { uploadImage } = await import('../services/storage');
       
       const timestamp = Date.now();
       const extension = queuedMsg.mediaType === 'audio' ? 'm4a' : 'jpg';
+      const uploadStart = Date.now();
+      
       const mediaUrl = await uploadImage(
         queuedMsg.localMediaUri,
         `messages/${uid}/${queuedMsg.mediaType}_${timestamp}.${extension}`
       );
+      
+      const uploadTime = Date.now() - uploadStart;
+      console.log(`✅ [OFFLINE_QUEUE] Uploaded ${queuedMsg.mediaType} in ${uploadTime}ms`);
       
       finalMedia = {
         type: queuedMsg.mediaType,
         url: mediaUrl,
         ...queuedMsg.mediaMetadata,
       };
-      
-      console.log(`✅ [OFFLINE_QUEUE] Uploaded ${queuedMsg.mediaType} from queue`);
     } catch (error) {
       console.error(`❌ [OFFLINE_QUEUE] Failed to upload ${queuedMsg.mediaType}:`, error);
       throw error;
