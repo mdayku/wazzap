@@ -364,10 +364,10 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                 source={{ uri: item.media.url }}
                 style={[
                   styles.image,
-                  item.media.width && item.media.height && {
+                  item.media.width && item.media.height ? {
                     width: Math.min(item.media.width, 300),
                     height: Math.min(item.media.height, 300),
-                  }
+                  } : undefined
                 ]}
                 contentFit="contain"
               />
