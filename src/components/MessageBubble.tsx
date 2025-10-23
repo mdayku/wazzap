@@ -12,6 +12,7 @@ import { db } from '../services/firebase';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatTimestamp } from '../utils/time';
 import { retryMessage, type QueuedMessage } from '../state/offlineQueue';
+import ImageViewer from './ImageViewer';
 
 export interface Message {
   id: string;
@@ -64,6 +65,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMessageOptions, setShowMessageOptions] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
   
   // Calculate read status and count based on lastRead timestamps
   const calculateReadStatus = (): { status: 'sending' | 'sent' | 'delivered' | 'read', readCount: number, totalMembers: number } => {
@@ -356,35 +358,43 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           isHighPriority && styles.highPriority
         ]}>
         {item.media?.type === 'image' && item.media?.url && (
-          <View style={styles.imageWrapper}>
-            <Image
-              source={{ uri: item.media.url }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-            <View style={styles.imageActions}>
-              <TouchableOpacity
-                style={styles.imageActionButton}
-                onPress={() => item.media?.url && handleShareImage(item.media.url)}
-              >
-                <Ionicons
-                  name="share-outline"
-                  size={20}
-                  color={isMe ? colors.messageBubbleSentText : colors.text}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.imageActionButton}
-                onPress={() => handleDeleteMessage()}
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={20}
-                  color={isMe ? colors.messageBubbleSentText : colors.text}
-                />
-              </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowImageViewer(true)} activeOpacity={0.9}>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: item.media.url }}
+                style={styles.image}
+                resizeMode="cover"
+              />
+              <View style={styles.imageActions}>
+                <TouchableOpacity
+                  style={styles.imageActionButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    item.media?.url && handleShareImage(item.media.url);
+                  }}
+                >
+                  <Ionicons
+                    name="share-outline"
+                    size={20}
+                    color={isMe ? colors.messageBubbleSentText : colors.text}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.imageActionButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDeleteMessage();
+                  }}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={20}
+                    color={isMe ? colors.messageBubbleSentText : colors.text}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
 
         {item.media?.type === 'audio' && item.media?.url && (
@@ -739,6 +749,15 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Full-screen Image Viewer */}
+      {item.media?.type === 'image' && item.media?.url && (
+        <ImageViewer
+          visible={showImageViewer}
+          imageUrl={item.media.url}
+          onClose={() => setShowImageViewer(false)}
+        />
+      )}
     </View>
   );
 }

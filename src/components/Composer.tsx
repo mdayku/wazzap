@@ -11,6 +11,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Location from 'expo-location';
 import { sendMessageOptimistic } from '../state/offlineQueue';
 import { uploadImage } from '../services/storage';
+import ImagePreviewModal, { type ImagePreviewItem } from './ImagePreviewModal';
 
 interface ComposerProps {
   threadId: string;
@@ -36,6 +37,9 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
   const recordingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState(SLASH_COMMANDS);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<ImagePreviewItem[]>([]);
+  const [compressionQuality, setCompressionQuality] = useState<'high' | 'medium' | 'low'>('medium');
 
   const getDraftKey = useCallback(() => `draft_${threadId}_${uid}`, [threadId, uid]);
 
@@ -192,18 +196,26 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        allowsMultipleSelection: true, // Changed from allowsMultiple
+        selectionLimit: 10,
+        quality: 1, // We'll compress later based on user selection
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        // Send image directly without preview modal
-        await handleSendImage(asset.uri);
+      if (!result.canceled && result.assets.length > 0) {
+        // Prepare images for preview
+        const images: ImagePreviewItem[] = result.assets.map(asset => ({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize,
+        }));
+        
+        setSelectedImages(images);
+        setShowImagePreview(true);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error('Error picking images:', error);
+      Alert.alert('Error', 'Failed to select images. Please try again.');
     }
   };
 
@@ -218,14 +230,21 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        quality: 1, // We'll compress later based on user selection
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        await handleSendImage(asset.uri);
+        // Show preview for camera photos too
+        const images: ImagePreviewItem[] = [{
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize,
+        }];
+        
+        setSelectedImages(images);
+        setShowImagePreview(true);
       }
     } catch (error) {
       console.error('Error launching camera:', error);
@@ -373,6 +392,83 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
     } catch (error) {
       console.error('Error sending image:', error);
       Alert.alert('Error', 'Failed to send image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSendImages = async (images: ImagePreviewItem[], caption?: string) => {
+    setShowImagePreview(false);
+    setUploading(true);
+
+    try {
+      // Send each image as a separate message
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        const tempId = `${Date.now()}_${Math.random()}`;
+        
+        // Check network status
+        const netInfo = await NetInfo.fetch();
+        const isOnline = netInfo.isConnected && netInfo.isInternetReachable !== false;
+        
+        // Only add caption to first image
+        const messageText = (i === 0 && caption) ? caption : '';
+        
+        if (!isOnline) {
+          // Offline - queue with local URI
+          await sendMessageOptimistic(
+            { 
+              threadId, 
+              text: messageText,
+              media: null, // Will be set after upload
+              tempId 
+            }, 
+            uid,
+            img.uri, // Local URI
+            'image',
+            { width: img.width, height: img.height }
+          );
+        } else {
+          // Online - upload and send
+          try {
+            const timestamp = Date.now();
+            const path = `messages/${uid}/${timestamp}_${i}.jpg`;
+            const url = await uploadImage(img.uri, path);
+            
+            await sendMessageOptimistic(
+              { 
+                threadId, 
+                text: messageText,
+                media: { type: 'image', url, width: img.width, height: img.height },
+                tempId 
+              }, 
+              uid
+            );
+          } catch (uploadError) {
+            // Upload failed - queue with local URI
+            await sendMessageOptimistic(
+              { 
+                threadId, 
+                text: messageText,
+                media: null,
+                tempId 
+              }, 
+              uid,
+              img.uri,
+              'image',
+              { width: img.width, height: img.height }
+            );
+          }
+        }
+      }
+      
+      // Haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      setSelectedImages([]);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      Alert.alert('Error', 'Failed to upload images. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -665,6 +761,19 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
         </>
       )}
       </View>
+
+      {/* Image Preview Modal */}
+      <ImagePreviewModal
+        visible={showImagePreview}
+        images={selectedImages}
+        onClose={() => {
+          setShowImagePreview(false);
+          setSelectedImages([]);
+        }}
+        onSend={handleSendImages}
+        compressionQuality={compressionQuality}
+        onCompressionChange={setCompressionQuality}
+      />
     </>
   );
 }
