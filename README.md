@@ -22,7 +22,15 @@ All 11 MVP requirements tested and working!
 
 ### 🎯 Latest Improvements (October 23, 2025)
 
-**New AI Features:**
+**Proactive AI + Advanced RAG:**
+- ✅ **Proactive AI Assistant** - Monitors conversations and suggests actions automatically
+- ✅ **Cross-Chat RAG** - AI learns from user behavior across ALL chats (not just current thread)
+- ✅ **User-Specific Context** - Understands each user's communication patterns globally
+- ✅ **Feedback Learning** - Thumbs up/down teaches AI what suggestions are helpful
+- ✅ **Opt-In Toggle** - Beautiful iOS-style switch in thread settings
+- ✅ **Multi-Modal Analysis** - Detects scheduling, questions, actions, drafts, info gaps, decisions
+
+**AI UX Enhancements:**
 - ✅ **Slash Commands** - Type `/summarize`, `/actions`, `/search`, `/decisions` in composer for quick AI access
 - ✅ **Rate Limiting** - 20 AI calls per 10 minutes with visual indicator (X/20) in AI menu
 - ✅ **AI Analytics** - Track AI feature usage and call history
@@ -109,7 +117,16 @@ All 11 MVP requirements tested and working!
 
 ## Architecture
 
-### System Overview
+**📖 See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical documentation including:**
+- 🧠 Multi-Layer RAG system with cross-chat context
+- 🔄 Complete AI data flow diagrams
+- 🗄️ Firestore data model with embeddings
+- 🎯 All 6 AI features explained in detail
+- ⚡ Performance optimizations and metrics
+- 🔐 Security architecture
+- 🎭 Bonus: "Seinfeld Mode" implementation guide
+
+### Quick System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐

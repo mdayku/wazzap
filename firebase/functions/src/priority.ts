@@ -86,7 +86,7 @@ Message: ${messageText}`;
     // Generate embedding for semantic search (non-blocking)
     if (message.text && message.text.trim().length > 0) {
       try {
-        await generateEmbedding(snap.id, threadId, message.text);
+        await generateEmbedding(snap.id, threadId, message.text, message.senderId);
         console.log(`Embedding generated for message ${snap.id}`);
       } catch (embeddingError) {
         console.error('Error generating embedding:', embeddingError);

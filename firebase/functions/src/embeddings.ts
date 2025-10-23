@@ -20,7 +20,7 @@ function getOpenAI() {
  * Generate embedding for a message
  * This can be called manually or triggered automatically
  */
-export const generateEmbedding = async (messageId: string, threadId: string, text: string) => {
+export const generateEmbedding = async (messageId: string, threadId: string, text: string, senderId?: string) => {
   const openai = getOpenAI();
   try {
     if (!text || text.trim().length === 0) {
@@ -36,13 +36,18 @@ export const generateEmbedding = async (messageId: string, threadId: string, tex
     const vector = response.data[0].embedding;
 
     // Store in Firestore
-    const embeddingDoc = {
+    const embeddingDoc: any = {
       messageId,
       threadId,
       vector,
       text: text.slice(0, 500), // Store snippet for reference
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+    
+    // Include senderId if provided (for cross-chat user context)
+    if (senderId) {
+      embeddingDoc.senderId = senderId;
+    }
 
     await db.collection('embeddings').doc(messageId).set(embeddingDoc);
 
@@ -143,8 +148,9 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 export const getRelevantContext = async (
   query: string,
   threadId: string,
-  limit: number = 5
-): Promise<Array<{ messageId: string; text: string; similarity: number }>> => {
+  limit: number = 5,
+  senderId?: string  // Optional: filter by specific user
+): Promise<Array<{ messageId: string; text: string; similarity: number; senderId?: string }>> => {
   const openai = getOpenAI();
   
   try {
@@ -156,12 +162,21 @@ export const getRelevantContext = async (
 
     const queryVector = response.data[0].embedding;
 
-    // Fetch embeddings for the thread
-    const embeddingsSnap = await db
-      .collection('embeddings')
-      .where('threadId', '==', threadId)
-      .limit(1000)
-      .get();
+    // Fetch embeddings (optionally filtered by thread and/or sender)
+    let embeddingsQuery = db.collection('embeddings');
+    
+    if (threadId && threadId.length > 0) {
+      // Thread-specific search
+      embeddingsQuery = embeddingsQuery.where('threadId', '==', threadId) as any;
+    }
+    // If threadId is empty, search ALL threads (cross-chat context)
+    
+    if (senderId && senderId.length > 0) {
+      // User-specific search
+      embeddingsQuery = embeddingsQuery.where('senderId', '==', senderId) as any;
+    }
+    
+    const embeddingsSnap = await embeddingsQuery.limit(1000).get();
 
     // Calculate cosine similarity for each embedding
     const results = embeddingsSnap.docs.map(doc => {
@@ -172,6 +187,7 @@ export const getRelevantContext = async (
         messageId: data.messageId,
         text: data.text,
         similarity,
+        senderId: data.senderId,
       };
     });
 

@@ -52,21 +52,46 @@ export const analyzeThreadContext = async (data: any, context: any) => {
       return { hasIntent: false };
     }
 
-    // RAG: Get relevant historical context
+    // RAG: Get relevant historical context from multiple sources
     let contextSection = '';
+    
+    // 1. Thread-specific context (what's been discussed in THIS chat)
     try {
-      const relevantMessages = await getRelevantContext(
+      const threadContext = await getRelevantContext(
         'important context decisions actions questions',
         threadId,
-        5
+        3  // Reduced to 3 to make room for other contexts
       );
       
-      if (relevantMessages.length > 0) {
-        contextSection = '\n\nHistorical Context:\n' + 
-          relevantMessages.map(m => `- ${m.text}`).join('\n');
+      if (threadContext.length > 0) {
+        contextSection += '\n\nThread History:\n' + 
+          threadContext.map(m => `- ${m.text}`).join('\n');
       }
     } catch (error) {
-      console.error('Error fetching RAG context:', error);
+      console.error('Error fetching thread context:', error);
+    }
+    
+    // 2. User-specific context (what each participant has said across ALL chats)
+    try {
+      // Get unique sender IDs from recent messages
+      const senderIds = [...new Set(messages.map(m => m.sender))];
+      
+      // For each unique user, get their cross-chat context
+      for (const senderId of senderIds.slice(0, 3)) { // Limit to 3 users to avoid too much data
+        const userContext = await getRelevantContext(
+          'important patterns preferences communication style',
+          '', // Empty threadId = search ALL threads
+          2,  // Top 2 messages per user
+          senderId // Filter by this specific user
+        );
+        
+        if (userContext.length > 0) {
+          contextSection += `\n\nUser ${senderId.slice(0, 8)} (cross-chat history):\n` + 
+            userContext.map(m => `- ${m.text}`).join('\n');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user context:', error);
     }
 
     // Fetch user feedback history to learn preferences
