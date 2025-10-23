@@ -130,7 +130,10 @@ export const translateMessage = functions.firestore
         const userDoc = await db.collection('users').doc(userId).get();
         const userData = userDoc.data();
 
-        const preferredLanguage = userData?.preferredLanguage;
+        const preferredLanguage = userData?.preferredLanguage || 'en';
+        
+        // Add language if it's different from English (default)
+        // We translate TO all non-English languages
         if (preferredLanguage && preferredLanguage !== 'en') {
           languages.add(preferredLanguage);
         }
@@ -147,17 +150,35 @@ export const translateMessage = functions.firestore
       // Translate to each required language
       for (const lang of languages) {
         try {
+          // Map language codes to full names for better translation
+          const languageNames: { [key: string]: string } = {
+            'zh': 'Chinese (Simplified)',
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'ar': 'Arabic',
+            'hi': 'Hindi',
+            'pt': 'Portuguese',
+            'ru': 'Russian',
+            'it': 'Italian',
+          };
+          
+          const targetLanguage = languageNames[lang] || lang;
+          
           const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [{
               role: 'user',
-              content: `Translate to ${lang}: ${message.text}`
+              content: `Translate the following text to ${targetLanguage}. Only return the translation, no explanations:\n\n${message.text}`
             }],
             temperature: 0.3,
             max_tokens: 500,
           });
 
           translations[lang] = response.choices[0].message.content || message.text;
+          console.log(`Translated to ${targetLanguage} (${lang}):`, translations[lang]);
         } catch (error) {
           console.error(`Error translating to ${lang}:`, error);
           translations[lang] = message.text; // Fallback to original

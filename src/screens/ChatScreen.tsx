@@ -74,6 +74,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loadingActions, setLoadingActions] = useState(false);
   const [userCache, setUserCache] = useState<{ [userId: string]: UserCacheEntry }>({});
+  const [userLanguage, setUserLanguage] = useState<string>('en'); // User's preferred language
   const [isOnline, setIsOnline] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [showMembersModal, setShowMembersModal] = useState(false);
@@ -123,6 +124,23 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     
     loadProactiveSetting();
   }, [threadId]);
+
+  // Load user's preferred language
+  useEffect(() => {
+    const loadUserLanguage = async () => {
+      if (!user?.uid) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const preferredLanguage = userDoc.data()?.preferredLanguage || 'en';
+        setUserLanguage(preferredLanguage);
+      } catch (error) {
+        console.error('Error loading user language:', error);
+      }
+    };
+    
+    loadUserLanguage();
+  }, [user?.uid]);
 
   // Load Seinfeld Mode status
   // Function to load Seinfeld Mode status
@@ -1389,6 +1407,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                 onForward={handleForwardMessage}
                 threadMembers={threadMembers}
                 threadLastRead={threadLastRead}
+                userLanguage={userLanguage}
               />
             </ErrorBoundary>
           );

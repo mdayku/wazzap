@@ -21,6 +21,8 @@ export interface Message {
   senderId: string;
   senderName?: string; // For Seinfeld agents and other special users
   text: string;
+  translations?: { [languageCode: string]: string }; // Translated versions of the message
+  translatedAt?: Timestamp;
   media?: {
     type: 'image' | 'audio' | 'location' | null;
     url: string | null;
@@ -61,9 +63,10 @@ interface MessageBubbleProps {
   onForward?: (message: Message) => void;
   threadMembers?: string[];
   threadLastRead?: { [userId: string]: { seconds: number; nanoseconds: number; toMillis?: () => number } };
+  userLanguage?: string; // User's preferred language for translation
 }
 
-export default function MessageBubble({ item, me, showSender, senderName, threadId, onForward, threadMembers = [], threadLastRead = {} }: MessageBubbleProps) {
+export default function MessageBubble({ item, me, showSender, senderName, threadId, onForward, threadMembers = [], threadLastRead = {}, userLanguage = 'en' }: MessageBubbleProps) {
   const { colors } = useTheme();
   const isMe = item.senderId === me;
   const isHighPriority = item.priority === 'high';
@@ -75,6 +78,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMessageOptions, setShowMessageOptions] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false); // Toggle between original and translated text
   
   // Calculate read status and count based on lastRead timestamps
   const calculateReadStatus = (): { status: 'sending' | 'sent' | 'delivered' | 'read', readCount: number, totalMembers: number } => {
@@ -635,9 +639,25 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
         )}
         
         {item.text ? (
-          <Text style={[styles.text, isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }]}>
-            {item.text}
-          </Text>
+          <TouchableOpacity 
+            onLongPress={() => {
+              if (item.translations && item.translations[userLanguage]) {
+                setShowOriginal(!showOriginal);
+              }
+            }}
+            activeOpacity={item.translations && item.translations[userLanguage] ? 0.7 : 1}
+          >
+            <Text style={[styles.text, isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }]}>
+              {!isMe && item.translations && item.translations[userLanguage] && !showOriginal
+                ? item.translations[userLanguage]
+                : item.text}
+            </Text>
+            {!isMe && item.translations && item.translations[userLanguage] && (
+              <Text style={[styles.translationBadge, { color: colors.textSecondary }]}>
+                {showOriginal ? '🌍 Tap to see translation' : '📝 Tap to see original'}
+              </Text>
+            )}
+          </TouchableOpacity>
         ) : null}
         
         <View style={styles.footer}>
@@ -1189,6 +1209,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  translationBadge: {
+    fontSize: 11,
+    marginTop: 4,
+    fontStyle: 'italic',
+    opacity: 0.7,
   },
 });
 
