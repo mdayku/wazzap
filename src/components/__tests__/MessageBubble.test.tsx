@@ -102,7 +102,7 @@ describe('MessageBubble Component', () => {
 
   it('should render double checkmarks for read messages', () => {
     const messageTime = Date.now() - 10000; // Message sent 10 seconds ago
-    const readMessage = { 
+    const readMessage: Message = { 
       ...mockMessage, 
       status: 'read' as const,
       createdAt: Timestamp.fromDate(new Date(messageTime))
