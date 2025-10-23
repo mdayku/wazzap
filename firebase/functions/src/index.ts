@@ -4,6 +4,7 @@ import { summarizeThread, extractAI } from './summary';
 import { semanticSearch, batchGenerateEmbeddings } from './embeddings';
 import { analyzeThreadContext, submitSuggestionFeedback, dismissSuggestion as dismissSuggestionHandler, suggestMeetingTimes } from './proactive';
 import { transcribeAudio, autoTranscribeAudio } from './transcription';
+import { generateImage } from './imageGeneration';
 
 // Firestore trigger: runs when a new message is created
 export const messageCreated = functions.firestore
@@ -32,3 +33,5 @@ export const suggestTimes = functions.https.onCall(suggestMeetingTimes); // Lega
 // Voice transcription
 export const transcribe = functions.https.onCall(transcribeAudio);
 
+// AI image generation
+export const generate = generateImage;

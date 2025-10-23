@@ -25,6 +25,7 @@ const SLASH_COMMANDS = [
   { command: '/actions', description: 'Extract action items', icon: 'checkbox-outline' },
   { command: '/search', description: 'Semantic search', icon: 'search-outline' },
   { command: '/decisions', description: 'View decisions', icon: 'checkmark-circle-outline' },
+  { command: '/generate', description: 'Generate AI image', icon: 'image-outline' },
 ];
 
 export default function Composer({ threadId, uid, onTyping, onSlashCommand }: ComposerProps) {

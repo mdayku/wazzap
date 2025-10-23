@@ -13,6 +13,7 @@ import {
   Image,
   Share,
   Alert,
+  TextInput,
 } from 'react-native';
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, setDoc, getDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +38,7 @@ import { checkRateLimit, recordAICall } from '../services/aiRateLimiter';
 import { simulateAIStream, SUMMARIZE_STEPS, EXTRACT_STEPS } from '../utils/aiStreamSimulator';
 import { analyzeThreadContext, submitFeedback, dismissSuggestion as dismissSuggestionAPI, type ProactiveSuggestion } from '../services/proactive';
 import ProactiveSuggestionPill from '../components/ProactiveSuggestionPill';
+import { generateAIImage } from '../services/imageGeneration';
 
 export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const { threadId, threadName } = route.params;
@@ -69,7 +71,10 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState<Message | null>(null);
-  const isInitialLoadRef = useRef(true); // Track initial load
+  const isInitialLoadRef = useRef(true);
+  const [showImagePrompt, setShowImagePrompt] = useState(false);
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [generatingImage, setGeneratingImage] = useState(false); // Track initial load
   const previousMessageIdsRef = useRef<Set<string>>(new Set()); // Track message IDs for haptic feedback
   const [showAIMenu, setShowAIMenu] = useState(false); // AI menu modal
   const [aiCallsRemaining, setAiCallsRemaining] = useState(20); // Track AI rate limit
@@ -647,6 +652,83 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     }
   };
 
+  const handleGenerateImage = () => {
+    setShowImagePrompt(true);
+  };
+
+  const handleSubmitImagePrompt = async () => {
+    if (!imagePrompt.trim() || !user) return;
+
+    // Check rate limit
+    const rateLimitInfo = await checkRateLimit();
+    if (rateLimitInfo.isLimited) {
+      const minutesUntilReset = Math.ceil((rateLimitInfo.resetAt - Date.now()) / 60000);
+      Alert.alert(
+        'Rate Limit Reached',
+        `You've reached the limit of 20 AI calls per 10 minutes. Try again in ${minutesUntilReset} minute${minutesUntilReset === 1 ? '' : 's'}.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setGeneratingImage(true);
+    setShowImagePrompt(false);
+
+    try {
+      // Record AI call
+      await recordAICall('generate');
+
+      // Haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      Toast.show({
+        type: 'info',
+        text1: '🎨 Generating image...',
+        text2: 'This may take 10-15 seconds',
+        position: 'bottom',
+      });
+
+      // Generate image
+      const result = await generateAIImage(imagePrompt.trim());
+
+      // Send the generated image as a message
+      const tempId = `${Date.now()}_${Math.random()}`;
+      await sendMessageOptimistic(
+        {
+          threadId,
+          tempId,
+          text: `🎨 Generated: "${imagePrompt.trim()}"`,
+          media: {
+            type: 'image',
+            url: result.imageUrl,
+            width: 1024,
+            height: 1024,
+          },
+        },
+        user.uid
+      );
+
+      Toast.show({
+        type: 'success',
+        text1: '✨ Image generated!',
+        text2: 'DALL-E 3 created your image',
+        position: 'bottom',
+      });
+
+      setImagePrompt('');
+    } catch (error: any) {
+      console.error('Error generating image:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Generation failed',
+        text2: error.message || 'Could not generate image',
+        position: 'bottom',
+      });
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
   const handleForwardMessage = (message: any) => {
     setMessageToForward(message);
     setShowForwardModal(true);
@@ -1085,6 +1167,9 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                 break;
               case '/decisions':
                 navigation.navigate('Decisions' as never, { threadId } as never);
+                break;
+              case '/generate':
+                handleGenerateImage();
                 break;
             }
           }}
@@ -1569,6 +1654,71 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
                 <Text style={styles.noThreadsText}>No other chats available</Text>
               )}
             </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Image Generation Prompt Modal */}
+      <Modal
+        visible={showImagePrompt}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowImagePrompt(false)}
+      >
+        <TouchableOpacity 
+          style={styles.membersModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowImagePrompt(false)}
+        >
+          <View style={[styles.membersModalContent, { backgroundColor: colors.surface }]} onStartShouldSetResponder={() => true}>
+            <View style={[styles.membersModalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.membersModalTitle, { color: colors.text }]}>🎨 Generate AI Image</Text>
+              <TouchableOpacity onPress={() => setShowImagePrompt(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={{ padding: 16 }}>
+              <Text style={[styles.settingDescription, { color: colors.textSecondary, marginBottom: 12 }]}>
+                Describe the image you want to create with DALL-E 3
+              </Text>
+              <TextInput
+                style={[
+                  styles.imagePromptInput,
+                  { 
+                    backgroundColor: colors.background,
+                    color: colors.text,
+                    borderColor: colors.border
+                  }
+                ]}
+                placeholder="e.g., A sunset over mountains with a lake"
+                placeholderTextColor={colors.textSecondary}
+                value={imagePrompt}
+                onChangeText={setImagePrompt}
+                multiline
+                numberOfLines={4}
+                maxLength={1000}
+                autoFocus
+              />
+              <TouchableOpacity
+                style={[
+                  styles.generateButton,
+                  { backgroundColor: colors.primary },
+                  (!imagePrompt.trim() || generatingImage) && { opacity: 0.5 }
+                ]}
+                onPress={handleSubmitImagePrompt}
+                disabled={!imagePrompt.trim() || generatingImage}
+              >
+                {generatingImage ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={20} color="#fff" />
+                    <Text style={styles.generateButtonText}>Generate Image</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -2069,6 +2219,28 @@ const styles = StyleSheet.create({
   },
   toggleCircleActive: {
     transform: [{ translateX: 20 }],
+  },
+  imagePromptInput: {
+    minHeight: 100,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  generateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 8,
+    gap: 8,
+  },
+  generateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
