@@ -10,7 +10,7 @@ export function useInAppNotifications(userId: string | null) {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Function to play notification sound
-  const playNotificationSound = async () => {
+  const _playNotificationSound = async () => {
     try {
       // Use a simple notification sound (you can replace this with a custom sound file)
       // For now, using a system sound URL

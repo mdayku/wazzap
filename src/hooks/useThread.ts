@@ -39,7 +39,7 @@ export function useThreads(uid: string | null) {
     // Set up listeners for each thread's unread count
     const threadUnreadCounts = new Map<string, number>();
     const unsubscribers = new Map<string, () => void>();
-    const lastReadCache = new Map<string, any>();
+    const lastReadCache = new Map<string, { seconds: number; nanoseconds: number }>();
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const threadsData = snapshot.docs.map((doc) => {

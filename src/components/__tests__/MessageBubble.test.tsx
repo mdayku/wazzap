@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import MessageBubble from '../MessageBubble';
+import MessageBubble, { Message } from '../MessageBubble';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 
 // Mock expo-av
@@ -45,7 +45,7 @@ const renderWithTheme = (component: React.ReactElement) => {
 };
 
 describe('MessageBubble Component', () => {
-  const mockMessage = {
+  const mockMessage: Message = {
     id: '1',
     senderId: 'user1',
     text: 'Hello, World!',
@@ -113,7 +113,11 @@ describe('MessageBubble Component', () => {
     // Mock thread members and lastRead for read receipt calculation
     const threadMembers = ['user1', 'user2'];
     const threadLastRead = {
-      'user2': { toMillis: () => Date.now() } // Read after message (now > messageTime)
+      'user2': { 
+        toMillis: () => Date.now(),
+        seconds: Math.floor(Date.now() / 1000),
+        nanoseconds: 0
+      } // Read after message (now > messageTime)
     };
     
     const { getByText } = renderWithTheme(

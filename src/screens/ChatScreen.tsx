@@ -30,14 +30,35 @@ import HydrationBanner from '../components/HydrationBanner';
 import { formatLastSeen, isUserOnline } from '../utils/time';
 import { summarizeThread, extractAI } from '../services/ai';
 import { sendMessageOptimistic, subscribeToQueue, type QueuedMessage } from '../state/offlineQueue';
+import { Message } from '../components/MessageBubble';
 import NetInfo from '@react-native-community/netinfo';
 
-export default function ChatScreen({ route, navigation }: any) {
+interface ChatScreenProps {
+  route: { params: { threadId: string; threadName: string } };
+  navigation: { goBack: () => void; navigate: (screen: string, params?: unknown) => void; setOptions: (options: unknown) => void };
+}
+
+interface ActionItem {
+  text: string;
+  completed?: boolean;
+}
+
+interface Decision {
+  text: string;
+  timestamp?: number;
+}
+
+interface UserCacheEntry {
+  displayName: string;
+  photoURL?: string;
+}
+
+export default function ChatScreen({ route, navigation }: ChatScreenProps) {
   const { threadId, threadName } = route.params;
   const { user } = useAuth();
   const { colors } = useTheme();
   const { threads } = useThreads(user?.uid || '');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [typing, setTyping] = useState(false);
@@ -47,22 +68,22 @@ export default function ChatScreen({ route, navigation }: any) {
   const [summaryTitle, setSummaryTitle] = useState('Thread Summary');
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [showActions, setShowActions] = useState(false);
-  const [actionItems, setActionItems] = useState<any[]>([]);
-  const [decisions, setDecisions] = useState<any[]>([]);
+  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+  const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loadingActions, setLoadingActions] = useState(false);
-  const [userCache, setUserCache] = useState<any>({});
+  const [userCache, setUserCache] = useState<{ [userId: string]: UserCacheEntry }>({});
   const [isOnline, setIsOnline] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [threadMembers, setThreadMembers] = useState<string[]>([]);
   const [isGroupChat, setIsGroupChat] = useState(false);
-  const [threadLastRead, setThreadLastRead] = useState<{ [userId: string]: any }>({});
+  const [threadLastRead, setThreadLastRead] = useState<{ [userId: string]: { seconds: number; nanoseconds: number; toMillis?: () => number } }>({});
   const listRef = useRef<FlatList>(null);
   const [messageLimit, setMessageLimit] = useState(150); // Increased to support load tests
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showForwardModal, setShowForwardModal] = useState(false);
-  const [messageToForward, setMessageToForward] = useState<any>(null);
+  const [messageToForward, setMessageToForward] = useState<Message | null>(null);
   const isInitialLoadRef = useRef(true); // Track initial load
   const previousMessageIdsRef = useRef<Set<string>>(new Set()); // Track message IDs for haptic feedback
   const [showAIMenu, setShowAIMenu] = useState(false); // AI menu modal

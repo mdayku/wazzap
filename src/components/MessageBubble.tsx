@@ -13,7 +13,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { formatTimestamp } from '../utils/time';
 import { retryMessage, type QueuedMessage } from '../state/offlineQueue';
 
-interface Message {
+export interface Message {
   id: string;
   senderId: string;
   text: string;
@@ -41,7 +41,7 @@ interface MessageBubbleProps {
   threadId?: string;
   onForward?: (message: Message) => void;
   threadMembers?: string[];
-  threadLastRead?: { [userId: string]: { seconds: number; nanoseconds: number } };
+  threadLastRead?: { [userId: string]: { seconds: number; nanoseconds: number; toMillis?: () => number } };
 }
 
 export default function MessageBubble({ item, me, showSender, senderName, threadId, onForward, threadMembers = [], threadLastRead = {} }: MessageBubbleProps) {
