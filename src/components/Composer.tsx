@@ -275,9 +275,11 @@ export default function Composer({ threadId, uid, onTyping, onSlashCommand }: Co
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Send location message
+      const tempId = `${Date.now()}_${Math.random()}`;
       await sendMessageOptimistic(
         {
           threadId,
+          tempId,
           text: `📍 ${address}`,
           media: {
             type: 'location',
