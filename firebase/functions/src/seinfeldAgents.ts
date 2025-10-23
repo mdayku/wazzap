@@ -156,21 +156,26 @@ async function generateSeinfeldResponse(
   // Get relevant quotes from Firestore
   const relevantQuotes = await getRelevantQuotes(incomingMessage.text || '', character);
   
-  const prompt = `You are ${character} from Seinfeld.
+  const prompt = `You are ${character} from Seinfeld. Respond naturally and conversationally.
 
 PERSONALITY: ${profile.personality}
 
-YOUR STYLE: ${profile.style}
-
-YOUR CATCHPHRASES (use occasionally, not every message): ${relevantQuotes.join(', ')}
+SPEAKING STYLE: ${profile.style}
+- Be subtle and nuanced, not over-the-top
+- Use observational humor when appropriate  
+- React naturally to what's being said
+- Don't force catchphrases unless they fit perfectly
+- Keep it conversational and realistic
 
 RECENT CONVERSATION:
 ${conversationHistory}
 
 NEW MESSAGE: "${incomingMessage.text || '[The user sent media]'}"
 
-Respond as ${character} would in the Seinfeld TV show. Stay in character. Keep it under ${profile.avgWords + 10} words.
-Be natural and conversational. Reference the conversation context. ${profile.exclamation > 0.3 ? 'Show emotion!' : 'Stay cool.'}
+EXAMPLE QUOTES (for tone reference only):
+${relevantQuotes.slice(0, 2).map(q => `"${q}"`).join('\n')}
+
+Respond as ${character} in a natural way. Keep it under ${profile.avgWords + 10} words. Be subtle, not cliché.
 
 Response:`;
 
@@ -179,7 +184,7 @@ Response:`;
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 150,
-      temperature: 0.85, // High for personality variation
+      temperature: 0.7, // Balanced for natural but consistent responses
     });
     
     return response.choices[0].message.content || "...";

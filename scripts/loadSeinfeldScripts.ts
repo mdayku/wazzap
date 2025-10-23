@@ -9,10 +9,16 @@ import * as path from 'path';
 
 // Initialize Firebase Admin (if not already initialized)
 if (!admin.apps.length) {
-  const serviceAccount = require('../firebase-service-account.json');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  try {
+    const serviceAccount = require('../firebase-service-account.json');
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  } catch (error) {
+    console.error('Error loading service account:', error);
+    console.log('Make sure firebase-service-account.json is in the project root');
+    process.exit(1);
+  }
 }
 
 interface ScriptLine {
