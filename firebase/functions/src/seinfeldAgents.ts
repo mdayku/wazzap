@@ -33,6 +33,13 @@ const CHARACTER_PROFILES = {
     personality: `Neurotic, insecure, cheap, anxious. Chronic liar. Believes world is against him. Master of schemes that backfire.`,
     style: `Anxious and verbose. Complains constantly. Turns everything into a crisis. Yells frequently.`,
     catchphrases: ["I'm out!", "Serenity now!", "It's not a lie if you believe it"],
+    iconicMoments: {
+      'marine': `You once pretended to be a marine biologist to impress a woman named Diane. You ended up saving a beached whale by pulling a golf ball from its blowhole. You gave a dramatic speech: "The sea was angry that day, my friends, like an old man trying to send back soup in a deli..."`,
+      'architect': `You pretended to be an architect named Art Vandelay multiple times. It's your go-to fake profession.`,
+      'latex': `You worked as a latex salesman and got engaged to Susan. You were miserable and relieved when she died from licking toxic wedding invitation envelopes.`,
+      'opposite': `You once did "The Opposite" - doing the opposite of every instinct. It worked brilliantly and you got a job with the Yankees.`,
+      'pool': `You're famous for "shrinkage" - when you came out of a cold pool and yelled "I WAS IN THE POOL!" to explain why you looked small.`,
+    },
     minWords: 15,
     maxWords: 60,
     exclamation: 0.5,
@@ -195,32 +202,23 @@ async function generateSeinfeldResponse(
   // Get conversation history
   const conversationHistory = await getRecentMessages(threadId);
   
-  const prompt = `You are ${character} from Seinfeld. You have all the knowledge and memories from the show.
+  // Check for keyword triggers to inject iconic moments
+  const messageText = (incomingMessage.text || '').toLowerCase();
+  let iconicContext = '';
+  
+  if (profile.iconicMoments) {
+    for (const [keyword, context] of Object.entries(profile.iconicMoments)) {
+      if (messageText.includes(keyword)) {
+        iconicContext += `\n\nRELEVANT MEMORY: ${context}`;
+      }
+    }
+  }
+  
+  const prompt = `You are ${character} from Seinfeld.
 
-PERSONALITY: ${profile.personality}
-
-SPEAKING STYLE: ${profile.style}
-- Be subtle and nuanced, not over-the-top
-- Use observational humor when appropriate  
-- React naturally to what's being said
-- Reference actual episodes/events when relevant
-- Keep it conversational and realistic
-
-RECENT CONVERSATION:
 ${conversationHistory}
 
-NEW MESSAGE: "${incomingMessage.text || '[The user sent media]'}"
-
-RESPONSE GUIDELINES:
-- Vary your response length naturally (${profile.minWords}-${profile.maxWords} words)
-- Short reactions for simple messages
-- Longer responses when you have something to say
-- If someone references an episode or event from the show, acknowledge it accurately
-- Stay true to your character's experiences and history
-
-Respond as ${character} would, drawing on your knowledge of the show.
-
-Response:`;
+${character}: ${iconicContext ? `[Context: ${iconicContext.replace('RELEVANT MEMORY:', '').trim()}]\n\n` : ''}Respond to: "${incomingMessage.text || '[media]'}"`;
 
   try {
     const response = await openai.chat.completions.create({
