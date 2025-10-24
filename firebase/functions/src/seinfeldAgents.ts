@@ -17,7 +17,32 @@ function getOpenAIClient(): OpenAI {
   return openaiClient;
 }
 
-// Character profiles (simplified for Cloud Function)
+// Character UIDs only - GPT knows the personalities
+const CHARACTER_UIDS: Record<SeinfeldCharacter, string> = {
+  Jerry: 'seinfeld_jerry',
+  George: 'seinfeld_george',
+  Elaine: 'seinfeld_elaine',
+  Kramer: 'seinfeld_kramer',
+};
+
+// ============================================================================
+// COMMENTED OUT: Previous RAG + personality injection approach
+// ============================================================================
+// We tried multiple approaches to make the Seinfeld agents more accurate:
+// 1. Full RAG with 50k+ script lines and semantic search
+// 2. Curated "memorable quotes" with keyword triggers
+// 3. Explicit personality descriptions and speaking styles
+// 4. Keyword-triggered "iconic moments" injection
+//
+// Result: All of these approaches seemed to INTERFERE with GPT-4o-mini's
+// native knowledge of the characters. The model knows Seinfeld extremely well
+// from its training data, and our explicit instructions were overriding that
+// natural knowledge, causing generic/incorrect responses.
+//
+// Final approach: Minimal prompt - just "You are [Character] from Seinfeld"
+// + conversation history. Let GPT use its training data.
+// ============================================================================
+/*
 const CHARACTER_PROFILES = {
   Jerry: {
     uid: 'seinfeld_jerry',
@@ -64,51 +89,6 @@ const CHARACTER_PROFILES = {
   },
 };
 
-/**
- * Determine which Seinfeld character should respond
- * Based on conversation context and character availability
- */
-function selectResponder(
-  message: any,
-  threadData: any,
-  lastResponder?: SeinfeldCharacter
-): SeinfeldCharacter {
-  const activeCharacters = threadData.seinfeldMode?.activeCharacters || ['Jerry', 'George', 'Elaine', 'Kramer'];
-  
-  // Don't let same character respond twice in a row
-  const availableCharacters = activeCharacters.filter((c: SeinfeldCharacter) => c !== lastResponder);
-  
-  // Simple random selection for now
-  // In production, could use ML to determine best responder based on message content
-  const randomIndex = Math.floor(Math.random() * availableCharacters.length);
-  return availableCharacters[randomIndex] || 'Jerry';
-}
-
-/**
- * Get recent conversation history
- */
-async function getRecentMessages(threadId: string, limit: number = 10): Promise<string> {
-  const messagesRef = admin.firestore()
-    .collection('threads')
-    .doc(threadId)
-    .collection('messages')
-    .orderBy('createdAt', 'desc')
-    .limit(limit);
-  
-  const snapshot = await messagesRef.get();
-  const messages = snapshot.docs
-    .reverse()
-    .map(doc => {
-      const data = doc.data();
-      return `${data.senderName || 'User'}: ${data.text || '[media]'}`;
-    });
-  
-  return messages.join('\n');
-}
-
-/**
- * Search for relevant Seinfeld quotes using semantic search with embeddings
- */
 async function getRelevantQuotes(messageText: string, character: SeinfeldCharacter): Promise<string[]> {
   try {
     const openai = getOpenAIClient();
@@ -187,16 +167,61 @@ async function getRelevantQuotes(messageText: string, character: SeinfeldCharact
     return profile.catchphrases.slice(0, 2);
   }
 }
+*/
+// ============================================================================
+
+/**
+ * Determine which Seinfeld character should respond
+ * Based on conversation context and character availability
+ */
+function selectResponder(
+  message: any,
+  threadData: any,
+  lastResponder?: SeinfeldCharacter
+): SeinfeldCharacter {
+  const activeCharacters = threadData.seinfeldMode?.activeCharacters || ['Jerry', 'George', 'Elaine', 'Kramer'];
+  
+  // Don't let same character respond twice in a row
+  const availableCharacters = activeCharacters.filter((c: SeinfeldCharacter) => c !== lastResponder);
+  
+  // Simple random selection for now
+  // In production, could use ML to determine best responder based on message content
+  const randomIndex = Math.floor(Math.random() * availableCharacters.length);
+  return availableCharacters[randomIndex] || 'Jerry';
+}
+
+/**
+ * Get recent conversation history
+ */
+async function getRecentMessages(threadId: string, limit: number = 10): Promise<string> {
+  const messagesRef = admin.firestore()
+    .collection('threads')
+    .doc(threadId)
+    .collection('messages')
+    .orderBy('createdAt', 'desc')
+    .limit(limit);
+  
+  const snapshot = await messagesRef.get();
+  const messages = snapshot.docs
+    .reverse()
+    .map(doc => {
+      const data = doc.data();
+      return `${data.senderName || 'User'}: ${data.text || '[media]'}`;
+    });
+  
+  return messages.join('\n');
+}
+
 
 /**
  * Generate Seinfeld character response using GPT-4o-mini
+ * Pure GPT - no RAG, no personality injection, just trust the model
  */
 async function generateSeinfeldResponse(
   character: SeinfeldCharacter,
   incomingMessage: any,
   threadId: string
 ): Promise<string> {
-  const profile = CHARACTER_PROFILES[character];
   const openai = getOpenAIClient();
   
   // Get conversation history
@@ -206,21 +231,20 @@ async function generateSeinfeldResponse(
 
 ${conversationHistory}
 
-${character}: "${incomingMessage.text || '[media]'}"`;
+${character}:`;
 
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 200, // Allow for longer, more varied responses
-      temperature: 0.8, // Higher temperature for more dynamic responses
+      max_tokens: 150,
+      temperature: 0.9,
     });
     
     return response.choices[0].message.content || "...";
   } catch (error) {
     console.error(`Error generating ${character} response:`, error);
-    // Fallback to catchphrase
-    return profile.catchphrases[0] || "Yeah...";
+    return "...";
   }
 }
 
@@ -292,7 +316,7 @@ export const seinfeldAgentResponse = functions.firestore
     
     // Select which character should respond
     const responder = selectResponder(message, threadData, lastResponder);
-    const responderProfile = CHARACTER_PROFILES[responder];
+    const responderUid = CHARACTER_UIDS[responder];
     
     console.log(`[SEINFELD] ${responder} will respond`);
     
@@ -312,7 +336,7 @@ export const seinfeldAgentResponse = functions.firestore
     
     await messageRef.set({
       text: responseText,
-      senderId: responderProfile.uid,
+      senderId: responderUid,
       senderName: responder,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'sent',
@@ -327,7 +351,7 @@ export const seinfeldAgentResponse = functions.firestore
       .update({
         lastMessage: {
           text: responseText,
-          senderId: responderProfile.uid,
+          senderId: responderUid,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
         },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
