@@ -153,10 +153,15 @@ export async function searchSeinfeldQuotes(
       return [];
     }
 
+    // Extract keywords from query for hybrid search
+    const queryLower = query.toLowerCase();
+    const keywords = queryLower.split(/\s+/).filter(w => w.length > 3);
+
     // Calculate cosine similarity for each script
     const similarities = scriptsSnapshot.docs.map((doc) => {
       const data = doc.data();
       const embedding = data.embedding;
+      const lineLower = (data.line || '').toLowerCase();
 
       if (!embedding || !Array.isArray(embedding)) {
         return { line: data.line, similarity: 0 };
@@ -169,7 +174,13 @@ export async function searchSeinfeldQuotes(
       );
       const magnitudeA = Math.sqrt(queryEmbedding.reduce((sum: number, val: number) => sum + val * val, 0));
       const magnitudeB = Math.sqrt(embedding.reduce((sum: number, val: number) => sum + val * val, 0));
-      const similarity = dotProduct / (magnitudeA * magnitudeB);
+      let similarity = dotProduct / (magnitudeA * magnitudeB);
+
+      // Hybrid boost: if line contains query keywords, boost similarity
+      const keywordMatches = keywords.filter(kw => lineLower.includes(kw)).length;
+      if (keywordMatches > 0) {
+        similarity += (keywordMatches * 0.15); // Boost by 0.15 per keyword match
+      }
 
       return {
         line: data.line,
@@ -178,7 +189,7 @@ export async function searchSeinfeldQuotes(
       };
     });
 
-    // Sort by similarity and return top results
+    // Sort by boosted similarity and return top results
     const topResults = similarities
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit)
