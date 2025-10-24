@@ -191,9 +191,9 @@ function selectResponder(
 }
 
 /**
- * Get recent conversation history
+ * Get recent conversation history as proper chat messages
  */
-async function getRecentMessages(threadId: string, limit: number = 10): Promise<string> {
+async function getRecentMessages(threadId: string, character: SeinfeldCharacter, limit: number = 10): Promise<Array<{role: 'user' | 'assistant', content: string}>> {
   const messagesRef = admin.firestore()
     .collection('threads')
     .doc(threadId)
@@ -206,16 +206,26 @@ async function getRecentMessages(threadId: string, limit: number = 10): Promise<
     .reverse()
     .map(doc => {
       const data = doc.data();
-      return `${data.senderName || 'User'}: ${data.text || '[media]'}`;
+      const text = data.text || '[media]';
+      
+      // If this is the character speaking, it's an assistant message
+      // Otherwise it's a user message
+      if (data.senderName === character) {
+        return { role: 'assistant' as const, content: text };
+      } else {
+        // Include sender name for context in multi-person chats
+        const prefix = data.senderName && data.senderName !== 'User' ? `${data.senderName}: ` : '';
+        return { role: 'user' as const, content: `${prefix}${text}` };
+      }
     });
   
-  return messages.join('\n');
+  return messages;
 }
 
 
 /**
- * Generate Seinfeld character response using GPT-4o-mini
- * Pure GPT - no RAG, no personality injection, just trust the model
+ * Generate Seinfeld character response using GPT-4o
+ * Uses proper chat format so GPT understands it's IN the conversation
  */
 async function generateSeinfeldResponse(
   character: SeinfeldCharacter,
@@ -224,21 +234,24 @@ async function generateSeinfeldResponse(
 ): Promise<string> {
   const openai = getOpenAIClient();
   
-  // Get conversation history
-  const conversationHistory = await getRecentMessages(threadId);
+  // Get conversation history as proper chat messages
+  const conversationHistory = await getRecentMessages(threadId, character);
   
-  const prompt = `You are ${character} from Seinfeld.
-
-${conversationHistory}
-
-${character}:`;
-
+  // Ultra-simple system prompt - just like ChatGPT
+  const messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [
+    { 
+      role: 'system', 
+      content: `You are ${character} from Seinfeld.`
+    },
+    ...conversationHistory
+  ];
+  
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 150,
-      temperature: 0.9,
+      model: 'gpt-4o',
+      messages: messages,
+      max_tokens: 300, // Increased from 150 - was cutting off responses
+      temperature: 1.0, // Default ChatGPT temperature
     });
     
     return response.choices[0].message.content || "...";
