@@ -24,7 +24,8 @@ const CHARACTER_PROFILES = {
     personality: `Observational comedian, sarcastic, neat freak. Voice of reason. Finds humor in mundane situations.`,
     style: `Responds with observational humor. Asks rhetorical questions. Slightly sarcastic but friendly.`,
     catchphrases: ["What's the deal with", "That's gold", "Not that there's anything wrong with that"],
-    avgWords: 25,
+    minWords: 10,
+    maxWords: 45,
     exclamation: 0.2,
   },
   George: {
@@ -32,7 +33,8 @@ const CHARACTER_PROFILES = {
     personality: `Neurotic, insecure, cheap, anxious. Chronic liar. Believes world is against him. Master of schemes that backfire.`,
     style: `Anxious and verbose. Complains constantly. Turns everything into a crisis. Yells frequently.`,
     catchphrases: ["I'm out!", "Serenity now!", "It's not a lie if you believe it"],
-    avgWords: 30,
+    minWords: 15,
+    maxWords: 60,
     exclamation: 0.5,
   },
   Elaine: {
@@ -40,7 +42,8 @@ const CHARACTER_PROFILES = {
     personality: `Confident, assertive, competitive. Strong opinions. Not afraid to speak her mind. Can be petty.`,
     style: `Direct and assertive. Uses "Get out!" when surprised. Competitive in conversations.`,
     catchphrases: ["Get out!", "Shut up!", "Maybe the dingo ate your baby"],
-    avgWords: 22,
+    minWords: 8,
+    maxWords: 40,
     exclamation: 0.4,
   },
   Kramer: {
@@ -48,7 +51,8 @@ const CHARACTER_PROFILES = {
     personality: `Eccentric, spontaneous, energetic. Childlike enthusiasm. No boundaries. Surprisingly successful at random things.`,
     style: `Enthusiastic and scattered. Jumps between topics. Always has a scheme. Giddy up!`,
     catchphrases: ["Giddy up!", "Yeah yeah yeah", "I'm out there Jerry, and I'm loving every minute of it!"],
-    avgWords: 20,
+    minWords: 5,
+    maxWords: 35,
     exclamation: 0.6,
   },
 };
@@ -196,7 +200,7 @@ async function generateSeinfeldResponse(
   let relevantQuotes: string[] = [];
   
   try {
-    relevantQuotes = await searchSeinfeldQuotes(incomingMessage.text || '', character, 3);
+    relevantQuotes = await searchSeinfeldQuotes(incomingMessage.text || '', character, 7);
   } catch (error) {
     console.log('[SEINFELD] Vector search failed, falling back to keyword search');
     relevantQuotes = await getRelevantQuotes(incomingMessage.text || '', character);
@@ -223,10 +227,19 @@ ${conversationHistory}
 
 NEW MESSAGE: "${incomingMessage.text || '[The user sent media]'}"
 
-EXAMPLE QUOTES (for tone reference only):
-${relevantQuotes.slice(0, 2).map(q => `"${q}"`).join('\n')}
+YOUR ACTUAL MEMORIES (things you've said/done in past episodes):
+${relevantQuotes.map(q => `- "${q}"`).join('\n')}
 
-Respond as ${character} in a natural way. Keep it under ${profile.avgWords + 10} words. Be subtle, not cliché.
+IMPORTANT: These are real things you've said or done. If the message references something from your past, acknowledge it! Don't contradict your own history.
+
+LENGTH GUIDANCE:
+- Vary your response length naturally based on the situation
+- Short reactions: ${profile.minWords}-${Math.floor((profile.minWords + profile.maxWords) / 3)} words
+- Normal responses: ${Math.floor((profile.minWords + profile.maxWords) / 3)}-${Math.floor((profile.minWords + profile.maxWords) * 2 / 3)} words  
+- Longer rants/stories: ${Math.floor((profile.minWords + profile.maxWords) * 2 / 3)}-${profile.maxWords} words
+- Choose length based on context - don't always use the same length!
+
+Respond as ${character} in a natural way. Be subtle, not cliché.
 
 Response:`;
 
@@ -234,8 +247,8 @@ Response:`;
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 150,
-      temperature: 0.7, // Balanced for natural but consistent responses
+      max_tokens: 200, // Allow for longer, more varied responses
+      temperature: 0.8, // Higher temperature for more dynamic responses
     });
     
     return response.choices[0].message.content || "...";
