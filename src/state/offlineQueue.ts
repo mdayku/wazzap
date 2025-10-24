@@ -56,7 +56,6 @@ if (!(global as any).__lastNetworkState) {
  */
 export async function initializeOfflineQueue() {
   if ((global as any).__offlineQueueInitialized) {
-    console.log('⚠️ [OFFLINE_QUEUE] Already initialized, skipping...');
     return;
   }
   
@@ -66,7 +65,6 @@ export async function initializeOfflineQueue() {
     const stored = await AsyncStorage.getItem(QUEUE_KEY);
     if (stored) {
       memoryQueue = JSON.parse(stored);
-      console.log(`📦 [OFFLINE_QUEUE] Loaded ${memoryQueue.length} queued messages from storage`);
       notifyListeners();
     }
     
@@ -80,8 +78,6 @@ export async function initializeOfflineQueue() {
       const isOnline = state.isConnected && state.isInternetReachable !== false;
       const wasOnline = (global as any).__lastNetworkState;
       
-      console.log(`📡 [OFFLINE_QUEUE] Network change: ${wasOnline} → ${isOnline}`);
-      
       // Update state
       (global as any).__lastNetworkState = isOnline;
       
@@ -90,7 +86,6 @@ export async function initializeOfflineQueue() {
       // 2. OR first network check and we're online with queued messages (wasOnline === null)
       if (isOnline && (wasOnline === false || (wasOnline === null && memoryQueue.length > 0))) {
         if (memoryQueue.length > 0 && !isProcessing) {
-          console.log('🔄 [OFFLINE_QUEUE] Network restored, processing queue...');
           // Add a small delay to ensure Firestore is ready
           setTimeout(() => {
             processQueue();
@@ -102,10 +97,8 @@ export async function initializeOfflineQueue() {
         }
       }
     });
-    
-    console.log('✅ [OFFLINE_QUEUE] Initialized successfully');
   } catch (error) {
-    console.error('❌ [OFFLINE_QUEUE] Failed to initialize:', error);
+    console.error('Failed to initialize offline queue:', error);
   }
 }
 
@@ -160,7 +153,7 @@ async function enqueueMessage(message: Omit<QueuedMessage, 'id' | 'timestamp' | 
   await persistQueue();
   notifyListeners();
   
-  console.log(`📥 [OFFLINE_QUEUE] Enqueued message (queue size: ${memoryQueue.length})`);
+  // Message enqueued
 }
 
 /**
@@ -193,17 +186,14 @@ async function updateMessageStatus(id: string, updates: Partial<QueuedMessage>) 
  */
 export async function processQueue() {
   if (isProcessing) {
-    console.log('⏳ [OFFLINE_QUEUE] Already processing queue');
     return;
   }
   
   if (memoryQueue.length === 0) {
-    console.log('✅ [OFFLINE_QUEUE] Queue is empty');
     return;
   }
   
   isProcessing = true;
-  console.log(`🔄 [OFFLINE_QUEUE] Processing ${memoryQueue.length} queued messages...`);
   
   try {
     // Process messages in order
@@ -223,7 +213,7 @@ export async function processQueue() {
         }, message.uid, message);
         
         // Success - remove from queue
-        console.log(`✅ [OFFLINE_QUEUE] Successfully sent message ${message.id}`);
+        // Message sent successfully
         await dequeueMessage(message.id);
       
     } catch (error: any) {
@@ -239,7 +229,7 @@ export async function processQueue() {
           retryCount: newRetryCount,
           error: error.message || 'Unknown error',
         });
-        console.log(`💀 [OFFLINE_QUEUE] Message ${message.id} failed after ${MAX_RETRY_ATTEMPTS} attempts`);
+        // Message failed after max retries
       } else {
         // Update retry count and reset to pending
         await updateMessageStatus(message.id, {
@@ -247,13 +237,13 @@ export async function processQueue() {
           retryCount: newRetryCount,
           error: error.message || 'Unknown error',
         });
-        console.log(`🔄 [OFFLINE_QUEUE] Message ${message.id} will retry (attempt ${newRetryCount}/${MAX_RETRY_ATTEMPTS})`);
+        // Message will retry
       }
       }
     }
     
     isProcessing = false;
-    console.log(`✅ [OFFLINE_QUEUE] Queue processing complete. Remaining: ${memoryQueue.length}`);
+    // Queue processing complete
   } catch (error) {
     console.error('❌ [OFFLINE_QUEUE] Fatal error during queue processing:', error);
     isProcessing = false;
@@ -289,7 +279,7 @@ export async function clearFailedMessages() {
   memoryQueue = memoryQueue.filter(msg => msg.status !== 'failed');
   await persistQueue();
   notifyListeners();
-  console.log(`🗑️ [OFFLINE_QUEUE] Cleared failed messages`);
+  // Cleared failed messages
 }
 
 /**
@@ -304,7 +294,7 @@ async function sendMessageToFirestore(p: Pending, uid: string, queuedMsg?: Queue
   // If there's a local media URI, upload it first
   if (queuedMsg?.localMediaUri && queuedMsg?.mediaType) {
     try {
-      console.log(`📤 [OFFLINE_QUEUE] Starting ${queuedMsg.mediaType} upload from local URI...`);
+      // Starting media upload
       
       // Dynamic import to avoid circular dependency
       const { uploadImage } = await import('../services/storage');
@@ -319,7 +309,7 @@ async function sendMessageToFirestore(p: Pending, uid: string, queuedMsg?: Queue
       );
       
       const uploadTime = Date.now() - uploadStart;
-      console.log(`✅ [OFFLINE_QUEUE] Uploaded ${queuedMsg.mediaType} in ${uploadTime}ms`);
+      // Media uploaded successfully
       
       finalMedia = {
         type: queuedMsg.mediaType,
@@ -364,7 +354,7 @@ async function syncPendingReadReceipts() {
     
     if (readReceiptKeys.length === 0) return;
     
-    console.log(`🔄 [OFFLINE_QUEUE] Syncing ${readReceiptKeys.length} pending read receipts...`);
+    // Syncing pending read receipts
     
     for (const key of readReceiptKeys) {
       try {
@@ -396,7 +386,7 @@ async function syncPendingReadReceipts() {
         
         // Remove from AsyncStorage
         await AsyncStorage.removeItem(key);
-        console.log(`✅ [OFFLINE_QUEUE] Synced read receipt for ${threadId}`);
+        // Read receipt synced
       } catch (error) {
         console.error(`❌ [OFFLINE_QUEUE] Failed to sync read receipt ${key}:`, error);
       }
@@ -430,7 +420,7 @@ export async function sendMessageOptimistic(
     
     if (!isOnline) {
       // Offline - add to queue with local media URI
-      console.log('📴 [OFFLINE_QUEUE] Offline detected, queueing message');
+      // Offline - queueing message
       await enqueueMessage({ 
         threadId, 
         text, 
@@ -446,14 +436,14 @@ export async function sendMessageOptimistic(
     
     // Online - try to send immediately
     await sendMessageToFirestore(p, uid);
-    console.log('✅ [OFFLINE_QUEUE] Message sent successfully');
+    // Message sent successfully
     
   } catch (error: any) {
     console.error('❌ [OFFLINE_QUEUE] Error sending message:', error);
     
     // If it's a network error, queue it with local media URI
     if (error.code === 'unavailable' || error.message?.includes('network')) {
-      console.log('📴 [OFFLINE_QUEUE] Network error detected, queueing message');
+      // Network error - queueing message
       await enqueueMessage({ 
         threadId, 
         text, 
