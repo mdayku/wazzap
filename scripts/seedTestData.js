@@ -139,6 +139,7 @@ async function seedData() {
         createdAt: createTimestamp(msg.time),
         status: 'read',
         priority: 'normal',
+        isTestData: true, // Mark as test data to skip AI processing
       });
     }
     console.log('✅ Thread 1 created with', THREAD_1_MESSAGES.length, 'messages\n');
@@ -171,6 +172,7 @@ async function seedData() {
         createdAt: createTimestamp(msg.time),
         status: 'read',
         priority: isUrgent ? 'high' : 'normal',
+        isTestData: true, // Mark as test data to skip AI processing
       });
     }
     console.log('✅ Thread 2 created with', THREAD_2_MESSAGES.length, 'messages (including urgent ones)\n');
@@ -202,6 +204,7 @@ async function seedData() {
         createdAt: createTimestamp(msg.time),
         status: 'read',
         priority: 'normal',
+        isTestData: true, // Mark as test data to skip AI processing
       });
     }
     console.log('✅ Thread 3 created with', THREAD_3_MESSAGES.length, 'messages\n');
@@ -233,6 +236,7 @@ async function seedData() {
         createdAt: createTimestamp(msg.time),
         status: 'read',
         priority: 'normal',
+        isTestData: true, // Mark as test data to skip AI processing
       });
     }
     console.log('✅ Thread 4 created with', THREAD_4_MESSAGES.length, 'messages\n');

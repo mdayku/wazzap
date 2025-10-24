@@ -102,6 +102,12 @@ export const translateMessage = functions.firestore
     const message = snap.data();
     const threadId = context.params.threadId;
 
+    // Skip test data
+    if (message.isTestData) {
+      console.log('Skipping translation for test data');
+      return null;
+    }
+
     // Skip if no text content
     if (!message.text) {
       return null;

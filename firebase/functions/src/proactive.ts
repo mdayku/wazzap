@@ -81,6 +81,10 @@ export const analyzeThreadContext = async (data: any, context: any) => {
       .reverse()
       .map(d => {
         const data = d.data();
+        // Skip test data
+        if (data.isTestData) {
+          return null;
+        }
         // Include both text messages and voice transcriptions
         const text = data.text || data.transcription?.text || '';
         return {
@@ -88,7 +92,7 @@ export const analyzeThreadContext = async (data: any, context: any) => {
           text: text,
         };
       })
-      .filter(m => m.text); // Remove empty messages
+      .filter(m => m && m.text); // Remove empty messages and test data
 
     if (messagesRaw.length === 0) {
       return { hasIntent: false };

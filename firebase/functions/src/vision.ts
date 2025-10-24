@@ -140,6 +140,12 @@ export const autoAnalyzeImage = async (
   const messageId = snap.id;
   const threadId = context.params.threadId;
   
+  // Skip test data
+  if (messageData.isTestData) {
+    console.log('Skipping image analysis for test data');
+    return null;
+  }
+  
   // Only process image messages
   if (!messageData.media || messageData.media.type !== 'image') {
     return null;
