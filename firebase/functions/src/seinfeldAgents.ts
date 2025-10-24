@@ -202,31 +202,11 @@ async function generateSeinfeldResponse(
   // Get conversation history
   const conversationHistory = await getRecentMessages(threadId);
   
-  // Check for keyword triggers to inject iconic moments
-  const messageText = (incomingMessage.text || '').toLowerCase();
-  let iconicContext = '';
-  
-  console.log(`[SEINFELD] Message text: "${messageText}"`);
-  console.log(`[SEINFELD] Checking iconic moments for ${character}:`, Object.keys(profile.iconicMoments || {}));
-  
-  if (profile.iconicMoments) {
-    for (const [keyword, context] of Object.entries(profile.iconicMoments)) {
-      if (messageText.includes(keyword)) {
-        console.log(`[SEINFELD] ✅ Keyword match: "${keyword}"`);
-        iconicContext += `\n\nRELEVANT MEMORY: ${context}`;
-      }
-    }
-  }
-  
-  console.log(`[SEINFELD] Iconic context: ${iconicContext ? 'YES' : 'NO'}`);
-  
   const prompt = `You are ${character} from Seinfeld.
 
 ${conversationHistory}
 
-${character}: ${iconicContext ? `[Context: ${iconicContext.replace('RELEVANT MEMORY:', '').trim()}]\n\n` : ''}Respond to: "${incomingMessage.text || '[media]'}"`;
-  
-  console.log(`[SEINFELD] Final prompt:\n${prompt}`);
+${character}: "${incomingMessage.text || '[media]'}"`;
 
   try {
     const response = await openai.chat.completions.create({
