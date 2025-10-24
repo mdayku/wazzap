@@ -39,6 +39,7 @@ export interface Message {
     duration?: number;
     words?: { word: string; start: number; end: number }[];
     transcribedAt?: unknown;
+    translations?: { [languageCode: string]: string }; // Translated transcriptions
   };
   imageAnalysis?: {
     description: string;
@@ -79,6 +80,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
   const [showMessageOptions, setShowMessageOptions] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false); // Toggle between original and translated text
+  const [showOriginalTranscription, setShowOriginalTranscription] = useState(false); // Toggle for transcription
   
   // Calculate read status and count based on lastRead timestamps
   const calculateReadStatus = (): { status: 'sending' | 'sent' | 'delivered' | 'read', readCount: number, totalMembers: number } => {
@@ -561,7 +563,15 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
               </TouchableOpacity>
             </View>
             {item.transcription && (
-              <View style={styles.transcriptionContainer}>
+              <TouchableOpacity
+                style={styles.transcriptionContainer}
+                onLongPress={() => {
+                  if (item.transcription?.translations && item.transcription.translations[userLanguage]) {
+                    setShowOriginalTranscription(!showOriginalTranscription);
+                  }
+                }}
+                activeOpacity={item.transcription?.translations && item.transcription.translations[userLanguage] ? 0.7 : 1}
+              >
                 <View style={styles.transcriptionHeader}>
                   <Ionicons 
                     name="text-outline" 
@@ -580,9 +590,16 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                   styles.transcriptionText,
                   isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
                 ]}>
-                  {item.transcription.text}
+                  {!isMe && item.transcription.translations && item.transcription.translations[userLanguage] && !showOriginalTranscription
+                    ? item.transcription.translations[userLanguage]
+                    : item.transcription.text}
                 </Text>
-              </View>
+                {!isMe && item.transcription.translations && item.transcription.translations[userLanguage] && (
+                  <Text style={[styles.translationBadge, { color: colors.textSecondary }]}>
+                    {showOriginalTranscription ? '🌍 Tap to see translation' : '📝 Tap to see original'}
+                  </Text>
+                )}
+              </TouchableOpacity>
             )}
           </View>
         )}

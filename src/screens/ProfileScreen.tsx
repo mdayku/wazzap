@@ -207,7 +207,7 @@ export default function ProfileScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity onPress={handleImagePick} disabled={uploading}>
           <View style={styles.avatarContainer}>
             {photoURL ? (
@@ -320,7 +320,7 @@ export default function ProfileScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
 
       {/* Photo Preview Modal */}
       <Modal
@@ -440,7 +440,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     paddingTop: 32,
+    paddingBottom: 40,
   },
   avatarContainer: {
     alignSelf: 'center',

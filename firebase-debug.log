@@ -1,0 +1,36 @@
+[debug] [2025-10-24T03:34:44.179Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T03:34:44.180Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\marcu\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:audioMessageCreated
+[debug] [2025-10-24T03:34:44.180Z] CLI Version:   14.20.0
+[debug] [2025-10-24T03:34:44.181Z] Platform:      win32
+[debug] [2025-10-24T03:34:44.181Z] Node Version:  v22.20.0
+[debug] [2025-10-24T03:34:44.181Z] Time:          Thu Oct 23 2025 22:34:44 GMT-0500 (Central Daylight Time)
+[debug] [2025-10-24T03:34:44.181Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T03:34:44.292Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T03:34:44.292Z] > authorizing via signed-in user (marcusday3586@gmail.com)
+[debug] [2025-10-24T03:34:44.292Z] [iam] checking project wazapp-c7903 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-10-24T03:34:44.293Z] Checked if tokens are valid: false, expires at: 1761260483222
+[debug] [2025-10-24T03:34:44.293Z] Checked if tokens are valid: false, expires at: 1761260483222
+[debug] [2025-10-24T03:34:44.293Z] > refreshing access token with scopes: []
+[debug] [2025-10-24T03:34:44.294Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-24T03:34:44.294Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T03:34:44.514Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-10-24T03:34:44.514Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-10-24T03:34:44.517Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/wazapp-c7903:testIamPermissions [none]
+[debug] [2025-10-24T03:34:44.518Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/wazapp-c7903:testIamPermissions x-goog-quota-user=projects/wazapp-c7903
+[debug] [2025-10-24T03:34:44.518Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/wazapp-c7903:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-10-24T03:34:44.809Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/wazapp-c7903:testIamPermissions 200
+[debug] [2025-10-24T03:34:44.809Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/wazapp-c7903:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-10-24T03:34:44.810Z] Checked if tokens are valid: true, expires at: 1761280483514
+[debug] [2025-10-24T03:34:44.810Z] Checked if tokens are valid: true, expires at: 1761280483514
+[debug] [2025-10-24T03:34:44.810Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/wazapp-c7903/serviceAccounts/wazapp-c7903@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-10-24T03:34:44.810Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/wazapp-c7903/serviceAccounts/wazapp-c7903@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-10-24T03:34:45.453Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/wazapp-c7903/serviceAccounts/wazapp-c7903@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2025-10-24T03:34:45.453Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/wazapp-c7903/serviceAccounts/wazapp-c7903@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'wazapp-c7903'...
+[info] 
+[info] i  deploying functions 
+[debug] [2025-10-24T03:34:45.454Z] Checked if tokens are valid: true, expires at: 1761280483514
+[debug] [2025-10-24T03:34:45.454Z] Checked if tokens are valid: true, expires at: 1761280483514
+[debug] [2025-10-24T03:34:45.454Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/wazapp-c7903 [none]
