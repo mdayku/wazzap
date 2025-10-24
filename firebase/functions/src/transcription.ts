@@ -203,10 +203,12 @@ export const autoTranscribeAudio = async (
         const userData = userDoc.data();
         const preferredLanguage = userData?.preferredLanguage || 'en';
         
-        // Only translate if different from English and not already done
-        if (preferredLanguage !== 'en' && !transcriptionTranslations[preferredLanguage]) {
+        // Translate if the transcription language differs from user's preferred language
+        const transcriptionLanguage = transcription.language || 'en';
+        if (preferredLanguage !== transcriptionLanguage && !transcriptionTranslations[preferredLanguage]) {
           try {
             const languageNames: { [key: string]: string } = {
+              'en': 'English',
               'zh': 'Chinese (Simplified)',
               'es': 'Spanish',
               'fr': 'French',
