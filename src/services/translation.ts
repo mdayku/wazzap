@@ -17,7 +17,7 @@ export async function translateText(
   sourceLanguage?: string
 ): Promise<TranslationResult> {
   try {
-    const translateFunction = httpsCallable(functions, 'translateText');
+    const translateFunction = httpsCallable(functions, 'translate');
     const result = await translateFunction({
       text,
       targetLanguage,
@@ -65,7 +65,7 @@ export async function batchTranslate(
  */
 export async function detectLanguage(text: string): Promise<string> {
   try {
-    const detectFunction = httpsCallable(functions, 'detectLanguage');
+    const detectFunction = httpsCallable(functions, 'detectLang');
     const result = await detectFunction({ text });
     return (result.data as { language: string }).language;
   } catch (error) {

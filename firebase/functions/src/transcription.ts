@@ -186,75 +186,10 @@ export const autoTranscribeAudio = async (
     
     console.log(`Auto-transcription completed for ${messageId}: "${transcription.text}"`);
     
-    // Translate transcription for thread participants
-    const db = admin.firestore();
-    const threadDoc = await db.collection('threads').doc(threadId).get();
-    const threadData = threadDoc.data();
-    
-    if (threadData) {
-      const participants = threadData.members || [];
-      const transcriptionTranslations: { [key: string]: string } = {};
-      
-      // Get preferred languages of all participants (except sender)
-      for (const userId of participants) {
-        if (userId === messageData.senderId) continue;
-        
-        const userDoc = await db.collection('users').doc(userId).get();
-        const userData = userDoc.data();
-        const preferredLanguage = userData?.preferredLanguage || 'en';
-        
-        // Translate if the transcription language differs from user's preferred language
-        const transcriptionLanguage = transcription.language || 'en';
-        if (preferredLanguage !== transcriptionLanguage && !transcriptionTranslations[preferredLanguage]) {
-          try {
-            const languageNames: { [key: string]: string } = {
-              'en': 'English',
-              'zh': 'Chinese (Simplified)',
-              'es': 'Spanish',
-              'fr': 'French',
-              'de': 'German',
-              'ja': 'Japanese',
-              'ko': 'Korean',
-              'ar': 'Arabic',
-              'hi': 'Hindi',
-              'pt': 'Portuguese',
-              'ru': 'Russian',
-              'it': 'Italian',
-            };
-            
-            const targetLanguage = languageNames[preferredLanguage] || preferredLanguage;
-            
-            const translationResponse = await openai.chat.completions.create({
-              model: 'gpt-4o-mini',
-              messages: [{
-                role: 'user',
-                content: `Translate the following text to ${targetLanguage}. Only return the translation, no explanations:\n\n${transcription.text}`
-              }],
-              temperature: 0.3,
-              max_tokens: 500,
-            });
-            
-            transcriptionTranslations[preferredLanguage] = translationResponse.choices[0].message.content || transcription.text;
-            console.log(`Translated transcription to ${targetLanguage} (${preferredLanguage}):`, transcriptionTranslations[preferredLanguage]);
-          } catch (error) {
-            console.error(`Error translating transcription to ${preferredLanguage}:`, error);
-          }
-        }
-      }
-      
-      // Store transcription with translations
-      await snap.ref.update({
-        transcription: {
-          ...transcription,
-          translations: transcriptionTranslations,
-        },
-      });
-    } else {
-      // No thread data, just store transcription
-      await snap.ref.update({
-        transcription,
-      });
-    }
+    // Store transcription (translation will be done on-demand via manual button)
+    await snap.ref.update({
+      transcription,
+    });
     
     // Generate embedding for transcription text (for RAG/search)
     // Import dynamically to avoid circular dependency

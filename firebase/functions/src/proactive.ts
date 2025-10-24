@@ -32,41 +32,43 @@ export const analyzeThreadContext = async (data: any, context: any) => {
   }
 
   try {
-    // Check for recent suggestions with better deduplication
-    // Active suggestions: check last 30 minutes
-    // Dismissed suggestions: check last 24 hours (longer cooldown to prevent spam)
+    // Check for active suggestions (last 30 minutes only)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    const recentSuggestionsSnap = await db
+    const activeSuggestionsSnap = await db
       .collection(`threads/${threadId}/suggestions`)
-      .where('createdAt', '>=', twentyFourHoursAgo)
-      .orderBy('createdAt', 'desc')
-      .limit(20)
+      .where('status', '==', 'active')
+      .where('createdAt', '>=', thirtyMinutesAgo)
+      .limit(1)
       .get();
 
-    // Check for active suggestions (last 30 min)
-    const hasActiveSuggestion = recentSuggestionsSnap.docs.some(doc => {
-      const data = doc.data();
-      const createdAt = data.createdAt?.toDate();
-      return data.status === 'active' && createdAt && createdAt >= thirtyMinutesAgo;
-    });
-
-    if (hasActiveSuggestion) {
+    if (!activeSuggestionsSnap.empty) {
       console.log('Active suggestion exists, skipping');
       return { hasIntent: false, reason: 'Active suggestion exists' };
     }
 
-    // Check for recently dismissed suggestions (last 2 hours)
-    const recentlyDismissedTypes = new Set<string>();
-    recentSuggestionsSnap.docs.forEach(doc => {
+    // Get recently dismissed suggestions (last 2 hours for non-schedule types)
+    // Schedule suggestions are handled separately with calendar deduplication
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const dismissedSuggestionsSnap = await db
+      .collection(`threads/${threadId}/suggestions`)
+      .where('status', '==', 'dismissed')
+      .where('createdAt', '>=', twoHoursAgo)
+      .get();
+
+    // Build a set of dismissed suggestion keys for deduplication
+    const dismissedSuggestions = new Set<string>();
+    dismissedSuggestionsSnap.docs.forEach(doc => {
       const data = doc.data();
-      if (data.status === 'dismissed') {
-        recentlyDismissedTypes.add(data.type || 'unknown');
+      // For non-schedule types, use title as unique identifier
+      // This allows new suggestions of same type with different content
+      if (data.type !== 'schedule') {
+        const key = `${data.type}:${data.title}`;
+        dismissedSuggestions.add(key);
       }
     });
 
-    console.log('Recently dismissed types:', Array.from(recentlyDismissedTypes));
+    console.log(`Found ${dismissedSuggestions.size} recently dismissed suggestions (2h window)`);
 
     // Fetch recent messages for context
     const messagesSnap = await db
@@ -79,11 +81,14 @@ export const analyzeThreadContext = async (data: any, context: any) => {
       .reverse()
       .map(d => {
         const data = d.data();
+        // Include both text messages and voice transcriptions
+        const text = data.text || data.transcription?.text || '';
         return {
           sender: data.senderId,
-          text: data.text,
+          text: text,
         };
-      });
+      })
+      .filter(m => m.text); // Remove empty messages
 
     if (messagesRaw.length === 0) {
       return { hasIntent: false };
@@ -197,13 +202,17 @@ ${conversationText}`;
     );
 
     if (result.hasSuggestion) {
-      // Check if this type was recently dismissed
-      if (recentlyDismissedTypes.has(result.type)) {
-        console.log(`Skipping ${result.type} suggestion - recently dismissed`);
-        return { 
-          hasIntent: false, 
-          reason: `${result.type} suggestion was recently dismissed` 
-        };
+      // Check if this exact suggestion was recently dismissed (2h window for non-schedule)
+      // Schedule suggestions are handled separately with calendar event deduplication
+      if (result.type !== 'schedule') {
+        const suggestionKey = `${result.type}:${result.title}`;
+        if (dismissedSuggestions.has(suggestionKey)) {
+          console.log(`Skipping suggestion - recently dismissed (2h): ${result.title}`);
+          return { 
+            hasIntent: false, 
+            reason: `Suggestion was recently dismissed: ${result.title}` 
+          };
+        }
       }
 
       // If this is a scheduling suggestion, also detect calendar event details
@@ -241,15 +250,14 @@ ${conversationText}`;
             const schedulingIntent = await detectSchedulingIntent(messagesWithNames, participants);
             
             if (schedulingIntent.hasSchedulingIntent && schedulingIntent.eventDetails) {
-              // Check for recent calendar suggestions with similar details (last 24 hours)
-              const recentCalendarSnap = await db
+              // Check for existing calendar suggestions with similar details (no time limit)
+              const existingCalendarSnap = await db
                 .collection(`threads/${threadId}/calendarSuggestions`)
-                .where('createdAt', '>=', twentyFourHoursAgo)
                 .where('status', 'in', ['pending', 'rejected'])
                 .get();
               
               // Check if we already have a similar event suggestion
-              const hasSimilarEvent = recentCalendarSnap.docs.some(doc => {
+              const hasSimilarEvent = existingCalendarSnap.docs.some(doc => {
                 const existing = doc.data();
                 return existing.summary === schedulingIntent.eventDetails?.summary;
               });

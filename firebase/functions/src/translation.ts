@@ -132,9 +132,8 @@ export const translateMessage = functions.firestore
 
         const preferredLanguage = userData?.preferredLanguage || 'en';
         
-        // Add language if it's different from English (default)
-        // We translate TO all non-English languages
-        if (preferredLanguage && preferredLanguage !== 'en') {
+        // Add language for translation (translate to ANY language different from sender)
+        if (preferredLanguage) {
           languages.add(preferredLanguage);
         }
       }
@@ -152,6 +151,7 @@ export const translateMessage = functions.firestore
         try {
           // Map language codes to full names for better translation
           const languageNames: { [key: string]: string } = {
+            'en': 'English',
             'zh': 'Chinese (Simplified)',
             'es': 'Spanish',
             'fr': 'French',

@@ -1,0 +1,16 @@
+[debug] [2025-10-24T18:38:16.119Z] ----------------------------------------------------------------------
+[debug] [2025-10-24T18:38:16.120Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\marcu\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:analyzeContext
+[debug] [2025-10-24T18:38:16.120Z] CLI Version:   14.20.0
+[debug] [2025-10-24T18:38:16.120Z] Platform:      win32
+[debug] [2025-10-24T18:38:16.120Z] Node Version:  v22.20.0
+[debug] [2025-10-24T18:38:16.121Z] Time:          Fri Oct 24 2025 13:38:16 GMT-0500 (Central Daylight Time)
+[debug] [2025-10-24T18:38:16.121Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-10-24T18:38:16.226Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-24T18:38:16.226Z] > authorizing via signed-in user (marcusday3586@gmail.com)
+[debug] [2025-10-24T18:38:16.226Z] [iam] checking project wazapp-c7903 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-10-24T18:38:16.226Z] Checked if tokens are valid: false, expires at: 1761330560063
+[debug] [2025-10-24T18:38:16.227Z] Checked if tokens are valid: false, expires at: 1761330560063
+[debug] [2025-10-24T18:38:16.227Z] > refreshing access token with scopes: []
+[debug] [2025-10-24T18:38:16.228Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-10-24T18:38:16.228Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]

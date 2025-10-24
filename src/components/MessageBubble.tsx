@@ -577,28 +577,52 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                   ]}>
                     Transcription:
                   </Text>
-                  {!isMe && item.transcription.translations && item.transcription.translations[userLanguage] && (
-                    <TouchableOpacity
-                      onPress={() => setShowOriginalTranscription(!showOriginalTranscription)}
-                      style={styles.translateButton}
-                    >
-                      <Ionicons 
-                        name={showOriginalTranscription ? "language-outline" : "text-outline"} 
-                        size={16} 
-                        color={colors.primary} 
-                      />
-                      <Text style={[styles.translateButtonText, { color: colors.primary }]}>
-                        {showOriginalTranscription ? 'Translate' : 'Original'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (!item.transcription || !threadId) return;
+                      
+                      // If translation exists, toggle between original and translated
+                      if ((item.transcription as any).translation) {
+                        setShowOriginalTranscription(!showOriginalTranscription);
+                        return;
+                      }
+                      
+                      // Otherwise, fetch translation
+                      try {
+                        const { translateText } = await import('../services/translation');
+                        const result = await translateText(item.transcription.text, userLanguage);
+                        
+                        // Update the message with the translation
+                        const { doc, updateDoc } = await import('firebase/firestore');
+                        const { db } = await import('../services/firebase');
+                        
+                        await updateDoc(doc(db, `threads/${threadId}/messages/${item.id}`), {
+                          'transcription.translation': result.translatedText,
+                          'transcription.translatedTo': userLanguage,
+                        });
+                      } catch (error) {
+                        console.error('Translation error:', error);
+                        Alert.alert('Error', 'Failed to translate transcription');
+                      }
+                    }}
+                    style={[styles.translateButton, isMe && { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
+                  >
+                    <Ionicons 
+                      name={(item.transcription as any).translation ? (showOriginalTranscription ? "language-outline" : "text-outline") : "language-outline"} 
+                      size={16} 
+                      color={isMe ? '#FFFFFF' : colors.primary} 
+                    />
+                    <Text style={[styles.translateButtonText, { color: isMe ? '#FFFFFF' : colors.primary }]}>
+                      {(item.transcription as any).translation ? (showOriginalTranscription ? 'Translate' : 'Original') : 'Translate'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 <Text style={[
                   styles.transcriptionText,
                   isMe ? { color: colors.messageBubbleSentText } : { color: colors.messageBubbleReceivedText }
                 ]}>
-                  {!isMe && item.transcription.translations && item.transcription.translations[userLanguage] && !showOriginalTranscription
-                    ? item.transcription.translations[userLanguage]
+                  {(item.transcription as any).translation && !showOriginalTranscription
+                    ? (item.transcription as any).translation
                     : item.transcription.text}
                 </Text>
               </View>
