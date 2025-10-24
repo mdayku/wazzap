@@ -140,9 +140,9 @@ export const autoAnalyzeImage = async (
   const messageId = snap.id;
   const threadId = context.params.threadId;
   
-  // Skip test data
-  if (messageData.isTestData) {
-    console.log('Skipping image analysis for test data');
+  // Skip load test messages
+  if (messageData.isLoadTest) {
+    console.log('Skipping image analysis for load test message');
     return null;
   }
   

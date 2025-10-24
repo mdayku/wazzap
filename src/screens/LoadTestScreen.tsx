@@ -73,6 +73,7 @@ export default function LoadTestScreen({ navigation, route }: LoadTestScreenProp
         text: `[WARMUP] Connection test`,
         createdAt: serverTimestamp(),
         status: 'sent',
+        isLoadTest: true, // Mark as load test to skip AI processing
       });
       addLog(`✅ Connection warmed up`);
       
@@ -108,6 +109,7 @@ export default function LoadTestScreen({ navigation, route }: LoadTestScreenProp
             seq: i,
             createdAt: serverTimestamp(),
             status: 'sent',
+            isLoadTest: true, // Mark as load test to skip AI processing
           });
           
           const optimisticLatency = performance.now() - sendStart;

@@ -22,9 +22,9 @@ export const onMessageCreate = async (snap: any, context: any) => {
   const { threadId } = context.params;
   const openai = getOpenAI();
 
-  // Skip test data - don't process with AI
-  if (message.isTestData) {
-    console.log('Skipping AI processing for test data message:', snap.id);
+  // Skip load test messages - don't process with AI
+  if (message.isLoadTest) {
+    console.log('Skipping AI processing for load test message:', snap.id);
     return null;
   }
 

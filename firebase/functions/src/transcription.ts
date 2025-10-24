@@ -132,9 +132,9 @@ export const autoTranscribeAudio = async (
   const messageId = snap.id;
   const threadId = context.params.threadId;
   
-  // Skip test data
-  if (messageData.isTestData) {
-    console.log('Skipping transcription for test data');
+  // Skip load test messages
+  if (messageData.isLoadTest) {
+    console.log('Skipping transcription for load test message');
     return null;
   }
   
