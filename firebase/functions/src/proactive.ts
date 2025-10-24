@@ -32,24 +32,41 @@ export const analyzeThreadContext = async (data: any, context: any) => {
   }
 
   try {
-    // Check for recent dismissed or active suggestions (within last 10 minutes)
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    // Check for recent suggestions with better deduplication
+    // Active suggestions: check last 30 minutes
+    // Dismissed suggestions: check last 2 hours (longer cooldown)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
     const recentSuggestionsSnap = await db
       .collection(`threads/${threadId}/suggestions`)
-      .where('createdAt', '>=', tenMinutesAgo)
+      .where('createdAt', '>=', twoHoursAgo)
       .orderBy('createdAt', 'desc')
-      .limit(5)
+      .limit(10)
       .get();
 
-    // If there's an active suggestion or recently dismissed one, don't create a new one
-    const hasRecentSuggestion = recentSuggestionsSnap.docs.some(doc => {
+    // Check for active suggestions (last 30 min)
+    const hasActiveSuggestion = recentSuggestionsSnap.docs.some(doc => {
       const data = doc.data();
-      return data.status === 'active' || data.status === 'dismissed';
+      const createdAt = data.createdAt?.toDate();
+      return data.status === 'active' && createdAt && createdAt >= thirtyMinutesAgo;
     });
 
-    if (hasRecentSuggestion) {
-      return { hasIntent: false, reason: 'Recent suggestion exists' };
+    if (hasActiveSuggestion) {
+      console.log('Active suggestion exists, skipping');
+      return { hasIntent: false, reason: 'Active suggestion exists' };
     }
+
+    // Check for recently dismissed suggestions (last 2 hours)
+    const recentlyDismissedTypes = new Set<string>();
+    recentSuggestionsSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (data.status === 'dismissed') {
+        recentlyDismissedTypes.add(data.type || 'unknown');
+      }
+    });
+
+    console.log('Recently dismissed types:', Array.from(recentlyDismissedTypes));
 
     // Fetch recent messages for context
     const messagesSnap = await db
@@ -177,6 +194,15 @@ ${conversationText}`;
     );
 
     if (result.hasSuggestion) {
+      // Check if this type was recently dismissed
+      if (recentlyDismissedTypes.has(result.type)) {
+        console.log(`Skipping ${result.type} suggestion - recently dismissed`);
+        return { 
+          hasIntent: false, 
+          reason: `${result.type} suggestion was recently dismissed` 
+        };
+      }
+
       // If this is a scheduling suggestion, also detect calendar event details
       let calendarEventId = null;
       if (result.type === 'schedule') {
@@ -212,6 +238,27 @@ ${conversationText}`;
             const schedulingIntent = await detectSchedulingIntent(messagesWithNames, participants);
             
             if (schedulingIntent.hasSchedulingIntent && schedulingIntent.eventDetails) {
+              // Check for recent calendar suggestions with similar details (last 2 hours)
+              const recentCalendarSnap = await db
+                .collection(`threads/${threadId}/calendarSuggestions`)
+                .where('createdAt', '>=', twoHoursAgo)
+                .where('status', 'in', ['pending', 'rejected'])
+                .get();
+              
+              // Check if we already have a similar event suggestion
+              const hasSimilarEvent = recentCalendarSnap.docs.some(doc => {
+                const existing = doc.data();
+                return existing.summary === schedulingIntent.eventDetails?.summary;
+              });
+              
+              if (hasSimilarEvent) {
+                console.log('Similar calendar event already suggested, skipping');
+                return {
+                  hasIntent: false,
+                  reason: 'Similar calendar event already suggested'
+                };
+              }
+              
               // Store the calendar event suggestion
               const calendarRef = await db.collection(`threads/${threadId}/calendarSuggestions`).add({
                 ...schedulingIntent.eventDetails,
