@@ -195,26 +195,7 @@ async function generateSeinfeldResponse(
   // Get conversation history
   const conversationHistory = await getRecentMessages(threadId);
   
-  // Get relevant quotes from Firestore using vector search
-  const { searchSeinfeldQuotes } = await import('./generateSeinfeldEmbeddings');
-  let relevantQuotes: string[] = [];
-  
-  try {
-    relevantQuotes = await searchSeinfeldQuotes(incomingMessage.text || '', character, 7);
-    console.log(`[SEINFELD] Retrieved ${relevantQuotes.length} quotes for ${character}:`);
-    relevantQuotes.forEach((q, i) => console.log(`  ${i + 1}. "${q.substring(0, 80)}..."`));
-  } catch (error) {
-    console.log('[SEINFELD] Vector search failed, falling back to keyword search');
-    relevantQuotes = await getRelevantQuotes(incomingMessage.text || '', character);
-  }
-  
-  // Fallback to catchphrases if no quotes found
-  if (relevantQuotes.length === 0) {
-    console.log(`[SEINFELD] No quotes found, using catchphrases for ${character}`);
-    relevantQuotes = CHARACTER_PROFILES[character].catchphrases.slice(0, 2);
-  }
-  
-  const prompt = `You are ${character} from Seinfeld. Respond naturally and conversationally.
+  const prompt = `You are ${character} from Seinfeld. You have all the knowledge and memories from the show.
 
 PERSONALITY: ${profile.personality}
 
@@ -222,7 +203,7 @@ SPEAKING STYLE: ${profile.style}
 - Be subtle and nuanced, not over-the-top
 - Use observational humor when appropriate  
 - React naturally to what's being said
-- Don't force catchphrases unless they fit perfectly
+- Reference actual episodes/events when relevant
 - Keep it conversational and realistic
 
 RECENT CONVERSATION:
@@ -230,19 +211,14 @@ ${conversationHistory}
 
 NEW MESSAGE: "${incomingMessage.text || '[The user sent media]'}"
 
-YOUR ACTUAL MEMORIES (things you've said/done in past episodes):
-${relevantQuotes.map(q => `- "${q}"`).join('\n')}
+RESPONSE GUIDELINES:
+- Vary your response length naturally (${profile.minWords}-${profile.maxWords} words)
+- Short reactions for simple messages
+- Longer responses when you have something to say
+- If someone references an episode or event from the show, acknowledge it accurately
+- Stay true to your character's experiences and history
 
-IMPORTANT: These are real things you've said or done. If the message references something from your past, acknowledge it! Don't contradict your own history.
-
-LENGTH GUIDANCE:
-- Vary your response length naturally based on the situation
-- Short reactions: ${profile.minWords}-${Math.floor((profile.minWords + profile.maxWords) / 3)} words
-- Normal responses: ${Math.floor((profile.minWords + profile.maxWords) / 3)}-${Math.floor((profile.minWords + profile.maxWords) * 2 / 3)} words  
-- Longer rants/stories: ${Math.floor((profile.minWords + profile.maxWords) * 2 / 3)}-${profile.maxWords} words
-- Choose length based on context - don't always use the same length!
-
-Respond as ${character} in a natural way. Be subtle, not cliché.
+Respond as ${character} would, drawing on your knowledge of the show.
 
 Response:`;
 
@@ -258,7 +234,7 @@ Response:`;
   } catch (error) {
     console.error(`Error generating ${character} response:`, error);
     // Fallback to catchphrase
-    return relevantQuotes[0] || "Yeah...";
+    return profile.catchphrases[0] || "Yeah...";
   }
 }
 
