@@ -9,6 +9,11 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// Normalize language codes to 2-letter ISO 639-1 (en-US -> en, zh_CN -> zh)
+function normalizeLang(langCode: string): string {
+  return langCode.toLowerCase().replace('_', '-').split('-')[0];
+}
+
 // Lazy initialize OpenAI
 function getOpenAI() {
   return new OpenAI({
@@ -127,6 +132,7 @@ export const translateMessage = functions.firestore
 
       // Get preferred languages of all participants (except sender)
       const languages = new Set<string>();
+      
       for (const userId of participants) {
         // Skip the sender - they see their own language
         if (userId === message.senderId) {
@@ -137,11 +143,8 @@ export const translateMessage = functions.firestore
         const userData = userDoc.data();
 
         const preferredLanguage = userData?.preferredLanguage || 'en';
-        
-        // Add language for translation (translate to ANY language different from sender)
-        if (preferredLanguage) {
-          languages.add(preferredLanguage);
-        }
+        // Normalize to 2-letter code
+        languages.add(normalizeLang(preferredLanguage));
       }
 
       // If no translations needed, skip
@@ -150,44 +153,75 @@ export const translateMessage = functions.firestore
       }
 
       const openai = getOpenAI();
+      
+      // Detect source language once
+      const detectionResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0,
+        max_tokens: 5,
+        messages: [{
+          role: 'user',
+          content: `Return ONLY the ISO 639-1 language code for this text:\n\n${message.text}`
+        }]
+      });
+      const detectedLang = normalizeLang(detectionResponse.choices[0].message.content || 'auto');
+      console.log(`Detected source language: ${detectedLang}`);
+      console.log(`Target languages: ${Array.from(languages).join(', ')}`);
+      
       const translations: { [key: string]: string } = {};
+      
+      // Map language codes to full names for better translation
+      const languageNames: { [key: string]: string } = {
+        'en': 'English',
+        'zh': 'Chinese (Simplified)',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'ar': 'Arabic',
+        'hi': 'Hindi',
+        'pt': 'Portuguese',
+        'ru': 'Russian',
+        'it': 'Italian',
+      };
 
       // Translate to each required language
-      for (const lang of languages) {
+      for (const rawLang of languages) {
+        const code = normalizeLang(rawLang);
+        const targetName = languageNames[code] || 'English';
+        
         try {
-          // Map language codes to full names for better translation
-          const languageNames: { [key: string]: string } = {
-            'en': 'English',
-            'zh': 'Chinese (Simplified)',
-            'es': 'Spanish',
-            'fr': 'French',
-            'de': 'German',
-            'ja': 'Japanese',
-            'ko': 'Korean',
-            'ar': 'Arabic',
-            'hi': 'Hindi',
-            'pt': 'Portuguese',
-            'ru': 'Russian',
-            'it': 'Italian',
-          };
-          
-          const targetLanguage = languageNames[lang] || lang;
+          // If source and target are the same, just copy the text
+          if (detectedLang !== 'auto' && detectedLang === code) {
+            translations[code] = message.text;
+            console.log(`Skipped translation to ${targetName} (${code}) - same as source`);
+            continue;
+          }
           
           const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
-            messages: [{
-              role: 'user',
-              content: `Translate the following text to ${targetLanguage}. Only return the translation, no explanations:\n\n${message.text}`
-            }],
-            temperature: 0.3,
+            temperature: 0,
             max_tokens: 500,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a precise translation engine. Output only the translated text with no commentary.'
+              },
+              {
+                role: 'user',
+                content: `Translate from ${detectedLang} to ${targetName}:\n\n${message.text}`
+              }
+            ]
           });
 
-          translations[lang] = response.choices[0].message.content || message.text;
-          console.log(`Translated to ${targetLanguage} (${lang}):`, translations[lang]);
+          const raw = response.choices[0].message.content || message.text;
+          const cleaned = raw.trim().replace(/^["'`]+|["'`]+$/g, '');
+          translations[code] = cleaned;
+          console.log(`Translated to ${targetName} (${code}):`, translations[code]);
         } catch (error) {
-          console.error(`Error translating to ${lang}:`, error);
-          translations[lang] = message.text; // Fallback to original
+          console.error(`Error translating to ${code}:`, error);
+          translations[code] = message.text; // Fallback to original
         }
       }
 
