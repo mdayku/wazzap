@@ -42,6 +42,7 @@ import CalendarEventCard from '../components/CalendarEventCard';
 import { generateAIImage } from '../services/imageGeneration';
 import { enableSeinfeldMode, disableSeinfeldMode } from '../services/seinfeldMode';
 import { ALL_CHARACTERS, type SeinfeldCharacter } from '../data/seinfeldCharacters';
+import { uploadImage } from '../services/storage';
 
 interface CalendarSuggestion {
   id: string;
@@ -954,7 +955,33 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
       // Generate image
       const result = await generateAIImage(imagePrompt.trim());
 
-      // Send the generated image as a message
+      Toast.show({
+        type: 'info',
+        text1: '📥 Saving image...',
+        text2: 'Uploading to permanent storage',
+        position: 'bottom',
+      });
+
+      // Download the DALL-E image and upload to Firebase Storage
+      // (DALL-E URLs expire after 48 hours, so we need to save them)
+      const response = await fetch(result.imageUrl);
+      const blob = await response.blob();
+      
+      // Convert blob to local URI for upload
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const base64Data = await base64Promise;
+
+      // Upload to Firebase Storage
+      const timestamp = Date.now();
+      const storagePath = `images/${user.uid}/${timestamp}_dalle.jpg`;
+      const permanentUrl = await uploadImage(base64Data, storagePath);
+
+      // Send the generated image as a message with permanent URL
       const tempId = `${Date.now()}_${Math.random()}`;
       await sendMessageOptimistic(
         {
@@ -963,7 +990,7 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
           text: '',
           media: {
             type: 'image',
-            url: result.imageUrl,
+            url: permanentUrl,
             width: 1024,
             height: 1024,
           },
