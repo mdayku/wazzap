@@ -201,6 +201,8 @@ async function generateSeinfeldResponse(
   
   try {
     relevantQuotes = await searchSeinfeldQuotes(incomingMessage.text || '', character, 7);
+    console.log(`[SEINFELD] Retrieved ${relevantQuotes.length} quotes for ${character}:`);
+    relevantQuotes.forEach((q, i) => console.log(`  ${i + 1}. "${q.substring(0, 80)}..."`));
   } catch (error) {
     console.log('[SEINFELD] Vector search failed, falling back to keyword search');
     relevantQuotes = await getRelevantQuotes(incomingMessage.text || '', character);
@@ -208,6 +210,7 @@ async function generateSeinfeldResponse(
   
   // Fallback to catchphrases if no quotes found
   if (relevantQuotes.length === 0) {
+    console.log(`[SEINFELD] No quotes found, using catchphrases for ${character}`);
     relevantQuotes = CHARACTER_PROFILES[character].catchphrases.slice(0, 2);
   }
   
