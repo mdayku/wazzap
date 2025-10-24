@@ -155,7 +155,7 @@ export default function CalendarEventCard({
           onPress={handleReject}
           disabled={creating}
         >
-          <Text style={[styles.rejectButtonText, { color: colors.textSecondary }]}>Not Now</Text>
+          <Text style={[styles.rejectButtonText, { color: colors.textSecondary }]}>Dismiss</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

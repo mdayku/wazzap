@@ -563,15 +563,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
               </TouchableOpacity>
             </View>
             {item.transcription && (
-              <TouchableOpacity
-                style={styles.transcriptionContainer}
-                onLongPress={() => {
-                  if (item.transcription?.translations && item.transcription.translations[userLanguage]) {
-                    setShowOriginalTranscription(!showOriginalTranscription);
-                  }
-                }}
-                activeOpacity={item.transcription?.translations && item.transcription.translations[userLanguage] ? 0.7 : 1}
-              >
+              <View style={styles.transcriptionContainer}>
                 <View style={styles.transcriptionHeader}>
                   <Ionicons 
                     name="text-outline" 
@@ -585,6 +577,21 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                   ]}>
                     Transcription:
                   </Text>
+                  {!isMe && item.transcription.translations && item.transcription.translations[userLanguage] && (
+                    <TouchableOpacity
+                      onPress={() => setShowOriginalTranscription(!showOriginalTranscription)}
+                      style={styles.translateButton}
+                    >
+                      <Ionicons 
+                        name={showOriginalTranscription ? "language-outline" : "text-outline"} 
+                        size={16} 
+                        color={colors.primary} 
+                      />
+                      <Text style={[styles.translateButtonText, { color: colors.primary }]}>
+                        {showOriginalTranscription ? 'Translate' : 'Original'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={[
                   styles.transcriptionText,
@@ -594,12 +601,7 @@ export default function MessageBubble({ item, me, showSender, senderName, thread
                     ? item.transcription.translations[userLanguage]
                     : item.transcription.text}
                 </Text>
-                {!isMe && item.transcription.translations && item.transcription.translations[userLanguage] && (
-                  <Text style={[styles.translationBadge, { color: colors.textSecondary }]}>
-                    {showOriginalTranscription ? '🌍 Tap to see translation' : '📝 Tap to see original'}
-                  </Text>
-                )}
-              </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
@@ -1156,6 +1158,7 @@ const styles = StyleSheet.create({
   transcriptionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   transcriptionIcon: {
@@ -1164,6 +1167,7 @@ const styles = StyleSheet.create({
   transcriptionLabel: {
     fontSize: 11,
     fontWeight: '600',
+    flex: 1,
     opacity: 0.8,
   },
   transcriptionText: {
@@ -1232,6 +1236,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
     opacity: 0.7,
+  },
+  translateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  translateButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
 

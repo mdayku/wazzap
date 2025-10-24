@@ -1250,13 +1250,11 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
     if (!proactiveSuggestion?.suggestionId || !user) return;
     
     try {
+      // Submit feedback
       await submitFeedback(threadId, proactiveSuggestion.suggestionId, feedback, user.uid);
       
-      // Update local state
-      setProactiveSuggestion({
-        ...proactiveSuggestion,
-        feedback,
-      });
+      // Also dismiss the suggestion so it doesn't come back
+      await dismissSuggestionAPI(threadId, proactiveSuggestion.suggestionId);
       
       Toast.show({
         type: 'success',
@@ -1266,10 +1264,8 @@ export default function ChatScreen({ route, navigation }: ChatScreenProps) {
         visibilityTime: 2000,
       });
       
-      // Dismiss after feedback
-      setTimeout(() => {
-        setProactiveSuggestion(null);
-      }, 2000);
+      // Dismiss from UI immediately
+      setProactiveSuggestion(null);
     } catch (error) {
       console.error('Error submitting feedback:', error);
     }

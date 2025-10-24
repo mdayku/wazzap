@@ -34,15 +34,15 @@ export const analyzeThreadContext = async (data: any, context: any) => {
   try {
     // Check for recent suggestions with better deduplication
     // Active suggestions: check last 30 minutes
-    // Dismissed suggestions: check last 2 hours (longer cooldown)
+    // Dismissed suggestions: check last 24 hours (longer cooldown to prevent spam)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     const recentSuggestionsSnap = await db
       .collection(`threads/${threadId}/suggestions`)
-      .where('createdAt', '>=', twoHoursAgo)
+      .where('createdAt', '>=', twentyFourHoursAgo)
       .orderBy('createdAt', 'desc')
-      .limit(10)
+      .limit(20)
       .get();
 
     // Check for active suggestions (last 30 min)
@@ -75,7 +75,7 @@ export const analyzeThreadContext = async (data: any, context: any) => {
       .limit(limit)
       .get();
 
-    const messages = messagesSnap.docs
+    const messagesRaw = messagesSnap.docs
       .reverse()
       .map(d => {
         const data = d.data();
@@ -85,19 +85,44 @@ export const analyzeThreadContext = async (data: any, context: any) => {
         };
       });
 
-    if (messages.length === 0) {
+    if (messagesRaw.length === 0) {
       return { hasIntent: false };
     }
 
-    // RAG: Get relevant historical context from multiple sources
+    // Fetch user display names for all senders to replace userIds
+    const uniqueSenderIds = [...new Set(messagesRaw.map(m => m.sender))];
+    const senderNames: Record<string, string> = {};
+    
+    for (const senderId of uniqueSenderIds) {
+      try {
+        const userDoc = await db.collection('users').doc(senderId).get();
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          senderNames[senderId] = userData?.displayName || 'User';
+        } else {
+          senderNames[senderId] = 'User';
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${senderId}:`, error);
+        senderNames[senderId] = 'User';
+      }
+    }
+
+    // Replace userIds with display names in messages
+    const messages = messagesRaw.map(m => ({
+      sender: senderNames[m.sender] || 'User',
+      text: m.text,
+    }));
+
+    // RAG: Get relevant historical context (OPTIMIZED - reduced to prevent timeouts)
     let contextSection = '';
     
-    // 1. Thread-specific context (what's been discussed in THIS chat)
+    // Only fetch thread-specific context (skip cross-chat to prevent timeout)
     try {
       const threadContext = await getRelevantContext(
         'important context decisions actions questions',
         threadId,
-        3  // Reduced to 3 to make room for other contexts
+        2  // Reduced to 2 for faster response
       );
       
       if (threadContext.length > 0) {
@@ -106,29 +131,7 @@ export const analyzeThreadContext = async (data: any, context: any) => {
       }
     } catch (error) {
       console.error('Error fetching thread context:', error);
-    }
-    
-    // 2. User-specific context (what each participant has said across ALL chats)
-    try {
-      // Get unique sender IDs from recent messages
-      const senderIds = [...new Set(messages.map(m => m.sender))];
-      
-      // For each unique user, get their cross-chat context
-      for (const senderId of senderIds.slice(0, 3)) { // Limit to 3 users to avoid too much data
-        const userContext = await getRelevantContext(
-          'important patterns preferences communication style',
-          '', // Empty threadId = search ALL threads
-          2,  // Top 2 messages per user
-          senderId // Filter by this specific user
-        );
-        
-        if (userContext.length > 0) {
-          contextSection += `\n\nUser ${senderId.slice(0, 8)} (cross-chat history):\n` + 
-            userContext.map(m => `- ${m.text}`).join('\n');
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user context:', error);
+      // Continue without context - don't fail the whole function
     }
 
     // Fetch user feedback history to learn preferences
@@ -238,10 +241,10 @@ ${conversationText}`;
             const schedulingIntent = await detectSchedulingIntent(messagesWithNames, participants);
             
             if (schedulingIntent.hasSchedulingIntent && schedulingIntent.eventDetails) {
-              // Check for recent calendar suggestions with similar details (last 2 hours)
+              // Check for recent calendar suggestions with similar details (last 24 hours)
               const recentCalendarSnap = await db
                 .collection(`threads/${threadId}/calendarSuggestions`)
-                .where('createdAt', '>=', twoHoursAgo)
+                .where('createdAt', '>=', twentyFourHoursAgo)
                 .where('status', 'in', ['pending', 'rejected'])
                 .get();
               
