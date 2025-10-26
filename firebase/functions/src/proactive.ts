@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import * as admin from 'firebase-admin';
 import { getRelevantContext } from './embeddings';
 import { detectSchedulingIntent } from './calendar';
+import { getUserLanguage, languageNames } from './translation';
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {
@@ -30,6 +31,11 @@ export const analyzeThreadContext = async (data: any, context: any) => {
   if (!threadId) {
     throw new Error('threadId is required');
   }
+
+  // Get user's preferred language
+  const userId = context.auth?.uid;
+  const userLang = userId ? await getUserLanguage(userId) : 'en';
+  const languageName = languageNames[userLang] || 'English';
 
   try {
     // Check for active suggestions (last 30 minutes only)
@@ -169,7 +175,7 @@ export const analyzeThreadContext = async (data: any, context: any) => {
     const conversationText = JSON.stringify(messages).slice(0, 4000);
 
     // Enhanced prompt for multi-purpose proactive suggestions
-    const prompt = `You are a proactive AI assistant analyzing a team conversation. Generate helpful, contextual suggestions.
+    const prompt = `You are a proactive AI assistant analyzing a team conversation. Generate helpful, contextual suggestions in ${languageName}.
 
 Analyze for:
 1. **Scheduling needs** - meetings, calls, syncs
@@ -191,7 +197,9 @@ Return JSON with the MOST helpful suggestion:
 }${contextSection}${feedbackContext}
 
 Recent Conversation:
-${conversationText}`;
+${conversationText}
+
+IMPORTANT: All text fields in the JSON (title, description, action, reasoning) must be in ${languageName}.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',

@@ -2,6 +2,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import OpenAI from 'openai';
 import * as admin from 'firebase-admin';
 import { getRelevantContext } from './embeddings';
+import { getUserLanguage, languageNames } from './translation';
 
 // Initialize Firebase Admin if not already done
 if (!admin.apps.length) {
@@ -24,6 +25,11 @@ export const summarizeThread = async (data: any, context: any) => {
   if (!threadId) {
     throw new Error('threadId is required');
   }
+
+  // Get user's preferred language
+  const userId = context.auth?.uid;
+  const userLang = userId ? await getUserLanguage(userId) : 'en';
+  const languageName = languageNames[userLang] || 'English';
 
   try {
     // Fetch recent messages
@@ -98,10 +104,12 @@ export const summarizeThread = async (data: any, context: any) => {
 
     // Create prompt for summarization (using messages with display names)
     const messagesText = JSON.stringify(msgsWithNames).slice(0, 4000); // Reduced for speed
-    const prompt = `Summarize this team conversation. Include key points, decisions, action items, and blockers.${contextSection}
+    const prompt = `Summarize this team conversation in ${languageName}. Include key points, decisions, action items, and blockers.${contextSection}
 
 Messages:
-${messagesText}`;
+${messagesText}
+
+IMPORTANT: Respond ONLY in ${languageName}.`;
 
     // Call OpenAI
     const res = await openai.chat.completions.create({
@@ -143,7 +151,12 @@ export const extractAI = async (data: any, context: any) => {
     throw new Error('threadId is required');
   }
 
-  try {
+  // Get user's preferred language
+  const userId = context.auth?.uid;
+  const userLang = userId ? await getUserLanguage(userId) : 'en';
+  const languageName = languageNames[userLang] || 'English';
+
+  try{
     // Fetch recent messages
     const snap = await db
       .collection(`threads/${threadId}/messages`)
@@ -216,10 +229,12 @@ export const extractAI = async (data: any, context: any) => {
 
     // Create prompt for extraction (using messages with display names)
     const messagesText = JSON.stringify(msgsWithNames).slice(0, 4000); // Reduced for speed
-    const prompt = `Extract action items (task, assignee, due) and decisions (summary, owner) from this conversation. Return JSON: {"actionItems": [...], "decisions": [...]}${contextSection}
+    const prompt = `Extract action items (task, assignee, due) and decisions (summary, owner) from this conversation. Return JSON in ${languageName}: {"actionItems": [...], "decisions": [...]}${contextSection}
 
 Messages:
-${messagesText}`;
+${messagesText}
+
+IMPORTANT: All text fields in the JSON (task, assignee, summary, owner, etc.) must be in ${languageName}.`;
 
     // Call OpenAI
     const res = await openai.chat.completions.create({

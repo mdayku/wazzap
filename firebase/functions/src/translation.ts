@@ -14,6 +14,41 @@ function normalizeLang(langCode: string): string {
   return langCode.toLowerCase().replace('_', '-').split('-')[0];
 }
 
+// Map language codes to full names for better prompting
+export const languageNames: { [key: string]: string } = {
+  'en': 'English',
+  'zh': 'Chinese (Simplified)',
+  'es': 'Spanish',
+  'fr': 'French',
+  'de': 'German',
+  'ja': 'Japanese',
+  'ko': 'Korean',
+  'ar': 'Arabic',
+  'hi': 'Hindi',
+  'pt': 'Portuguese',
+  'ru': 'Russian',
+  'it': 'Italian',
+};
+
+/**
+ * Get user's preferred language (normalized to 2-letter code)
+ * Can be called from other Cloud Functions
+ */
+export async function getUserLanguage(userId: string): Promise<string> {
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      return 'en'; // Default to English
+    }
+    const userData = userDoc.data();
+    const preferredLanguage = userData?.preferredLanguage || 'en';
+    return normalizeLang(preferredLanguage);
+  } catch (error) {
+    console.error(`Error fetching language for user ${userId}:`, error);
+    return 'en'; // Default to English on error
+  }
+}
+
 // Lazy initialize OpenAI
 function getOpenAI() {
   return new OpenAI({
@@ -106,6 +141,8 @@ export const translateMessage = functions.firestore
   .onCreate(async (snap, context) => {
     const message = snap.data();
     const threadId = context.params.threadId;
+    
+    console.log('🟢🟢🟢 TRANSLATION FUNCTION v2.1 CALLED - Message text:', message.text?.substring(0, 50));
 
     // Skip load test messages
     if (message.isLoadTest) {
@@ -115,6 +152,7 @@ export const translateMessage = functions.firestore
 
     // Skip if no text content
     if (!message.text) {
+      console.log('🔴 NO TEXT - returning early');
       return null;
     }
 
@@ -129,26 +167,38 @@ export const translateMessage = functions.firestore
       }
 
       const participants = threadData.members || [];
+      console.log('🔵 Participants:', participants);
+      console.log('🔵 Sender ID:', message.senderId);
 
       // Get preferred languages of all participants (except sender)
       const languages = new Set<string>();
       
+      
       for (const userId of participants) {
+        console.log(`🔵 Checking participant: ${userId}`);
+        
         // Skip the sender - they see their own language
         if (userId === message.senderId) {
+          console.log(`🔵 Skipping sender: ${userId}`);
           continue;
         }
 
         const userDoc = await db.collection('users').doc(userId).get();
         const userData = userDoc.data();
+        console.log(`🔵 User ${userId} data:`, { preferredLanguage: userData?.preferredLanguage });
 
         const preferredLanguage = userData?.preferredLanguage || 'en';
         // Normalize to 2-letter code
-        languages.add(normalizeLang(preferredLanguage));
+        const normalized = normalizeLang(preferredLanguage);
+        languages.add(normalized);
+        console.log(`🔵 Added language: ${normalized} (from ${preferredLanguage})`);
       }
+
+      console.log('🔵 Final languages set:', Array.from(languages));
 
       // If no translations needed, skip
       if (languages.size === 0) {
+        console.log('🔴 No languages to translate to - returning early');
         return null;
       }
 
@@ -164,7 +214,7 @@ export const translateMessage = functions.firestore
           content: `Return ONLY the ISO 639-1 language code for this text:\n\n${message.text}`
         }]
       });
-      const detectedLang = normalizeLang(detectionResponse.choices[0].message.content || 'auto');
+      const detectedLang = normalizeLang(detectionResponse.choices[0].message.content || 'unknown');
       console.log(`Detected source language: ${detectedLang}`);
       console.log(`Target languages: ${Array.from(languages).join(', ')}`);
       
@@ -193,7 +243,7 @@ export const translateMessage = functions.firestore
         
         try {
           // If source and target are the same, just copy the text
-          if (detectedLang !== 'auto' && detectedLang === code) {
+          if (detectedLang !== 'unknown' && detectedLang === code) {
             translations[code] = message.text;
             console.log(`Skipped translation to ${targetName} (${code}) - same as source`);
             continue;
