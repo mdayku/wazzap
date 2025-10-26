@@ -29,91 +29,91 @@ function createTimestamp(hoursAgo) {
   );
 }
 
-// Thread 1: Product Launch Discussion (Tests: Summarize, Extract Actions, Decisions)
+// Thread 1: Mobile App Redesign (Tests: Summarize, Extract Actions, Decisions)
 const THREAD_1_MESSAGES = [
-  { sender: 'alex', text: 'Hey Sarah, wanted to sync on the Q1 product launch timeline', time: 48 },
-  { sender: 'sarah', text: 'Perfect timing! I just finished the roadmap draft. Looking at Feb 15th launch date', time: 47.5 },
-  { sender: 'alex', text: 'That gives us 6 weeks. What are the critical features for v1?', time: 47 },
-  { sender: 'sarah', text: 'Must-haves: user authentication, dashboard, and the new AI chat feature', time: 46.8 },
-  { sender: 'alex', text: 'AI chat is the biggest lift. We\'ll need at least 3 weeks for that', time: 46.5 },
-  { sender: 'sarah', text: 'Agreed. Can we start on authentication this week?', time: 46.3 },
-  { sender: 'alex', text: 'Yes, I\'ll assign that to Maria. She can knock it out by Friday', time: 46 },
-  { sender: 'sarah', text: 'Great! Also need you to review the API specs I sent yesterday', time: 45.8 },
-  { sender: 'alex', text: 'Will do. Should have feedback by EOD tomorrow', time: 45.5 },
-  { sender: 'sarah', text: 'Perfect. One more thing - we decided to go with PostgreSQL over MongoDB, right?', time: 45.3 },
-  { sender: 'alex', text: 'Yes, final decision was PostgreSQL. Better for our relational data model', time: 45 },
-  { sender: 'sarah', text: 'Excellent. I\'ll update the tech stack doc', time: 44.8 },
-  { sender: 'alex', text: 'Also, Mike wants to show us the new dashboard mockups tomorrow at 2pm', time: 44.5 },
-  { sender: 'sarah', text: 'Works for me. Can you send a calendar invite?', time: 44.3 },
-  { sender: 'alex', text: 'Done. I\'ll also loop in the QA team so they can start planning test cases', time: 44 },
-  { sender: 'sarah', text: 'Smart. Let\'s plan a sprint kickoff for Monday morning, 9am?', time: 43.8 },
-  { sender: 'alex', text: 'Perfect. I\'ll book the conference room and send out the agenda', time: 43.5 },
-  { sender: 'sarah', text: 'Thanks Alex. This is shaping up nicely. Our investors are going to love the demo', time: 43 },
-  { sender: 'alex', text: 'Agreed. The AI features are really going to differentiate us', time: 42.8 },
-  { sender: 'sarah', text: 'Exactly. Okay, I need to prep for the board meeting. Talk later!', time: 42.5 },
+  { sender: 'alex', text: 'Sarah, we need to talk about the mobile app redesign for Q2', time: 48 },
+  { sender: 'sarah', text: 'Yes! I\'ve been thinking about this. We\'re targeting March 1st for the beta release', time: 47.5 },
+  { sender: 'alex', text: 'That\'s 7 weeks out. What\'s the scope for this redesign?', time: 47 },
+  { sender: 'sarah', text: 'Priority features: new onboarding flow, revamped home screen, and push notifications', time: 46.8 },
+  { sender: 'alex', text: 'Push notifications will be complex. I\'d estimate 4 weeks minimum for that', time: 46.5 },
+  { sender: 'sarah', text: 'Makes sense. Can we kick off the onboarding work this week?', time: 46.3 },
+  { sender: 'alex', text: 'Absolutely. I\'ll get Tom started on it. He should finish by next Wednesday', time: 46 },
+  { sender: 'sarah', text: 'Perfect! I also need your feedback on the wireframes I shared on Monday', time: 45.8 },
+  { sender: 'alex', text: 'I\'ll review them tonight and get back to you by tomorrow afternoon', time: 45.5 },
+  { sender: 'sarah', text: 'Thanks. Quick decision needed - are we going with React Native or Flutter?', time: 45.3 },
+  { sender: 'alex', text: 'After the team discussion, we\'re going with React Native. Better ecosystem for us', time: 45 },
+  { sender: 'sarah', text: 'Great choice. I\'ll inform the stakeholders in tomorrow\'s standup', time: 44.8 },
+  { sender: 'alex', text: 'By the way, Mike has the new color scheme ready. Can we review it Wednesday at 3pm?', time: 44.5 },
+  { sender: 'sarah', text: 'Wednesday 3pm works perfectly. Send me a meeting link?', time: 44.3 },
+  { sender: 'alex', text: 'Will do. I\'ll also bring in the analytics team to discuss tracking requirements', time: 44 },
+  { sender: 'sarah', text: 'Good idea. Let\'s also schedule our sprint planning for Tuesday at 10am', time: 43.8 },
+  { sender: 'alex', text: 'Sounds good. I\'ll reserve the main conference room and prepare the backlog', time: 43.5 },
+  { sender: 'sarah', text: 'Excellent. The stakeholders are really excited about this redesign', time: 43 },
+  { sender: 'alex', text: 'Same here. The new notification system is going to boost engagement significantly', time: 42.8 },
+  { sender: 'sarah', text: 'Totally agree. Alright, I have a call with marketing. Catch you later!', time: 42.5 },
 ];
 
-// Thread 2: Urgent Production Issue (Tests: Priority Detection, High-Priority Badges)
+// Thread 2: Critical Security Incident (Tests: Priority Detection, High-Priority Badges)
 const THREAD_2_MESSAGES = [
-  { sender: 'alex', text: 'URGENT: Production API is throwing 500 errors', time: 2 },
-  { sender: 'sarah', text: 'What?? How bad is it?', time: 1.95 },
-  { sender: 'alex', text: 'CRITICAL - all user logins are failing. Started 10 minutes ago', time: 1.9 },
-  { sender: 'sarah', text: 'This is bad. How many users affected?', time: 1.85 },
-  { sender: 'alex', text: 'Looks like everyone who tried to login in the last 10 min. Probably 50-100 users', time: 1.8 },
-  { sender: 'sarah', text: 'OK get the team on this NOW. I\'m hopping on Slack', time: 1.75 },
-  { sender: 'alex', text: 'Already called Maria and Tom. They\'re investigating the database connection', time: 1.7 },
-  { sender: 'sarah', text: 'URGENT: We need to post a status update on Twitter. Users are complaining', time: 1.65 },
-  { sender: 'alex', text: 'Good call. Can you handle that while we debug?', time: 1.6 },
-  { sender: 'sarah', text: 'On it. Keep me posted every 5 minutes', time: 1.55 },
-  { sender: 'alex', text: 'Found it! Database connection pool was exhausted. Rolling back the deploy now', time: 1.3 },
-  { sender: 'sarah', text: 'How long until we\'re back up?', time: 1.25 },
-  { sender: 'alex', text: 'Should be live in 2 minutes. Then we need to monitor closely', time: 1.2 },
-  { sender: 'sarah', text: 'I\'ll draft the post-mortem doc. We need to prevent this from happening again', time: 1.15 },
-  { sender: 'alex', text: 'We\'re back! API is responding normally. Monitoring dashboards look good', time: 1 },
-  { sender: 'sarah', text: 'Phew. Nice work team. Let\'s do a debrief call at 4pm', time: 0.95 },
+  { sender: 'alex', text: 'URGENT: Security alert - potential data breach detected', time: 2 },
+  { sender: 'sarah', text: 'WHAT?! Are you serious? What happened?', time: 1.95 },
+  { sender: 'alex', text: 'CRITICAL - Unusual API access patterns. Multiple failed auth attempts from same IP', time: 1.9 },
+  { sender: 'sarah', text: 'How many accounts are at risk?', time: 1.85 },
+  { sender: 'alex', text: 'Potentially 200+ accounts. The attacker was trying brute force on admin endpoints', time: 1.8 },
+  { sender: 'sarah', text: 'Block that IP immediately! Get security team on a war room call NOW', time: 1.75 },
+  { sender: 'alex', text: 'IP blocked. Tom and Maria are already investigating. Checking access logs now', time: 1.7 },
+  { sender: 'sarah', text: 'URGENT: Do we need to notify affected users? Legal team needs to know', time: 1.65 },
+  { sender: 'alex', text: 'Let me confirm if any data was actually accessed first. Checking now', time: 1.6 },
+  { sender: 'sarah', text: 'Okay. I\'m calling our security consultant. Update me ASAP', time: 1.55 },
+  { sender: 'alex', text: 'Good news - no data was compromised! All attempts were blocked by rate limiting', time: 1.3 },
+  { sender: 'sarah', text: 'Thank god. But we need to strengthen our security immediately', time: 1.25 },
+  { sender: 'alex', text: 'Agreed. I\'m implementing 2FA for all admin accounts today', time: 1.2 },
+  { sender: 'sarah', text: 'Perfect. I\'ll write up the incident report for the board. We dodged a bullet', time: 1.15 },
+  { sender: 'alex', text: 'All security measures updated. Adding additional monitoring alerts too', time: 1 },
+  { sender: 'sarah', text: 'Excellent response time. Let\'s do a security review meeting tomorrow at 2pm', time: 0.95 },
 ];
 
-// Thread 3: Design Review Discussion (Tests: Semantic Search, Decisions)
+// Thread 3: UX Research Findings (Tests: Semantic Search, Decisions)
 const THREAD_3_MESSAGES = [
-  { sender: 'mike', text: 'Hey Sarah! Ready to review the new dashboard designs?', time: 24 },
-  { sender: 'sarah', text: 'Yes! I\'ve been excited to see these. Share your screen?', time: 23.9 },
-  { sender: 'mike', text: 'Just sent the Figma link. Check out the homepage first', time: 23.8 },
-  { sender: 'sarah', text: 'Wow, this is gorgeous! Love the color palette. Very modern', time: 23.7 },
-  { sender: 'mike', text: 'Thanks! I went with a blue/purple gradient theme. Thoughts on the navigation?', time: 23.6 },
-  { sender: 'sarah', text: 'The left sidebar is clean. But can we make the icons bigger? Accessibility concern', time: 23.5 },
-  { sender: 'mike', text: 'Good point. I\'ll bump them up to 24px. What about the data visualizations?', time: 23.4 },
-  { sender: 'sarah', text: 'The charts look amazing. Could we add a dark mode toggle though?', time: 23.3 },
-  { sender: 'mike', text: 'Absolutely. I actually have dark mode mockups ready. Want to see?', time: 23.2 },
-  { sender: 'sarah', text: 'Yes please! Our power users will love that', time: 23.1 },
-  { sender: 'mike', text: 'Check page 3 of the Figma. I think the dark theme really pops', time: 23 },
-  { sender: 'sarah', text: 'This is perfect. Let\'s go with this design. Can you export the assets for Alex?', time: 22.9 },
-  { sender: 'mike', text: 'Will do. I\'ll have them ready by tomorrow. Should I also update the mobile mockups?', time: 22.8 },
-  { sender: 'sarah', text: 'Yes, mobile is critical. Keep the same design language', time: 22.7 },
-  { sender: 'mike', text: 'Got it. One question - should the dashboard be the default landing page after login?', time: 22.6 },
-  { sender: 'sarah', text: 'Good question. Let\'s discuss with Alex, but I think yes. It\'s the most useful screen', time: 22.5 },
-  { sender: 'mike', text: 'Agreed. I\'ll finalize everything and send over the complete design system doc', time: 22.4 },
-  { sender: 'sarah', text: 'Perfect. This is going to make our product stand out. Great work Mike!', time: 22.3 },
+  { sender: 'mike', text: 'Sarah! Just finished analyzing the user research data. Have some interesting insights', time: 24 },
+  { sender: 'sarah', text: 'Perfect timing! I\'m all ears. What did you discover?', time: 23.9 },
+  { sender: 'mike', text: 'Sent you the report. The key finding: users want a simplified navigation menu', time: 23.8 },
+  { sender: 'sarah', text: 'Interesting! Our current menu does have too many options. What\'s the recommendation?', time: 23.7 },
+  { sender: 'mike', text: 'Consolidate from 8 menu items down to 5. Use a clean icon-based approach', time: 23.6 },
+  { sender: 'sarah', text: 'I like it. But we need to ensure accessibility - can we add text labels too?', time: 23.5 },
+  { sender: 'mike', text: 'Absolutely. I\'ll design it with icons + labels. Also, users want better search functionality', time: 23.4 },
+  { sender: 'sarah', text: 'Search is crucial. Can we add autocomplete and recent searches?', time: 23.3 },
+  { sender: 'mike', text: 'Yes! I\'ve already mocked that up. Also thinking we should add keyboard shortcuts', time: 23.2 },
+  { sender: 'sarah', text: 'Love it! Power users will appreciate that. What about mobile?', time: 23.1 },
+  { sender: 'mike', text: 'Mobile users want a bottom navigation bar instead of hamburger menu', time: 23 },
+  { sender: 'sarah', text: 'That makes sense. Let\'s implement that. Can you have mockups ready by Thursday?', time: 22.9 },
+  { sender: 'mike', text: 'Definitely. I\'ll prepare both light and dark theme versions', time: 22.8 },
+  { sender: 'sarah', text: 'Perfect. One more thing - should we keep the current color scheme or refresh it?', time: 22.7 },
+  { sender: 'mike', text: 'Users actually love our current colors. I\'d say keep them but maybe adjust contrast ratios', time: 22.6 },
+  { sender: 'sarah', text: 'Good call. Let\'s stick with our brand colors. They\'re working well', time: 22.5 },
+  { sender: 'mike', text: 'Agreed. I\'ll finalize the designs and share the full prototype by end of week', time: 22.4 },
+  { sender: 'sarah', text: 'Fantastic work on this research, Mike. This will really improve our UX!', time: 22.3 },
 ];
 
-// Thread 4: Meeting Scheduling (Tests: Proactive Scheduler)
+// Thread 4: Team Coordination (Tests: Proactive Scheduler)
 const THREAD_4_MESSAGES = [
-  { sender: 'alex', text: 'We need to schedule a sprint retrospective', time: 12 },
-  { sender: 'sarah', text: 'Agreed. When works for you?', time: 11.9 },
-  { sender: 'alex', text: 'I\'m free tomorrow afternoon, maybe around 3pm?', time: 11.8 },
-  { sender: 'sarah', text: 'Tomorrow at 3pm works! Let me check if Mike is available', time: 11.7 },
-  { sender: 'alex', text: 'Also need to schedule the investor demo. Thinking next Friday at 10am?', time: 11.6 },
-  { sender: 'sarah', text: 'Next Friday 10am is perfect. I\'ll send calendar invites', time: 11.5 },
-  { sender: 'alex', text: 'And we should do a team lunch this week. Thursday at noon?', time: 11.4 },
-  { sender: 'sarah', text: 'Thursday noon sounds great! I know a new sushi place near the office', time: 11.3 },
-  { sender: 'alex', text: 'Perfect. See you tomorrow at 3pm then!', time: 11.2 },
+  { sender: 'alex', text: 'Sarah, we should schedule our quarterly planning session soon', time: 12 },
+  { sender: 'sarah', text: 'Yes! When are you thinking?', time: 11.9 },
+  { sender: 'alex', text: 'How about next Monday morning? Maybe 10am?', time: 11.8 },
+  { sender: 'sarah', text: 'Monday 10am works for me! Can you check if Mike can join?', time: 11.7 },
+  { sender: 'alex', text: 'Will do. Also, we need to book time for the client presentation. Next Thursday at 2pm?', time: 11.6 },
+  { sender: 'sarah', text: 'Thursday 2pm is perfect. I\'ll create the meeting and share the deck', time: 11.5 },
+  { sender: 'alex', text: 'Great. And should we do a team celebration dinner this Friday? Everyone\'s been working hard', time: 11.4 },
+  { sender: 'sarah', text: 'Love that idea! Friday evening at 7pm? There\'s a great Italian place downtown', time: 11.3 },
+  { sender: 'alex', text: 'Perfect! I\'ll make a reservation. See you Monday at 10am!', time: 11.2 },
 ];
 
 async function seedData() {
   console.log('🌱 Starting data seed...\n');
   
   try {
-    // Create Thread 1: Product Launch Discussion
-    console.log('📝 Creating Thread 1: Product Launch Discussion...');
+    // Create Thread 1: Mobile App Redesign
+    console.log('📝 Creating Thread 1: Mobile App Redesign...');
     const thread1Ref = db.collection('threads').doc();
     await thread1Ref.set({
       type: 'direct',
@@ -121,7 +121,7 @@ async function seedData() {
       createdAt: createTimestamp(48),
       updatedAt: createTimestamp(42.5),
       lastMessage: {
-        text: 'Exactly. Okay, I need to prep for the board meeting. Talk later!',
+        text: 'Totally agree. Alright, I have a call with marketing. Catch you later!',
         senderId: USERS.sarah,
         timestamp: createTimestamp(42.5),
       },
@@ -143,8 +143,8 @@ async function seedData() {
     }
     console.log('✅ Thread 1 created with', THREAD_1_MESSAGES.length, 'messages\n');
     
-    // Create Thread 2: Urgent Production Issue
-    console.log('🚨 Creating Thread 2: Urgent Production Issue...');
+    // Create Thread 2: Critical Security Incident
+    console.log('🚨 Creating Thread 2: Critical Security Incident...');
     const thread2Ref = db.collection('threads').doc();
     await thread2Ref.set({
       type: 'direct',
@@ -152,7 +152,7 @@ async function seedData() {
       createdAt: createTimestamp(2),
       updatedAt: createTimestamp(0.95),
       lastMessage: {
-        text: 'Phew. Nice work team. Let\'s do a debrief call at 4pm',
+        text: 'Excellent response time. Let\'s do a security review meeting tomorrow at 2pm',
         senderId: USERS.sarah,
         timestamp: createTimestamp(0.95),
       },
@@ -175,8 +175,8 @@ async function seedData() {
     }
     console.log('✅ Thread 2 created with', THREAD_2_MESSAGES.length, 'messages (including urgent ones)\n');
     
-    // Create Thread 3: Design Review Discussion
-    console.log('🎨 Creating Thread 3: Design Review Discussion...');
+    // Create Thread 3: UX Research Findings
+    console.log('🎨 Creating Thread 3: UX Research Findings...');
     const thread3Ref = db.collection('threads').doc();
     await thread3Ref.set({
       type: 'direct',
@@ -184,7 +184,7 @@ async function seedData() {
       createdAt: createTimestamp(24),
       updatedAt: createTimestamp(22.3),
       lastMessage: {
-        text: 'Perfect. This is going to make our product stand out. Great work Mike!',
+        text: 'Fantastic work on this research, Mike. This will really improve our UX!',
         senderId: USERS.sarah,
         timestamp: createTimestamp(22.3),
       },
@@ -206,8 +206,8 @@ async function seedData() {
     }
     console.log('✅ Thread 3 created with', THREAD_3_MESSAGES.length, 'messages\n');
     
-    // Create Thread 4: Meeting Scheduling
-    console.log('📅 Creating Thread 4: Meeting Scheduling...');
+    // Create Thread 4: Team Coordination
+    console.log('📅 Creating Thread 4: Team Coordination...');
     const thread4Ref = db.collection('threads').doc();
     await thread4Ref.set({
       type: 'direct',
@@ -215,7 +215,7 @@ async function seedData() {
       createdAt: createTimestamp(12),
       updatedAt: createTimestamp(11.2),
       lastMessage: {
-        text: 'Perfect. See you tomorrow at 3pm then!',
+        text: 'Perfect! I\'ll make a reservation. See you Monday at 10am!',
         senderId: USERS.alex,
         timestamp: createTimestamp(11.2),
       },
@@ -239,11 +239,11 @@ async function seedData() {
     
     console.log('🎉 Data seed complete!\n');
     console.log('Summary:');
-    console.log('- Thread 1: Product Launch (20 messages) - Tests Summarize, Actions, Decisions');
-    console.log('- Thread 2: Urgent Issue (16 messages) - Tests Priority Detection');
-    console.log('- Thread 3: Design Review (18 messages) - Tests Semantic Search, Decisions');
-    console.log('- Thread 4: Scheduling (9 messages) - Tests Proactive Scheduler');
-    console.log('\n✨ Total: 4 threads, 63 realistic messages');
+    console.log('- Thread 1: Mobile App Redesign (20 messages) - Tests Summarize, Actions, Decisions');
+    console.log('- Thread 2: Security Incident (16 messages) - Tests Priority Detection');
+    console.log('- Thread 3: UX Research (18 messages) - Tests Semantic Search, Decisions');
+    console.log('- Thread 4: Team Coordination (9 messages) - Tests Proactive Scheduler');
+    console.log('\n✨ Total: 4 threads, 63 fresh realistic messages');
     
   } catch (error) {
     console.error('❌ Error seeding data:', error);
