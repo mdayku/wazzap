@@ -55,26 +55,36 @@ export const analyzeThreadContext = async (data: any, context: any) => {
 
     // Get recently dismissed suggestions (last 2 hours for non-schedule types)
     // Schedule suggestions are handled separately with calendar deduplication
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    const dismissedSuggestionsSnap = await db
-      .collection(`threads/${threadId}/suggestions`)
-      .where('status', '==', 'dismissed')
-      .where('createdAt', '>=', twoHoursAgo)
-      .get();
-
-    // Build a set of dismissed suggestion keys for deduplication
     const dismissedSuggestions = new Set<string>();
-    dismissedSuggestionsSnap.docs.forEach(doc => {
-      const data = doc.data();
-      // For non-schedule types, use title as unique identifier
-      // This allows new suggestions of same type with different content
-      if (data.type !== 'schedule') {
-        const key = `${data.type}:${data.title}`;
-        dismissedSuggestions.add(key);
-      }
-    });
+    
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const dismissedSuggestionsSnap = await db
+        .collection(`threads/${threadId}/suggestions`)
+        .where('status', '==', 'dismissed')
+        .where('createdAt', '>=', twoHoursAgo)
+        .get();
 
-    console.log(`Found ${dismissedSuggestions.size} recently dismissed suggestions (2h window)`);
+      // Build a set of dismissed suggestion keys for deduplication
+      dismissedSuggestionsSnap.docs.forEach(doc => {
+        const data = doc.data();
+        // For non-schedule types, use title as unique identifier
+        // This allows new suggestions of same type with different content
+        if (data.type !== 'schedule') {
+          const key = `${data.type}:${data.title}`;
+          dismissedSuggestions.add(key);
+        }
+      });
+
+      console.log(`Found ${dismissedSuggestions.size} recently dismissed suggestions (2h window)`);
+    } catch (indexError: any) {
+      // Index is still building - continue without dismissed suggestions check
+      if (indexError.code === 9) {
+        console.log('Index still building, skipping dismissed suggestions check');
+      } else {
+        throw indexError;
+      }
+    }
 
     // Fetch recent messages for context
     const messagesSnap = await db
@@ -98,7 +108,7 @@ export const analyzeThreadContext = async (data: any, context: any) => {
           text: text,
         };
       })
-      .filter(m => m && m.text); // Remove empty messages and load test messages
+      .filter((m): m is { sender: string; text: string } => m !== null && !!m.text); // Remove empty messages and load test messages
 
     if (messagesRaw.length === 0) {
       return { hasIntent: false };
